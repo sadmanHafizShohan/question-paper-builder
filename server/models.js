@@ -9,6 +9,7 @@ const questionSchema = new mongoose.Schema({
   equation: { type: String, default: '' },
   options: { type: [String], default: [] },
   statements: { type: [String], default: [] },
+  statementQuestion: { type: String, default: '' },
   optionEquations: { type: [String], default: [] },
   answer: { type: String, default: '' },
   answerEquation: { type: String, default: '' },
