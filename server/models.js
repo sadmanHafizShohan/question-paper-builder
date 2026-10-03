@@ -1,5 +1,16 @@
 import mongoose from 'mongoose'
 
+const isValidFigure = (value) => {
+  if (['', 'triangle', 'circle', 'rectangle'].includes(value)) return true
+  if (typeof value !== 'string' || value.length > 2048) return false
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol)
+  } catch {
+    return false
+  }
+}
+
 const questionSchema = new mongoose.Schema({
   subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'islam', 'ict'], required: true, default: 'math', index: true },
   grade: { type: Number, min: 5, max: 10, required: true, default: 7, index: true },
@@ -16,7 +27,14 @@ const questionSchema = new mongoose.Schema({
   answer: { type: String, default: '' },
   answerEquation: { type: String, default: '' },
   marks: { type: Number, min: 1, required: true },
-  figure: { type: String, enum: ['', 'triangle', 'circle', 'rectangle'], default: '' },
+  figure: {
+    type: String,
+    default: '',
+    validate: {
+      validator: isValidFigure,
+      message: 'Figure must be a built-in shape or an HTTP(S) image URL',
+    },
+  },
 }, { timestamps: true })
 questionSchema.index({ grade: 1, subject: 1, chapter: 1, type: 1 })
 
@@ -25,6 +43,7 @@ const paperSettingsSchema = new mongoose.Schema({
   grade: { type: Number, min: 5, max: 10, required: true },
   schoolName: { type: String, default: 'সৃজনশীল প্রাইভেট সেন্টার' },
   schoolSubtitle: { type: String, default: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭' },
+  paperSetCode: { type: String, default: 'SET-A', trim: true, maxlength: 32, match: /^[A-Za-z0-9_-]+$/ },
   questionTextColor: { type: String, default: '#26352d', match: /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i },
   showChapters: { type: Boolean, default: true },
   watermark: { type: mongoose.Schema.Types.Mixed, default: () => ({ enabled: false, type: 'text', text: 'সৃজনশীল প্রাইভেট সেন্টার', image: '', color: '#76877d', size: 30, opacity: 0.14, position: 'center' }) },

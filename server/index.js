@@ -77,10 +77,10 @@ app.get('/api/settings/:subject/:grade', async (request, response, next) => {
 
 app.put('/api/settings/:subject/:grade', async (request, response, next) => {
   try {
-    const { schoolName, schoolSubtitle, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } = request.body
+    const { schoolName, schoolSubtitle, paperSetCode, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } = request.body
     const settings = await PaperSettings.findOneAndUpdate(
       { subject: request.params.subject, grade: Number(request.params.grade) },
-      { $set: { schoolName, schoolSubtitle, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } },
+      { $set: { schoolName, schoolSubtitle, paperSetCode, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
     )
     response.json(settings)
