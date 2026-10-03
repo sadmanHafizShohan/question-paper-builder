@@ -6,7 +6,7 @@
 
 শ্রেণি: ৫–১০। বিষয়: গণিত, বাংলা ১ম/২য় পত্র, English 1st/2nd Paper, Global Studies, ইসলাম ও নৈতিক শিক্ষা, এবং তথ্য ও যোগাযোগ প্রযুক্তি। প্রতিটি প্রশ্নে grade, subject, chapter ও type আলাদা metadata হিসেবে MongoDB-তে থাকে; তাই class-wise folder দরকার নেই।
 
-প্রশ্ন যোগ করার সময় শ্রেণি, বিষয় ও প্রশ্নের ধরন select করুন। অধ্যায়ে ওই grade/subject-এর আগের chapter suggestion থেকে বাছুন অথবা প্রথমবারের জন্য নাম লিখুন। নির্দিষ্ট chapter catalog এখনো prefilled নয়, কারণ class ও subject অনুযায়ী syllabus-এর chapter আলাদা।
+প্রশ্ন যোগ করার সময় শ্রেণি, বিষয় ও প্রশ্নের ধরন select করুন। MCQ-তে সাধারণ ধরন অথবা i, ii, iii বিবৃতিসহ বিবৃতিভিত্তিক ধরন বেছে নিয়ে বিবৃতি ও চারটি উত্তর বিকল্প আলাদা করে লিখুন। এই ধরন যেকোনো বিষয়ের জন্য ব্যবহার করা যায়। অধ্যায়ে ওই grade/subject-এর আগের chapter suggestion থেকে বাছুন অথবা প্রথমবারের জন্য নাম লিখুন। নির্দিষ্ট chapter catalog এখনো prefilled নয়, কারণ class ও subject অনুযায়ী syllabus-এর chapter আলাদা।
 
 ## চালু করা
 
@@ -35,8 +35,10 @@ VITE_API_URL=http://localhost:4000/api
 
 ## MongoDB-তে কী জমা হয়
 
-- `questions` collection: `subject`, `grade`, `chapter`, `type`, প্রশ্ন, MCQ options, উত্তর, marks এবং ঐচ্ছিক `figure` (`triangle`, `circle`, `rectangle`)।
-- `papersettings` collection: বিদ্যালয়ের নাম, subtitle, প্রশ্নের HEX color এবং পরীক্ষার শিরোনাম/সময়।
+- `questions` collection: `subject`, `grade`, `chapter`, `type`, প্রশ্ন, MCQ options ও ঐচ্ছিক বিবৃতি, উত্তর, marks এবং ঐচ্ছিক `figure` (`triangle`, `circle`, `rectangle`)।
+- `papersettings` collection: বিদ্যালয়ের নাম, subtitle, প্রশ্নের HEX color, পরীক্ষার শিরোনাম/সময় এবং watermark সেটিংস। watermark-এ লেখা বা ৫১২ KB পর্যন্ত ছবি, রং/tint, আকার, স্বচ্ছতা ও অবস্থান বেছে নেওয়া যায়।
+
+প্রশ্নপত্রের প্রিভিউতে লাইভ এডিট চালু রেখে কাগজের অংশ টেনে সরান বা handle দিয়ে আকার বদলান। একই প্রিভিউর অপশন তালিকা থেকে MCQ label-এর বিন্যাস বদলানো যায়; পছন্দটি নির্বাচিত শ্রেণি ও বিষয়ের জন্য ব্রাউজারে সংরক্ষিত থাকে। এই বিন্যাস ও watermark-ও PDF/প্রিন্টে অন্তর্ভুক্ত হয়।
 
 Mongo mode-এ app চালু হলে নির্বাচিত class ও subject-এর প্রশ্ন আনে। প্রশ্ন তৈরি, edit ও delete সরাসরি API-তে যায়। Geometry demo প্রশ্নগুলো সপ্তম শ্রেণির গণিতে `npm run seed:demo` দিয়ে যোগ করা যায়।
 

@@ -32,8 +32,8 @@ app.get('/api/questions', async (request, response, next) => {
 
 app.post('/api/questions', async (request, response, next) => {
   try {
-    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', options = [], optionEquations = [], answer = '', answerEquation = '', marks, figure = '' } = request.body
-    const question = await Question.create({ subject, grade, type, chapter, prompt, equation, options, optionEquations, answer, answerEquation, marks, figure })
+    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', options = [], statements = [], optionEquations = [], answer = '', answerEquation = '', marks, figure = '' } = request.body
+    const question = await Question.create({ subject, grade, type, chapter, prompt, equation, options, statements, optionEquations, answer, answerEquation, marks, figure })
     response.status(201).json(question)
   } catch (error) {
     next(error)
@@ -42,10 +42,10 @@ app.post('/api/questions', async (request, response, next) => {
 
 app.put('/api/questions/:id', async (request, response, next) => {
   try {
-    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', options = [], optionEquations = [], answer = '', answerEquation = '', marks, figure = '' } = request.body
+    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', options = [], statements = [], optionEquations = [], answer = '', answerEquation = '', marks, figure = '' } = request.body
     const question = await Question.findByIdAndUpdate(
       request.params.id,
-      { $set: { subject, grade, type, chapter, prompt, equation, options, optionEquations, answer, answerEquation, marks, figure } },
+      { $set: { subject, grade, type, chapter, prompt, equation, options, statements, optionEquations, answer, answerEquation, marks, figure } },
       { new: true, runValidators: true },
     )
     if (!question) return response.status(404).json({ error: 'Question not found' })
@@ -77,10 +77,10 @@ app.get('/api/settings/:subject/:grade', async (request, response, next) => {
 
 app.put('/api/settings/:subject/:grade', async (request, response, next) => {
   try {
-    const { schoolName, schoolSubtitle, questionTextColor, paperTitle, paperDuration, paperClass } = request.body
+    const { schoolName, schoolSubtitle, questionTextColor, paperTitle, paperDuration, paperClass, watermark } = request.body
     const settings = await PaperSettings.findOneAndUpdate(
       { subject: request.params.subject, grade: Number(request.params.grade) },
-      { $set: { schoolName, schoolSubtitle, questionTextColor, paperTitle, paperDuration, paperClass } },
+      { $set: { schoolName, schoolSubtitle, questionTextColor, paperTitle, paperDuration, paperClass, watermark } },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
     )
     response.json(settings)
