@@ -24,6 +24,7 @@ const paperSettingsSchema = new mongoose.Schema({
   schoolName: { type: String, default: 'সৃজনশীল প্রাইভেট সেন্টার' },
   schoolSubtitle: { type: String, default: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭' },
   questionTextColor: { type: String, default: '#26352d', match: /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i },
+  showChapters: { type: Boolean, default: true },
   watermark: { type: mongoose.Schema.Types.Mixed, default: () => ({ enabled: false, type: 'text', text: 'সৃজনশীল প্রাইভেট সেন্টার', image: '', color: '#76877d', size: 30, opacity: 0.14, position: 'center' }) },
   paperTitle: { type: String, default: 'সাপ্তাহিক পরিক্ষা' },
   paperDuration: { type: String, default: '২ ঘণ্টা' },

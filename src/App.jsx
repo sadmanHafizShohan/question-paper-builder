@@ -127,6 +127,7 @@ const defaultPaperSettings = {
   schoolName: 'সৃজনশীল প্রাইভেট সেন্টার',
   schoolSubtitle: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭',
   questionTextColor: '#26352d',
+  showChapters: true,
   watermark: {
     enabled: false,
     type: 'text',
@@ -167,6 +168,7 @@ function App() {
   const [schoolName, setSchoolName] = useState(() => getLocalPaperSettings(7, 'math').schoolName)
   const [schoolSubtitle, setSchoolSubtitle] = useState(() => getLocalPaperSettings(7, 'math').schoolSubtitle)
   const [questionTextColor, setQuestionTextColor] = useState(() => getLocalPaperSettings(7, 'math').questionTextColor)
+  const [showChapters, setShowChapters] = useState(() => getLocalPaperSettings(7, 'math').showChapters ?? true)
   const [watermark, setWatermark] = useState(() => ({ ...defaultPaperSettings.watermark, ...getLocalPaperSettings(7, 'math').watermark }))
   const [dataMode, setDataMode] = useState('connecting')
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
@@ -176,6 +178,7 @@ function App() {
     setSchoolName(settings.schoolName ?? defaultPaperSettings.schoolName)
     setSchoolSubtitle(settings.schoolSubtitle ?? defaultPaperSettings.schoolSubtitle)
     setQuestionTextColor(settings.questionTextColor ?? defaultPaperSettings.questionTextColor)
+    setShowChapters(settings.showChapters ?? true)
     setPaperTitle(settings.paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
     setPaperDuration(settings.paperDuration ?? '২ ঘণ্টা')
     setPaperClass(settings.paperClass ?? gradeLabel(grade))
@@ -351,7 +354,7 @@ function App() {
       setNotice('ওয়াটারমার্কের জন্য সঠিক HEX রঙের কোড দিন')
       return
     }
-    const settings = { schoolName, schoolSubtitle, questionTextColor, paperTitle, paperDuration, paperClass, watermark }
+    const settings = { schoolName, schoolSubtitle, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark }
     localStorage.setItem(`paper-settings-${grade}-${subject}`, JSON.stringify(settings))
     if (dataMode === 'mongo') {
       try {
@@ -484,6 +487,7 @@ function App() {
                   <label className="field-label">প্রশ্নপত্রের নাম<input value={paperTitle} onChange={(event) => setPaperTitle(event.target.value)} /></label>
                   <label className="field-label">শ্রেণি<select value={paperClass} onChange={(event) => setPaperClass(event.target.value)}><option>ষষ্ঠ</option><option>সপ্তম</option><option>অষ্টম</option><option>নবম</option></select></label>
                   <label className="field-label">পরীক্ষার সময়<input value={paperDuration} onChange={(event) => setPaperDuration(event.target.value)} /></label>
+                  <label className="paper-setting-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => setShowChapters(event.target.checked)} /><span>প্রশ্নপত্রে অধ্যায়ের নাম দেখান</span></label>
                   <label className="field-label">প্রশ্নের লেখার রং<div className="color-field-row"><input aria-label="রং বাছাই" type="color" value={/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d'} onChange={(event) => setQuestionTextColor(event.target.value)} /><input aria-label="HEX রঙের কোড" value={questionTextColor} onChange={(event) => setQuestionTextColor(event.target.value)} placeholder="#26352D" /></div></label>
                   <div className="watermark-settings">
                     <label className="watermark-toggle"><input type="checkbox" checked={watermark.enabled} onChange={(event) => updateWatermark({ enabled: event.target.checked })} /><span>ওয়াটারমার্ক যোগ করুন</span></label>
@@ -516,7 +520,7 @@ function App() {
         <div className="selection-bar"><div><span className="selection-check"><Check size={14} /></span><strong>{bengaliNumber(selected.length)}টি প্রশ্ন নির্বাচিত</strong><button onClick={() => setSelected([])}>বাছাই বাতিল</button></div><button className="primary-button" onClick={() => setPage('builder')}>প্রশ্নপত্রে যোগ করুন <ChevronRight size={16} /></button></div>
       )}
       {showEditor && <QuestionModal key={editorResetKey} question={editingQuestion} grade={grade} subject={subject} chapters={availableChapters} loading={isLoadingQuestions} onContextChange={changeContext} onClose={() => { setShowEditor(false); setEditingQuestion(null) }} onSave={saveQuestion} />}
-      {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} questionTextColor={questionTextColor} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}
+      {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} questionTextColor={questionTextColor} showChapters={showChapters} onShowChaptersChange={setShowChapters} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}
       {notice && <div className="toast"><Check size={16} />{notice}</div>}
     </div>
   )
@@ -653,8 +657,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
   )
 }
 
-function PaperPreview({ questions, title, duration, paperClass, subjectId, subject, totalMarks, schoolName, schoolSubtitle, questionTextColor, watermark, customizationKey, onClose }) {
-  const paperRef = useRef(null)
+function PaperPreview({ questions, title, duration, paperClass, subjectId, subject, totalMarks, schoolName, schoolSubtitle, questionTextColor, showChapters, onShowChaptersChange, watermark, customizationKey, onClose }) {
   const selectedElementRef = useRef(null)
   const dragRef = useRef(null)
   const [selectedElement, setSelectedElement] = useState('')
@@ -857,27 +860,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
     bullet: label,
   })[optionStyle] ?? `${label})`
 
-  useEffect(() => {
-    function fitPaperToPage() {
-      const paper = paperRef.current
-      if (!paper) return
-      const printableWidth = (210 - 14) * 96 / 25.4
-      const printableHeight = (297 - 14) * 96 / 25.4
-      const scale = Math.min(1, printableWidth / paper.scrollWidth, printableHeight / paper.scrollHeight)
-      paper.style.setProperty('--paper-print-scale', String(scale))
-    }
-
-    function resetPaperScale() {
-      paperRef.current?.style.removeProperty('--paper-print-scale')
-    }
-
-    window.addEventListener('beforeprint', fitPaperToPage)
-    window.addEventListener('afterprint', resetPaperScale)
-    return () => {
-      window.removeEventListener('beforeprint', fitPaperToPage)
-      window.removeEventListener('afterprint', resetPaperScale)
-    }
-  }, [])
+  const paperChapters = [...new Set(questions.map((question) => question.chapter).filter(Boolean))]
 
   return (
     <div className="modal-backdrop preview-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
@@ -886,6 +869,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         <div className="preview-editbar">
           <span title={selectedElementLabel}>{selectedElementLabel}</span>
           <button type="button" className={`quiet-button preview-edit-toggle ${editingEnabled ? 'is-enabled' : ''}`} aria-pressed={editingEnabled} onClick={() => { setEditingEnabled((current) => !current); setSelectedElement('') }}><Pencil size={14} /> লাইভ এডিট {editingEnabled ? 'চালু' : 'বন্ধ'}</button>
+          <label className="preview-chapter-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => onShowChaptersChange(event.target.checked)} /> অধ্যায় দেখান</label>
           <label className="preview-option-style">অপশন<select aria-label="MCQ অপশন নম্বরের ধরন" value={optionStyle} onChange={(event) => setOptionStyle(event.target.value)}>{optionStyles.map((style) => <option value={style.id} key={style.id}>{style.label}</option>)}</select></label>
           <label>আকার<input type="range" min="0.6" max="2" step="0.1" value={selectedElementLayout.scale ?? 1} disabled={!selectedElement || !editingEnabled} onChange={(event) => updateElement(selectedElement, { scale: Number(event.target.value) })} /><output className="preview-font-size" aria-live="polite">{selectedFontSize === null ? '—' : `${Math.round(selectedFontSize)} px`}</output></label>
           <button type="button" className="quiet-button preview-delete" disabled={!selectedElement || !editingEnabled} onClick={() => {
@@ -894,12 +878,12 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
           }}><Trash2 size={14} /> মুছুন</button>
           <button type="button" className="quiet-button" disabled={!editingEnabled} onClick={() => { setCustomLayout({}); setSelectedElement('') }}><RotateCcw size={14} /> রিসেট</button>
         </div>
-        <article ref={paperRef} className="paper-preview">
+        <article className="paper-preview">
           {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${watermark.size}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}
           {renderEditable('school-name', <div className="paper-school">{schoolName || 'বিদ্যালয়ের নাম'}</div>, 'paper-school-item')}
           {renderEditable('school-subtitle', <div className="paper-school-subtitle">{schoolSubtitle}</div>, 'paper-subtitle-item')}
           {renderEditable('paper-title', <h2 className="paper-title">{title || 'প্রশ্নপত্র'}</h2>, 'paper-title-item')}
-          {renderEditable('paper-meta', <div className="paper-meta"><span>শ্রেণি: {paperClass}</span><span>বিষয়: {subject}</span><span>সময়: {duration}</span><span>পূর্ণমান: {bengaliNumber(totalMarks)}</span></div>, 'paper-meta-item')}
+          {renderEditable('paper-meta', <div className="paper-meta"><span>শ্রেণি: {paperClass}</span><span>বিষয়: {subject}</span><span>সময়: {duration}</span><span>পূর্ণমান: {bengaliNumber(totalMarks)}</span>{showChapters && paperChapters.length > 0 && <span className="paper-meta-chapters">অধ্যায়: {paperChapters.join(' · ')}</span>}</div>, 'paper-meta-item')}
           {renderEditable('paper-rule', <div className="paper-rule" />, 'paper-rule-item')}
           {questionTypes.map((type) => {
             const group = questions.filter((question) => question.type === type.id)
