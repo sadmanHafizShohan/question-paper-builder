@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Question Ghor MCQ Bulk Importer
 // @namespace    question-ghor
-// @version      1.1.0
-// @description  Import numbered Bengali MCQs into Question Ghor
+// @version      1.4.0
+// @description  Import numbered and statement-based Bengali MCQs into Question Ghor
 // @match        http://localhost/*
 // @match        http://127.0.0.1/*
 // @run-at       document-idle
@@ -25,32 +25,94 @@
     return { text, equations }
   }
 
+  function cleanQuestionBlock(value) {
+    return value
+      .replace(/\*\*/g, '')
+      .replace(/^[\s{}*]+|[\s{}*]+$/g, '')
+      .replace(/^(?:[০-৯0-9]+[.)।]\s*)/, '')
+      .replace(/\s*\[\s*[০-৯0-9]+\s*\]\s*/g, ' ')
+      .trim()
+  }
+
+  function parseStatements(value) {
+    const markers = []
+    const markerPattern = /(?:^|\s)(i{1,3})\s*[.)।]\s*/gi
+    let markerMatch
+
+    while ((markerMatch = markerPattern.exec(value))) {
+      const markerStart = markerMatch.index + (/\s/.test(markerMatch[0][0]) ? 1 : 0)
+      markers.push({
+        label: markerMatch[1].toLowerCase(),
+        markerStart,
+        contentStart: markerPattern.lastIndex,
+      })
+    }
+
+    if (markers.length === 0) return null
+    if (markers.length !== 3 || markers.some((marker, index) => marker.label !== ['i', 'ii', 'iii'][index])) {
+      return { error: 'বিবৃতিভিত্তিক MCQ-তে i., ii., iii. এই ক্রমে তিনটি বিবৃতি দিন।' }
+    }
+
+    const prompt = value.slice(0, markers[0].markerStart).trim()
+    const statements = markers.map((marker, index) => {
+      const end = markers[index + 1]?.markerStart ?? value.length
+      return value.slice(marker.contentStart, end).trim()
+    })
+    const instructionMatch = statements[2].match(/\s+(নিচের\s+কোনটি[\s\S]*)$/)
+    const statementQuestion = instructionMatch?.[1].trim() ?? ''
+    if (instructionMatch) {
+      statements[2] = statements[2].slice(0, instructionMatch.index).trim()
+    }
+
+    if (!prompt || statements.some((statement) => !statement)) {
+      return { error: 'মূল প্রশ্ন এবং i., ii., iii. তিনটি বিবৃতিই লিখুন।' }
+    }
+
+    return { prompt, statements, statementQuestion }
+  }
+
+  function findOptions(block) {
+    const optionPattern = /(?:^|\s)(ক|খ|গ|ঘ)\s*[.)।]\s*/g
+    const markers = []
+    let optionMatch
+
+    while ((optionMatch = optionPattern.exec(block))) {
+      const markerStart = optionMatch.index + (/\s/.test(optionMatch[0][0]) ? 1 : 0)
+      markers.push({
+        label: optionMatch[1],
+        markerStart,
+        contentStart: optionPattern.lastIndex,
+      })
+    }
+
+    for (let start = markers.length - 4; start >= 0; start -= 1) {
+      if (markers.slice(start, start + 4).every((marker, index) => marker.label === ['ক', 'খ', 'গ', 'ঘ'][index])) {
+        return markers.slice(start, start + 4)
+      }
+    }
+
+    return []
+  }
+
   function parseQuestions(text) {
     const questions = []
     const errors = []
-    const answerPattern = /সঠিক\s*উত্তর\s*[:ঃ]\s*([কখগঘ])/g
+    const answerPattern = /সঠিক\s*উত্তর\s*(?::|ঃ)\s*(ক|খ|গ|ঘ)/g
     let cursor = 0
     let answerMatch
 
     while ((answerMatch = answerPattern.exec(text))) {
       const questionNumber = questions.length + errors.length + 1
-      const block = text.slice(cursor, answerMatch.index)
-        .replace(/^[\s{}]+|[\s{}]+$/g, '')
-        .replace(/^(?:[০-৯0-9]+[.)।]\s*)/, '')
-      const optionPattern = /(?:^|\s)([কখগঘ])\s*[.)।]\s*/g
-      const options = []
-      let optionMatch
-
-      while ((optionMatch = optionPattern.exec(block))) {
-        const markerStart = optionMatch.index + (optionMatch[0].startsWith(' ') || optionMatch[0].startsWith('\n') ? 1 : 0)
-        options.push({ label: optionMatch[1], markerStart, contentStart: optionPattern.lastIndex })
-      }
+      const block = cleanQuestionBlock(text.slice(cursor, answerMatch.index))
+      const options = findOptions(block)
 
       const errorPrefix = `প্রশ্ন ${questionNumber}: `
-      if (options.length !== 4 || options.some((option, optionIndex) => option.label !== ['ক', 'খ', 'গ', 'ঘ'][optionIndex])) {
+      if (options.length !== 4) {
         errors.push(`${errorPrefix}ক., খ., গ., ঘ. এই ক্রমে চারটি অপশন দিন।`)
       } else {
-        const promptText = block.slice(0, options[0].markerStart).trim()
+        const fullPromptText = block.slice(0, options[0].markerStart).trim()
+        const statementData = parseStatements(fullPromptText)
+        const promptText = statementData?.prompt ?? fullPromptText
         const parsedOptions = options.map((option, optionIndex) => {
           const optionEnd = options[optionIndex + 1]?.markerStart ?? block.length
           return block.slice(option.contentStart, optionEnd).trim()
@@ -58,20 +120,24 @@
         const parsedPrompt = extractInlineMath(promptText)
         const parsedOptionMath = parsedOptions.map(extractInlineMath)
 
-        if (!promptText || parsedOptions.some((option) => !option)) {
+        if (statementData?.error) {
+          errors.push(`${errorPrefix}${statementData.error}`)
+        } else if (!promptText || parsedOptions.some((option) => !option)) {
           errors.push(`${errorPrefix}প্রশ্ন এবং চারটি অপশন ফাঁকা রাখা যাবে না।`)
-        } else if (parsedPrompt.equations.length > 1 || parsedOptionMath.some((option) => option.equations.length > 1)) {
-          errors.push(`${errorPrefix}প্রশ্ন বা একটি অপশনে সর্বোচ্চ একটি $...$ সূত্র দিন।`)
         } else {
           const answerIndex = ['ক', 'খ', 'গ', 'ঘ'].indexOf(answerMatch[1])
           const correctOption = parsedOptionMath[answerIndex]
           questions.push({
             prompt: parsedPrompt.text,
-            equation: parsedPrompt.equations[0] ?? '',
+            equation: '',
+            inlineEquations: parsedPrompt.equations,
             options: parsedOptionMath.map((option) => option.text),
             optionEquations: parsedOptionMath.map((option) => option.equations[0] ?? ''),
+            optionInlineEquations: parsedOptionMath.map((option) => option.equations),
+            statements: statementData?.statements ?? [],
+            statementQuestion: statementData?.statementQuestion ?? '',
             answer: correctOption.text.split(equationMarker).join('').replace(/\s+/g, ' ').trim()
-              || correctOption.equations[0]
+              || correctOption.equations.join(' ')
               || `option:${answerIndex}`,
           })
         }
@@ -82,7 +148,7 @@
 
     if (questions.length + errors.length === 0) {
       errors.push('কোনো “সঠিক উত্তরঃ ক” পাওয়া যায়নি।')
-    } else if (text.slice(cursor).replace(/[\s{}]/g, '')) {
+    } else if (text.slice(cursor).replace(/[\s{}*]/g, '')) {
       errors.push('শেষ প্রশ্নের পরে উত্তর ছাড়া অতিরিক্ত লেখা আছে।')
     }
 
@@ -122,7 +188,7 @@
         <p>বর্তমান শ্রেণি ও বিষয়ের প্রশ্ন ব্যাংকে যোগ হবে।</p>
         <label>অধ্যায়<input id="qg-import-chapter" required placeholder="যেমন: ভগ্নাংশ" /></label>
         <label>প্রতি প্রশ্নের নম্বর<input id="qg-import-marks" type="number" min="1" max="100" value="1" /></label>
-        <label>প্রশ্ন, অপশন ও সঠিক উত্তর<textarea id="qg-import-text" placeholder="১. প্রশ্ন লিখুন ক. প্রথম অপশন খ. দ্বিতীয় অপশন গ. তৃতীয় অপশন ঘ. চতুর্থ অপশন সঠিক উত্তরঃ ক"></textarea></label>
+        <label>প্রশ্ন, অপশন ও সঠিক উত্তর<textarea id="qg-import-text" placeholder="১২. প্রশ্ন লিখুন [2] ক. প্রথম অপশন খ. দ্বিতীয় অপশন গ. তৃতীয় অপশন ঘ. চতুর্থ অপশন **সঠিক উত্তরঃ ক**&#10;৩. মূল প্রশ্ন [2] i. প্রথম বিবৃতি ii. দ্বিতীয় বিবৃতি iii. তৃতীয় বিবৃতি নিচের কোনটি সঠিক? ক. i খ. ii গ. ii ও iii ঘ. i, ii ও iii **সঠিক উত্তরঃ ঘ**"></textarea></label>
         <div id="qg-import-actions"><button id="qg-import-start" type="button">প্রশ্ন যোগ করুন</button><button id="qg-import-close" type="button">বন্ধ</button></div>
         <p id="qg-import-status" role="status"></p>
       </section>
@@ -206,7 +272,7 @@
         }
 
         if (useApi) {
-          for (const [index, payload] of payloads.entries()) {
+          for (const [index, payload] of payloads.slice().reverse().entries()) {
             setStatus(`সংরক্ষণ হচ্ছে: ${index + 1} / ${payloads.length}`)
             const response = await fetch(`${apiBase}/questions`, {
               method: 'POST',
@@ -221,11 +287,9 @@
             ?? (grade === 7 && subject === 'math' ? localStorage.getItem(legacyStorageKey) : null)
           const storedQuestions = previous ? JSON.parse(previous) : []
           if (!Array.isArray(storedQuestions)) throw new Error('লোকাল প্রশ্নের তথ্য সঠিক ফরম্যাটে নেই।')
-          for (const [index, payload] of payloads.entries()) {
-            setStatus(`সংরক্ষণ হচ্ছে: ${index + 1} / ${payloads.length}`)
-            storedQuestions.unshift(payload)
-            localStorage.setItem(storageKey, JSON.stringify(storedQuestions))
-          }
+          setStatus(`সংরক্ষণ হচ্ছে: ${payloads.length} / ${payloads.length}`)
+          storedQuestions.unshift(...payloads)
+          localStorage.setItem(storageKey, JSON.stringify(storedQuestions))
         }
 
         setStatus(`${payloads.length}টি প্রশ্ন যোগ হয়েছে। তালিকা আপডেট হচ্ছে…`)

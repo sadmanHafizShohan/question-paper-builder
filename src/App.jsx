@@ -267,7 +267,7 @@ function App() {
   const filteredQuestions = useMemo(() => questions.filter((question) => {
     const matchesType = activeType === 'all' || question.type === activeType
     const matchesChapter = activeChapter === 'সব অধ্যায়' || question.chapter === activeChapter
-    const matchesSearch = `${promptText(question.prompt)} ${question.equation ?? ''} ${question.chapter} ${question.statements?.join(' ') ?? ''} ${question.statementQuestion ?? ''} ${question.options?.join(' ') ?? ''}`.toLowerCase().includes(search.toLowerCase())
+    const matchesSearch = `${promptText(question.prompt)} ${question.equation ?? ''} ${question.inlineEquations?.join(' ') ?? ''} ${question.chapter} ${question.statements?.join(' ') ?? ''} ${question.statementQuestion ?? ''} ${question.options?.join(' ') ?? ''}`.toLowerCase().includes(search.toLowerCase())
     return matchesType && matchesChapter && matchesSearch
   }), [questions, activeType, activeChapter, search])
   const availableChapters = useMemo(() => [...new Set(questions.map((question) => question.chapter).filter(Boolean))].sort(), [questions])
@@ -452,7 +452,7 @@ function App() {
                     <tbody>{filteredQuestions.map((question, index) => (
                       <tr key={question.id} className={selected.includes(question.id) ? 'row-selected' : ''}>
                         <td className="check-column"><input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} aria-label="প্রশ্ন নির্বাচন" /></td>
-                        <td><div className="question-cell"><span className="row-number">{bengaliNumber(index + 1).padStart(2, '০')}</span><span className="question-copy"><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} /></strong>{question.type === 'mcq' && <small>{question.statements?.length ? `${question.statements.map((statement, statementIndex) => `${statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}. ${statement}`).join(' · ')} ${question.statementQuestion ?? ''} ${question.options.join(' · ')}` : question.options.join(' · ')}</small>}</span></div></td>
+                        <td><div className="question-cell"><span className="row-number">{bengaliNumber(index + 1).padStart(2, '০')}</span><span className="question-copy"><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong>{question.type === 'mcq' && <small>{question.statements?.length ? `${question.statements.map((statement, statementIndex) => `${statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}. ${statement}`).join(' · ')} ${question.statementQuestion ?? ''} ${question.options.join(' · ')}` : question.options.join(' · ')}</small>}</span></div></td>
                         <td><span className="chapter-pill">{question.chapter}</span></td>
                         <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span></td>
                         <td className="marks-cell">{bengaliNumber(question.marks)}</td>
@@ -475,7 +475,7 @@ function App() {
                   <div className="builder-question-list">{filteredQuestions.map((question) => (
                     <label className={`builder-question ${selected.includes(question.id) ? 'checked' : ''}`} key={question.id}>
                       <input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} /><span className="custom-check"><Check size={13} /></span>
-                      <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} /></strong></span>
+                      <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
                       <span className="builder-mark">{bengaliNumber(question.marks)} নম্বর</span>
                     </label>
                   ))}{filteredQuestions.length === 0 && <div className="empty-state"><strong>মিল পাওয়া যায়নি</strong></div>}</div>
@@ -576,6 +576,13 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
 
   function submit(event) {
     event.preventDefault()
+    const promptMarkerCount = prompt.split(equationMarker).length - 1
+    const inlineEquations = question?.inlineEquations?.length === promptMarkerCount ? question.inlineEquations : []
+    const optionInlineEquations = Array.from({ length: 4 }, (_, index) => {
+      const savedEquations = question?.optionInlineEquations?.[index] ?? []
+      const markerCount = (options[index] ?? '').split(equationMarker).length - 1
+      return savedEquations.length === markerCount ? savedEquations : []
+    })
     if (type === 'mcq' && mcqFormat === 'standard' && options.some((option, index) => !option.trim() && !optionEquations[index].trim())) {
       setFormError('চারটি option-ই লিখুন। সাধারণ লেখা অথবা গাণিতিক রাশি দিতে পারেন।')
       return
@@ -588,11 +595,11 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
       setFormError('বিবৃতির পরে নির্দেশনা লিখুন।')
       return
     }
-    if (subject === 'math' && type === 'mcq' && mcqFormat === 'standard' && options.some((option, index) => option.includes(equationMarker) && !optionEquations[index].trim())) {
+    if (subject === 'math' && type === 'mcq' && mcqFormat === 'standard' && options.some((option, index) => option.includes(equationMarker) && !optionEquations[index].trim() && optionInlineEquations[index].length === 0)) {
       setFormError('বিকল্পে সূত্র বসানোর আগে সেই option-এর গাণিতিক রাশিটি লিখুন।')
       return
     }
-    if (subject === 'math' && prompt.includes(equationMarker) && !equation.trim()) {
+    if (subject === 'math' && prompt.includes(equationMarker) && !equation.trim() && inlineEquations.length !== promptMarkerCount) {
       setFormError('প্রশ্নে সূত্র বসানোর আগে গাণিতিক রাশিটি লিখুন।')
       return
     }
@@ -608,8 +615,10 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
       statements: type === 'mcq' && mcqFormat === 'statements' ? statements.map((statement) => statement.trim()).filter(Boolean) : [],
       statementQuestion: type === 'mcq' && mcqFormat === 'statements' ? statementQuestion.trim() : '',
       optionEquations: type === 'mcq' && mcqFormat === 'standard' && subject === 'math' ? optionEquations : [],
+      optionInlineEquations: type === 'mcq' && mcqFormat === 'standard' && subject === 'math' ? optionInlineEquations : [],
       answer: answer.trim(),
       equation: subject === 'math' ? equation : '',
+      inlineEquations: subject === 'math' ? inlineEquations : [],
       answerEquation: subject === 'math' ? answerEquation : '',
       marks: Number(marks) || 1,
       figure,
@@ -895,14 +904,14 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                   <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
                     <div>
                       <span>{bengaliNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
-                      <QuestionPrompt prompt={question.prompt} equation={question.equation} />{' '}
+                      <QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} />{' '}
                       <small>({bengaliNumber(question.marks)} নম্বর)</small>
                     </div>
                     <QuestionFigure figure={question.figure} />
                     {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}.</span>{statement}</div>)}</div>{question.statementQuestion && <div className="paper-statement-question">{question.statementQuestion}</div>}</div>}
                     {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{question.options.map((option, optionIndex) => {
                       const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
-                      return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} />)}</div>
+                      return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
                     })}</div>}
                     {question.type === 'cq' && <p className="paper-answer-parts">{question.answer}</p>}
                     {question.answerEquation && <MathFormula display value={question.answerEquation} />}
@@ -917,15 +926,16 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   )
 }
 
-function QuestionPrompt({ prompt, equation }) {
+function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
   const text = prompt ?? ''
   const hasEquationMarker = text.includes(equationMarker)
+  const equations = inlineEquations.length ? inlineEquations : equation ? [equation] : []
 
   if (!hasEquationMarker) {
     return (
       <Fragment>
         {text}
-        {equation && <MathFormula display value={equation} />}
+        {equations.map((value, index) => <MathFormula key={index} display value={value} />)}
       </Fragment>
     )
   }
@@ -934,7 +944,7 @@ function QuestionPrompt({ prompt, equation }) {
   return parts.map((part, index) => (
     <Fragment key={index}>
       {part}
-      {index < parts.length - 1 && equation && <MathFormula display value={equation} />}
+      {index < parts.length - 1 && equations[index] && <MathFormula display value={equations[index]} />}
     </Fragment>
   ))
 }
