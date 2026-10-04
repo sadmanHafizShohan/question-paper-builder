@@ -923,7 +923,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   const selectedImage = selectedElement.startsWith('figure-')
   useEffect(() => {
     const element = selectedElementRef.current
-    const textElement = element?.querySelector('.paper-school, .paper-school-subtitle, .paper-title, .paper-meta > span, .paper-question-group h3, .paper-question > div, .paper-answer-parts')
+    const textElement = element?.querySelector('.paper-school, .paper-school-subtitle, .paper-title, .paper-meta > span, .paper-question-group h3, .paper-question > div')
     if (!textElement) {
       setSelectedFontSize(null)
       return
@@ -965,6 +965,10 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   })[optionStyle] ?? `${label})`
 
   const paperChapters = [...new Set(questions.map((question) => question.chapter).filter(Boolean))]
+  const answerGroups = questionTypes.map((type) => ({
+    ...type,
+    questions: questions.filter((question) => question.type === type.id && (question.answer?.trim() || question.answerEquation)),
+  })).filter((type) => type.questions.length > 0)
 
   return (
     <div className="modal-backdrop preview-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
@@ -1000,11 +1004,13 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                 {renderEditable(`heading-${type.id}`, <h3>{type.heading}</h3>, 'paper-heading-item')}
                 {group.map((question, index) => (
                   <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
-                    <div>
-                      <span>{bengaliNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
-                      <QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} />{' '}
-                      <small>({bengaliNumber(question.marks)} নম্বর)</small>
-                    </div>
+                    {question.type === 'cq'
+                      ? <CreativeQuestionPrompt question={question} number={index + 1} />
+                      : <div>
+                        <span>{bengaliNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
+                        <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>{' '}
+                        <small>({bengaliNumber(question.marks)} নম্বর)</small>
+                      </div>}
                     {question.figure && (builtInFigures.includes(question.figure)
                       ? <QuestionFigure figure={question.figure} />
                       : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
@@ -1013,14 +1019,26 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                       const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
                       return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
                     })}</div>}
-                    {question.type === 'cq' && <p className="paper-answer-parts"><QuestionPrompt prompt={question.answer} inlineEquations={question.inlineAnswerEquations} /></p>}
-                    {question.type === 'short' && question.answer && <p className="paper-answer-parts"><QuestionPrompt prompt={question.answer} inlineEquations={question.inlineAnswerEquations} /></p>}
-                    {question.answerEquation && <MathFormula display value={question.answerEquation} />}
-                  </>, 'paper-question')}</Fragment>
+                  </>, `paper-question paper-question-${question.type}`)}</Fragment>
                 ))}
               </section>
             )
           })}
+          {answerGroups.length > 0 && <section className="paper-answer-section">
+            <h2>উত্তরমালা</h2>
+            {answerGroups.map((type) => (
+              <section className="paper-answer-group" key={type.id}>
+                <h3>{type.heading}</h3>
+                {type.questions.map((question, index) => (
+                  <div className="paper-answer" key={question.id}>
+                    <strong>{bengaliNumber(index + 1)}.</strong>{' '}
+                    {question.answer && <QuestionPrompt prompt={question.answer} inlineEquations={question.inlineAnswerEquations} />}
+                    {question.answerEquation && <MathFormula display value={question.answerEquation} />}
+                  </div>
+                ))}
+              </section>
+            ))}
+          </section>}
         </article>
       </section>
     </div>
@@ -1028,9 +1046,21 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
 }
 
 function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
-  const text = prompt ?? ''
+  let text = prompt ?? ''
+  let resolvedInlineEquations = inlineEquations
+  if (!text.includes(equationMarker) && !inlineEquations.length) {
+    const dollarEquations = []
+    const parsedText = text.replace(/\$([^$]+)\$/g, (_match, value) => {
+      dollarEquations.push(value.trim())
+      return equationMarker
+    })
+    if (dollarEquations.length) {
+      text = parsedText
+      resolvedInlineEquations = dollarEquations
+    }
+  }
   const hasEquationMarker = text.includes(equationMarker)
-  const equations = inlineEquations.length ? inlineEquations : equation ? [equation] : []
+  const equations = resolvedInlineEquations.length ? resolvedInlineEquations : equation ? [equation] : []
 
   if (!hasEquationMarker) {
     return (
@@ -1048,6 +1078,28 @@ function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
       {index < parts.length - 1 && equations[index] && <MathFormula display value={equations[index]} />}
     </Fragment>
   ))
+}
+
+function CreativeQuestionPrompt({ question, number }) {
+  const lines = question.prompt.split(/\r?\n/)
+  return (
+    <div className="paper-cq-prompt">
+      <span>{bengaliNumber(number)}.</span>
+      <div>
+        {lines.map((line, index) => {
+          const equationCount = line.split(equationMarker).length - 1
+          const equationIndex = lines.slice(0, index).reduce((count, previousLine) => count + previousLine.split(equationMarker).length - 1, 0)
+          const inlineEquations = question.inlineEquations?.slice(equationIndex, equationIndex + equationCount) ?? []
+          return (
+            <div className="paper-cq-prompt-line" key={index}>
+              <QuestionPrompt prompt={line} equation={index === 0 ? question.equation : ''} inlineEquations={inlineEquations} />
+              {index === 0 && <small>({bengaliNumber(question.marks)} নম্বর)</small>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function QuestionFigure({ figure }) {

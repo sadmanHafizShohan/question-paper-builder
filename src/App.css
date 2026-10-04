@@ -306,6 +306,12 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .paper-question-group { margin-bottom: 17px; }
 .paper-question-group h3 { margin: 0 0 10px; font-size: 12px; }
 .paper-question { margin: 0 0 13px; font-size: 11px; line-height: 1.8; }
+.paper-question-cq { line-height: 1.8; }
+.paper-cq-prompt { display: flex; align-items: flex-start; gap: 4px; }
+.paper-cq-prompt > span { flex: 0 0 auto; }
+.paper-cq-prompt-line { margin-bottom: 7px; }
+.paper-cq-prompt-line:first-child { margin-bottom: 0; }
+.paper-cq-prompt-line small { margin-left: 5px; font-size: 9px; white-space: nowrap; }
 .paper-question small { font-size: 9px; white-space: nowrap; }
 .paper-options { display: flex; flex-wrap: nowrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 5px 0 0 8px; }
 .paper-options-statements { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); justify-content: initial; gap: 3px 10px; margin-left: 0; }
@@ -335,7 +341,12 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .statement-input-row > input { flex: 1; min-width: 0; height: 34px; padding: 0 8px; border: 1px solid #e1e8e2; border-radius: 5px; outline: 0; font-size: 10px; }
 .statement-input-row > .icon-button { width: 30px; height: 30px; flex: 0 0 30px; color: #a54e45; }
 .add-statement-button { align-self: start; }
-.paper-answer-parts { margin: 4px 0 0 21px; white-space: pre-line; }
+.paper-answer-section { margin-top: 96px; padding-top: 36px; border-top: 1px dashed #9aa79e; }
+.paper-answer-section > h2 { margin: 0 0 16px; font-size: 15px; text-align: center; }
+.paper-answer-group { margin-bottom: 18px; }
+.paper-answer-group h3 { margin: 0 0 8px; font-size: 12px; }
+.paper-answer { margin: 0 0 8px 10px; font-size: 11px; line-height: 1.8; white-space: pre-line; break-inside: avoid; }
+.paper-answer > strong { margin-right: 3px; }
 .question-figure { width: 190px; margin: 7px 0 8px 20px; color: inherit; }
 .question-figure svg { display: block; width: 100%; height: auto; overflow: visible; }
 .question-figure svg text { fill: currentColor; font-family: 'Noto Sans Bengali', sans-serif; font-size: 9px; }
@@ -453,6 +464,8 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 	.paper-question-group { break-inside: auto; }
 	.paper-question-group h3 { break-after: avoid; }
 	.paper-question { break-inside: avoid; }
+	.paper-answer-section { margin-top: 0; padding-top: 0; border: 0; break-before: page; page-break-before: always; }
+	.paper-answer-section > h2,.paper-answer-group h3 { break-after: avoid; }
 }
 
 html[data-theme='dark'] {
