@@ -1013,7 +1013,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                       const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
                       return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
                     })}</div>}
-                    {question.type === 'cq' && <p className="paper-answer-parts">{question.answer}</p>}
+                    {question.type === 'cq' && <p className="paper-answer-parts"><QuestionPrompt prompt={question.answer} inlineEquations={question.inlineAnswerEquations} /></p>}
                     {question.type === 'short' && question.answer && <p className="paper-answer-parts"><QuestionPrompt prompt={question.answer} inlineEquations={question.inlineAnswerEquations} /></p>}
                     {question.answerEquation && <MathFormula display value={question.answerEquation} />}
                   </>, 'paper-question')}</Fragment>

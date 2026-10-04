@@ -42,7 +42,7 @@ VITE_API_URL=http://localhost:4000/api
 
 ## Tampermonkey দিয়ে সংক্ষিপ্ত প্রশ্ন আমদানি
 
-`tampermonkey/short-bulk-import.user.js` Tampermonkey-তে যোগ করলে প্রশ্ন ব্যাংক পেজে **সংক্ষিপ্ত প্রশ্ন আমদানি** বোতাম আসবে। বর্তমান শ্রেণি ও বিষয় বেছে, নম্বর দিয়ে একাধিক `প্রশ্ন:` / `উত্তর:` জোড়া পেস্ট করুন; অধ্যায় ঐচ্ছিক। গণিতের সূত্র `$...$` দিয়ে ঘিরলে সেগুলো আলাদা inline equation হিসেবে সংরক্ষিত হয়। MCQ আমদানির জন্য `tampermonkey/mcq-bulk-import.user.js` আগের মতোই ব্যবহার করা যাবে।
+`tampermonkey/short-bulk-import.user.js` Tampermonkey-তে যোগ করলে প্রশ্ন ব্যাংক পেজে **সংক্ষিপ্ত প্রশ্ন আমদানি** বোতাম আসবে। বর্তমান শ্রেণি ও বিষয় বেছে, নম্বর দিয়ে একাধিক `প্রশ্ন:` / `উত্তর:` জোড়া পেস্ট করুন; অধ্যায় ঐচ্ছিক। `tampermonkey/cq-bulk-import.user.js` দিয়ে একই `প্রশ্ন:` / `উত্তর:` format-এ একাধিক সৃজনশীল প্রশ্ন ও সমাধান আমদানি করা যাবে; এর নম্বর ডিফল্ট ১০ এবং অধ্যায় ঐচ্ছিক। দুই importer-এই গণিতের সূত্র `$...$` দিয়ে ঘিরলে সেগুলো আলাদা inline equation হিসেবে সংরক্ষিত ও প্রশ্নপত্রের preview-তে render হয়। MCQ আমদানির জন্য `tampermonkey/mcq-bulk-import.user.js` আগের মতোই ব্যবহার করা যাবে।
 
 Mongo mode-এ app চালু হলে নির্বাচিত class ও subject-এর প্রশ্ন আনে। প্রশ্ন তৈরি, edit ও delete সরাসরি API-তে যায়। Geometry demo প্রশ্নগুলো সপ্তম শ্রেণির গণিতে `npm run seed:demo` দিয়ে যোগ করা যায়।
 
