@@ -346,6 +346,8 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .paper-answer-group { margin-bottom: 18px; }
 .paper-answer-group h3 { margin: 0 0 8px; font-size: 12px; }
 .paper-answer { margin: 0 0 8px 10px; font-size: 11px; line-height: 1.8; white-space: pre-line; break-inside: avoid; }
+.paper-cq-answer-part { margin-bottom: 5px; }
+.paper-cq-answer-part:last-child { margin-bottom: 0; }
 .paper-answer > strong { margin-right: 3px; }
 .question-figure { width: 190px; margin: 7px 0 8px 20px; color: inherit; }
 .question-figure svg { display: block; width: 100%; height: auto; overflow: visible; }

@@ -1032,11 +1032,13 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                 {type.questions.map((question, index) => (
                   <div className="paper-answer" key={question.id}>
                     <strong>{bengaliNumber(index + 1)}.</strong>{' '}
-                    {question.answer && <QuestionPrompt
-                      prompt={question.answer}
-                      equation={question.type === 'short' && question.answer.split(equationMarker).length === 2 ? question.answerEquation : ''}
-                      inlineEquations={question.inlineAnswerEquations}
-                    />}
+                    {question.answer && (question.type === 'cq'
+                      ? <CreativeQuestionAnswer answer={question.answer} inlineEquations={question.inlineAnswerEquations} />
+                      : <QuestionPrompt
+                        prompt={question.answer}
+                        equation={question.type === 'short' && question.answer.split(equationMarker).length === 2 ? question.answerEquation : ''}
+                        inlineEquations={question.inlineAnswerEquations}
+                      />)}
                     {question.answerEquation && !(question.type === 'short' && question.answer.split(equationMarker).length === 2) && <MathFormula display value={question.answerEquation} />}
                   </div>
                 ))}
@@ -1097,6 +1099,23 @@ function CreativeQuestionPrompt({ question, number }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function CreativeQuestionAnswer({ answer, inlineEquations = [] }) {
+  const parts = answer.split(/(?=\([কখগঘ]\)\s*)/).filter((part) => part.trim())
+  return (
+    <div className="paper-cq-answer">
+      {parts.map((part, index) => {
+        const equationIndex = parts.slice(0, index).reduce((count, previousPart) => count + previousPart.split(equationMarker).length - 1, 0)
+        const equationCount = part.split(equationMarker).length - 1
+        return (
+          <div className="paper-cq-answer-part" key={index}>
+            <QuestionPrompt prompt={part.trim()} inlineEquations={inlineEquations.slice(equationIndex, equationIndex + equationCount)} />
+          </div>
+        )
+      })}
     </div>
   )
 }
