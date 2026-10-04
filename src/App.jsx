@@ -28,7 +28,6 @@ import 'mathlive/fonts.css'
 import 'mathlive/static.css'
 import './App.css'
 
-const legacyStorageKey = 'class-seven-math-questions'
 const grades = [5, 6, 7, 8, 9, 10]
 const subjects = [
   { id: 'math', label: 'গণিত' },
@@ -39,14 +38,6 @@ const subjects = [
   { id: 'global-studies', label: 'Global Studies' },
   { id: 'islam', label: 'ইসলাম ও নৈতিক শিক্ষা' },
   { id: 'ict', label: 'তথ্য ও যোগাযোগ প্রযুক্তি' },
-]
-const chapters = [
-  'মূলদ ও অমূলদ সংখ্যা',
-  'সমানুপাত ও লাভ-ক্ষতি',
-  'পরিমাপ',
-  'বীজগাণিতিক রাশি',
-  'সরল সমীকরণ',
-  'জ্যামিতি',
 ]
 const questionTypes = [
   { id: 'mcq', label: 'MCQ', heading: 'বহুনির্বাচনি প্রশ্ন' },
@@ -72,20 +63,6 @@ function readWorkspaceState() {
     return {}
   }
 }
-const initialQuestions = [
-  { id: 'q-1', type: 'mcq', chapter: chapters[0], prompt: 'নিচের কোন সংখ্যাটি অমূলদ?', options: ['√৪৯', '০.২৫', '√২', '৩/৫'], answer: '√২', marks: 1 },
-  { id: 'q-2', type: 'short', chapter: chapters[0], prompt: 'মূলদ সংখ্যা কাকে বলে? দুটি উদাহরণ দাও।', options: [], answer: '', marks: 2 },
-  { id: 'q-3', type: 'cq', chapter: chapters[3], prompt: 'রহিমের কাছে (৩x + ৫)টি আম ছিল। সে (x − ২)টি আম বন্ধুকে দিল।', options: [], answer: 'ক. বীজগাণিতিক রাশি কী?\nখ. x = ৪ হলে রহিমের কাছে কতটি আম থাকবে?\nগ. অবশিষ্ট আমের রাশিটি সরল কর।', marks: 10 },
-  { id: 'q-4', type: 'mcq', chapter: chapters[1], prompt: 'একটি পণ্যের ক্রয়মূল্য ৮০০ টাকা, ২৫% লাভে বিক্রয়মূল্য কত?', options: ['৯০০ টাকা', '১,০০০ টাকা', '১,০২৫ টাকা', '১,২০০ টাকা'], answer: '১,০০০ টাকা', marks: 1 },
-  { id: 'q-5', type: 'long', chapter: chapters[4], prompt: '3x − 7 = 2x + 5 সমীকরণটি সমাধান কর এবং সমাধানটি যাচাই কর।', options: [], answer: '', marks: 5 },
-  { id: 'q-6', type: 'short', chapter: chapters[2], prompt: '১ বর্গমিটার সমান কত বর্গসেন্টিমিটার?', options: [], answer: '', marks: 2 },
-  { id: 'q-7', type: 'mcq', chapter: chapters[5], prompt: 'ত্রিভুজের তিনটি কোণের সমষ্টি কত?', options: ['৯০°', '১৮০°', '২৭০°', '৩৬০°'], answer: '১৮০°', marks: 1 },
-  { id: 'q-8', type: 'cq', chapter: chapters[1], prompt: 'একজন দোকানদার ১,২০০ টাকায় একটি ব্যাগ কিনে ১,৫০০ টাকায় বিক্রি করল।', options: [], answer: 'ক. লাভ নির্ণয়ের সূত্র লেখ।\nখ. ব্যাগটির লাভ নির্ণয় কর।\nগ. শতকরা লাভ নির্ণয় কর।', marks: 10 },
-  { id: 'demo-triangle', type: 'short', chapter: chapters[5], prompt: 'চিত্রের ত্রিভুজ ABC-তে AB = ৩ সেমি, BC = ৪ সেমি ও CA = ৫ সেমি। ত্রিভুজটির পরিসীমা নির্ণয় কর।', options: [], answer: '১২ সেমি', marks: 2, figure: 'triangle' },
-  { id: 'demo-circle', type: 'short', chapter: chapters[5], prompt: 'চিত্রে O কেন্দ্রবিশিষ্ট বৃত্তের ব্যাসার্ধ ৭ সেমি। বৃত্তটির ব্যাস কত?', options: [], answer: '১৪ সেমি', marks: 2, figure: 'circle' },
-  { id: 'demo-rectangle', type: 'long', chapter: chapters[5], prompt: 'চিত্রের আয়তক্ষেত্রের দৈর্ঘ্য ৮ সেমি ও প্রস্থ ৫ সেমি। এর ক্ষেত্রফল ও পরিসীমা নির্ণয় কর।', options: [], answer: 'ক্ষেত্রফল ৪০ বর্গসেমি এবং পরিসীমা ২৬ সেমি।', marks: 4, figure: 'rectangle' },
-]
-
 const typeLabel = (id) => questionTypes.find((type) => type.id === id)?.label ?? id
 const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
 const gradeLabel = (grade) => `শ্রেণি ${bengaliNumber(grade)}`
@@ -111,7 +88,6 @@ const optionStyles = [
 const isMathExpression = (value) => /[\^_=+*/√]|[a-zA-Z]\d/.test(value)
 const equationMarker = '[[সূত্র]]'
 const promptText = (value = '') => value.split(equationMarker).join('').replace(/\s+/g, ' ').trim()
-const questionsStorageKey = (grade, subject) => `question-bank-${grade}-${subject}`
 const watermarkPositions = [
   { id: 'center', label: 'মাঝখানে' },
   { id: 'top-left', label: 'উপরে বামে' },
@@ -119,26 +95,6 @@ const watermarkPositions = [
   { id: 'bottom-left', label: 'নিচে বামে' },
   { id: 'bottom-right', label: 'নিচে ডানে' },
 ]
-
-function readLocalQuestions(grade, subject) {
-  try {
-    const saved = localStorage.getItem(questionsStorageKey(grade, subject))
-      ?? (grade === 7 && subject === 'math' ? localStorage.getItem(legacyStorageKey) : null)
-    if (saved) {
-      return JSON.parse(saved).map((question) => ({
-        ...question,
-        id: question._id ?? question.id,
-        grade: question.grade ?? grade,
-        subject: question.subject ?? subject,
-      }))
-    }
-  } catch {
-    return []
-  }
-  return grade === 7 && subject === 'math'
-    ? initialQuestions.map((question) => ({ ...question, grade, subject }))
-    : []
-}
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 const defaultPaperSettings = {
@@ -179,7 +135,7 @@ function App() {
   const [workspaceState] = useState(readWorkspaceState)
   const [grade, setGrade] = useState(() => grades.includes(workspaceState.grade) ? workspaceState.grade : 7)
   const [subject, setSubject] = useState(() => subjects.some((item) => item.id === workspaceState.subject) ? workspaceState.subject : 'math')
-  const [questions, setQuestions] = useState(() => readLocalQuestions(grades.includes(workspaceState.grade) ? workspaceState.grade : 7, subjects.some((item) => item.id === workspaceState.subject) ? workspaceState.subject : 'math'))
+  const [questions, setQuestions] = useState([])
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
   const [activeType, setActiveType] = useState(() => questionTypes.some((type) => type.id === workspaceState.activeType) ? workspaceState.activeType : 'all')
   const [activeChapter, setActiveChapter] = useState(() => workspaceState.activeChapter ?? 'সব অধ্যায়')
@@ -289,7 +245,7 @@ function App() {
     async function loadMongoData() {
       setDataMode('connecting')
       setIsLoadingQuestions(true)
-      setQuestions(readLocalQuestions(grade, subject))
+      setQuestions([])
       try {
         const [questionsResponse, settingsResponse] = await Promise.all([
           fetch(`${apiUrl}/questions?subject=${encodeURIComponent(subject)}&grade=${grade}`),
@@ -300,14 +256,17 @@ function App() {
         const storedSettings = settingsResponse.ok ? await settingsResponse.json() : null
         if (!active) return
         setQuestions(storedQuestions.map((question) => ({ ...question, id: question._id ?? question.id, grade, subject })))
+        setSelected((current) => current.filter((id) => storedQuestions.some((question) => (question._id ?? question.id) === id)))
         applyPaperSettings(storedSettings ?? getLocalPaperSettings(grade, subject))
         setDataMode('mongo')
       } catch {
         if (active) {
-          setQuestions(readLocalQuestions(grade, subject))
+          setQuestions([])
+          setSelected([])
+          setShowPreview(false)
           const localSettings = getLocalPaperSettings(grade, subject)
           applyPaperSettings({ ...localSettings, paperTitle: localSettings.paperTitle ?? 'অর্ধবার্ষিক মূল্যায়ন' })
-          setDataMode('local')
+          setDataMode('unavailable')
         }
       } finally {
         if (active) setIsLoadingQuestions(false)
@@ -316,12 +275,6 @@ function App() {
     loadMongoData()
     return () => { active = false }
   }, [grade, subject, applyPaperSettings])
-
-  useEffect(() => {
-    if (dataMode === 'local' && !isLoadingQuestions) {
-      localStorage.setItem(questionsStorageKey(grade, subject), JSON.stringify(questions))
-    }
-  }, [questions, dataMode, grade, subject, isLoadingQuestions])
 
   useEffect(() => {
     if (!notice) return undefined
@@ -354,32 +307,34 @@ function App() {
   }
 
   async function saveQuestion(question) {
+    if (dataMode !== 'mongo') {
+      setNotice('MongoDB সংযোগ ছাড়া প্রশ্ন সংরক্ষণ করা যাবে না')
+      return
+    }
     const editing = Boolean(editingQuestion)
     const payload = { ...question, subject, grade }
     let savedQuestion = payload
-    let statementFieldsConfirmed = true
-    if (dataMode === 'mongo') {
-      try {
-        const response = await fetch(editing ? `${apiUrl}/questions/${payload.id}` : `${apiUrl}/questions`, {
-          method: editing ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        if (!response.ok) throw new Error('MongoDB save failed')
-        const result = await response.json()
-        statementFieldsConfirmed = !payload.statements?.length
-          || (result.statements?.length === payload.statements.length && result.statementQuestion === payload.statementQuestion)
-        savedQuestion = {
-          ...payload,
-          ...result,
-          id: result._id ?? result.id ?? payload.id,
-          statements: result.statements?.length ? result.statements : payload.statements,
-          statementQuestion: result.statementQuestion || payload.statementQuestion,
-        }
-      } catch {
-        setNotice('MongoDB-তে সংরক্ষণ হয়নি; সংযোগ পরীক্ষা করুন')
-        return
+    let statementFieldsConfirmed
+    try {
+      const response = await fetch(editing ? `${apiUrl}/questions/${payload.id}` : `${apiUrl}/questions`, {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error('MongoDB save failed')
+      const result = await response.json()
+      statementFieldsConfirmed = !payload.statements?.length
+        || (result.statements?.length === payload.statements.length && result.statementQuestion === payload.statementQuestion)
+      savedQuestion = {
+        ...payload,
+        ...result,
+        id: result._id ?? result.id ?? payload.id,
+        statements: result.statements?.length ? result.statements : payload.statements,
+        statementQuestion: result.statementQuestion || payload.statementQuestion,
       }
+    } catch {
+      setNotice('MongoDB-তে সংরক্ষণ হয়নি; সংযোগ পরীক্ষা করুন')
+      return
     }
     setQuestions((current) => current.some((item) => item.id === payload.id)
       ? current.map((item) => item.id === payload.id ? savedQuestion : item)
@@ -396,14 +351,16 @@ function App() {
   }
 
   async function deleteQuestion(id) {
-    if (dataMode === 'mongo') {
-      try {
-        const response = await fetch(`${apiUrl}/questions/${id}`, { method: 'DELETE' })
-        if (!response.ok) throw new Error('MongoDB delete failed')
-      } catch {
-        setNotice('MongoDB থেকে মুছতে পারিনি; সংযোগ পরীক্ষা করুন')
-        return
-      }
+    if (dataMode !== 'mongo') {
+      setNotice('MongoDB সংযোগ ছাড়া প্রশ্ন মুছতে পারবেন না')
+      return
+    }
+    try {
+      const response = await fetch(`${apiUrl}/questions/${id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('MongoDB delete failed')
+    } catch {
+      setNotice('MongoDB থেকে মুছতে পারিনি; সংযোগ পরীক্ষা করুন')
+      return
     }
     setQuestions((current) => current.filter((question) => question.id !== id))
     setSelected((current) => current.filter((item) => item !== id))
@@ -481,7 +438,7 @@ function App() {
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : 'প্রশ্নপত্র তৈরি'}</strong></div>
-          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'এই ব্রাউজারে সংরক্ষিত'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar">শা</div></div>
+          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'MongoDB সংযোগ নেই'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar">শা</div></div>
         </header>
 
         <div className="content-area">
@@ -494,7 +451,7 @@ function App() {
             <>
               <section className="page-heading">
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>
-                <button className="primary-button" onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন</button>
+                <button className="primary-button" disabled={dataMode !== 'mongo'} title={dataMode !== 'mongo' ? 'প্রশ্ন যোগ করতে MongoDB সংযোগ প্রয়োজন' : undefined} onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন</button>
               </section>
 
               <section className="stats-row" aria-label="প্রশ্ন ব্যাংকের সারাংশ">
@@ -529,7 +486,7 @@ function App() {
                       </tr>
                     ))}</tbody>
                   </table>
-                  {filteredQuestions.length === 0 && <div className="empty-state"><Search size={22} /><strong>কোনো প্রশ্ন পাওয়া যায়নি</strong><span>অন্য শব্দ বা অধ্যায় দিয়ে খুঁজে দেখুন।</span></div>}
+                  {filteredQuestions.length === 0 && <div className="empty-state"><Search size={22} /><strong>{dataMode === 'unavailable' ? 'MongoDB সংযোগ নেই' : 'কোনো প্রশ্ন পাওয়া যায়নি'}</strong><span>{dataMode === 'unavailable' ? 'MongoDB চালু হলে এই শ্রেণি ও বিষয়ের প্রশ্ন লোড হবে।' : 'অন্য শব্দ বা অধ্যায় দিয়ে খুঁজে দেখুন।'}</span></div>}
                 </div>
                 <footer className="table-footer"><span>মোট {bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হচ্ছে</span><div><button aria-label="আগের পৃষ্ঠা" disabled><ChevronLeft size={16} /></button><span>১ / ১</span><button aria-label="পরের পৃষ্ঠা" disabled><ChevronRight size={16} /></button></div></footer>
               </section>
@@ -751,8 +708,10 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
 
 function PaperPreview({ questions, title, duration, paperClass, subjectId, subject, totalMarks, schoolName, schoolSubtitle, paperSetCode, questionTextColor, showChapters, onShowChaptersChange, watermark, customizationKey, onClose }) {
   const selectedElementRef = useRef(null)
+  const elementRefs = useRef(new Map())
   const dragRef = useRef(null)
-  const [selectedElement, setSelectedElement] = useState('')
+  const [selectedElements, setSelectedElements] = useState([])
+  const [selectedText, setSelectedText] = useState('')
   const [selectedFontSize, setSelectedFontSize] = useState(null)
   const [editingEnabled, setEditingEnabled] = useState(true)
   const [optionStyle, setOptionStyle] = useState(() => {
@@ -809,11 +768,11 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         ...current,
         elements: {
           ...(current.elements ?? {}),
-          [drag.id]: {
-            ...(current.elements?.[drag.id] ?? {}),
-            x: drag.x + event.clientX - drag.pointerX,
-            y: drag.y + event.clientY - drag.pointerY,
-          },
+          ...Object.fromEntries(drag.elements.map(({ id, x, y }) => [id, {
+            ...(current.elements?.[id] ?? {}),
+            x: x + event.clientX - drag.pointerX,
+            y: y + event.clientY - drag.pointerY,
+          }])),
         },
       }))
     }
@@ -851,7 +810,8 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
     const resizeY = direction.includes('s') ? 1 : direction.includes('n') ? -1 : 0
     const transformOriginX = resizeX > 0 ? 'left' : resizeX < 0 ? 'right' : 'center'
     const transformOriginY = resizeY > 0 ? 'top' : resizeY < 0 ? 'bottom' : 'center'
-    setSelectedElement(id)
+    setSelectedElements([id])
+    setSelectedText(elementLayout.text ?? elementRefs.current.get(id)?.innerText ?? '')
     updateElement(id, { transformOrigin: `${transformOriginX} ${transformOriginY}` })
     dragRef.current = {
       mode: 'resize',
@@ -870,11 +830,16 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   function renderEditable(id, content, className = '', extraStyle = {}) {
     if (customLayout.deleted?.includes(id)) return null
     const elementLayout = customLayout.elements?.[id] ?? {}
-    const isSelected = editingEnabled && selectedElement === id
+    const isSelected = editingEnabled && selectedElements.includes(id)
+    const isSingleSelected = selectedElements.length === 1 && isSelected
     return (
       <div
-        ref={isSelected ? selectedElementRef : null}
-        className={`${editingEnabled ? 'paper-editable' : ''} ${className} ${isSelected ? 'paper-editable-active' : ''}`}
+        ref={(element) => {
+          if (element) elementRefs.current.set(id, element)
+          else elementRefs.current.delete(id)
+          if (isSingleSelected) selectedElementRef.current = element
+        }}
+        className={`${editingEnabled ? 'paper-editable' : ''} ${className} ${isSelected ? 'paper-editable-active' : ''} ${elementLayout.text !== undefined ? 'paper-editable-has-text-override' : ''}`}
         style={{
           '--paper-offset-x': `${elementLayout.x ?? 0}px`,
           '--paper-offset-y': `${elementLayout.y ?? 0}px`,
@@ -888,22 +853,40 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         onPointerDown={(event) => {
           if (!id.startsWith('figure-') && event.target.closest('.paper-figure-item')) return
           if (!editingEnabled || event.button !== 0) return
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault()
+            const nextSelection = selectedElements.includes(id)
+              ? selectedElements.filter((selectedId) => selectedId !== id)
+              : [...selectedElements, id]
+            setSelectedElements(nextSelection)
+            setSelectedText(nextSelection.length === 1
+              ? customLayout.elements?.[nextSelection[0]]?.text ?? elementRefs.current.get(nextSelection[0])?.innerText ?? ''
+              : '')
+            return
+          }
+          if (!selectedElements.includes(id)) {
+            event.preventDefault()
+            setSelectedElements([id])
+            setSelectedText(elementLayout.text ?? event.currentTarget.innerText)
+            return
+          }
+          if (isSingleSelected && id !== 'paper-rule' && !id.startsWith('figure-') && !event.altKey) return
           event.preventDefault()
-          setSelectedElement(id)
+          const ids = selectedElements.includes(id) ? selectedElements : [id]
           dragRef.current = {
-            id,
+            elements: ids.map((selectedId) => ({
+              id: selectedId,
+              x: customLayout.elements?.[selectedId]?.x ?? 0,
+              y: customLayout.elements?.[selectedId]?.y ?? 0,
+            })),
             pointerX: event.clientX,
             pointerY: event.clientY,
-            x: elementLayout.x ?? 0,
-            y: elementLayout.y ?? 0,
           }
         }}
-        onClick={(event) => {
-          if (!id.startsWith('figure-') && event.target.closest('.paper-figure-item')) return
-          if (editingEnabled) setSelectedElement(id)
-        }}
       >
-        {content}
+        {elementLayout.text !== undefined
+          ? <span className="paper-text-override">{elementLayout.text}</span>
+          : content}
         {isSelected && <span className="paper-resize-handles" aria-label="আকার পরিবর্তনের handle">
           {['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map((direction) => (
             <button
@@ -919,8 +902,11 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
     )
   }
 
+  const selectedElement = selectedElements[selectedElements.length - 1] ?? ''
   const selectedElementLayout = customLayout.elements?.[selectedElement] ?? {}
-  const selectedImage = selectedElement.startsWith('figure-')
+  const selectedImage = selectedElements.length === 1 && selectedElement.startsWith('figure-')
+  const selectedTextEditable = selectedElements.length === 1 && selectedElement !== 'paper-rule' && !selectedImage
+
   useEffect(() => {
     const element = selectedElementRef.current
     const textElement = element?.querySelector('.paper-school, .paper-school-subtitle, .paper-title, .paper-meta > span, .paper-question-group h3, .paper-question > div')
@@ -933,7 +919,8 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
     setSelectedFontSize(Number.isFinite(effectiveSize) ? effectiveSize : null)
   }, [selectedElement, selectedElementLayout.scale, selectedElementLayout.scaleY])
 
-  const selectedElementLabel = selectedElement === 'school-name' ? 'বিদ্যালয়ের নাম'
+  const selectedElementLabel = selectedElements.length > 1 ? `${bengaliNumber(selectedElements.length)}টি অংশ নির্বাচিত`
+    : selectedElement === 'school-name' ? 'বিদ্যালয়ের নাম'
     : selectedElement === 'school-subtitle' ? 'নামের নিচের তথ্য'
       : selectedElement === 'paper-title' ? 'প্রশ্নপত্রের নাম'
         : selectedElement === 'paper-meta' ? 'পরীক্ষার তথ্য'
@@ -976,17 +963,40 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         <header className="preview-toolbar"><div><strong>প্রশ্নপত্র প্রিভিউ</strong><span>{bengaliNumber(questions.length)}টি প্রশ্ন · {bengaliNumber(totalMarks)} নম্বর</span></div><div><button className="quiet-button" onClick={onClose}><X size={16} /> বন্ধ করুন</button><button className="primary-button" onClick={() => window.print()}><Printer size={16} /> PDF / প্রিন্ট</button></div></header>
         <div className="preview-editbar">
           <span title={selectedElementLabel}>{selectedElementLabel}</span>
-          <button type="button" className={`quiet-button preview-edit-toggle ${editingEnabled ? 'is-enabled' : ''}`} aria-pressed={editingEnabled} onClick={() => { setEditingEnabled((current) => !current); setSelectedElement('') }}><Pencil size={14} /> লাইভ এডিট {editingEnabled ? 'চালু' : 'বন্ধ'}</button>
+          <small className="preview-edit-help">লেখা: নির্বাচিত অংশের ঘরে লিখুন · Ctrl/⌘+click: group select · Alt+drag: একক লেখা সরান</small>
+          <button type="button" className={`quiet-button preview-edit-toggle ${editingEnabled ? 'is-enabled' : ''}`} aria-pressed={editingEnabled} onClick={() => { setEditingEnabled((current) => !current); setSelectedElements([]); setSelectedText('') }}><Pencil size={14} /> লাইভ এডিট {editingEnabled ? 'চালু' : 'বন্ধ'}</button>
+          {selectedTextEditable && <textarea
+            className="preview-text-editor"
+            aria-label="নির্বাচিত অংশের লেখা সম্পাদনা"
+            value={selectedText}
+            disabled={!editingEnabled}
+            rows={1}
+            onChange={(event) => {
+              const text = event.target.value
+              setSelectedText(text)
+              updateElement(selectedElement, { text })
+            }}
+          />}
           <label className="preview-chapter-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => onShowChaptersChange(event.target.checked)} /> অধ্যায় দেখান</label>
           <label className="preview-option-style">অপশন<select aria-label="MCQ অপশন নম্বরের ধরন" value={optionStyle} onChange={(event) => setOptionStyle(event.target.value)}>{optionStyles.map((style) => <option value={style.id} key={style.id}>{style.label}</option>)}</select></label>
           {selectedImage
             ? <label className="preview-image-size">ছবির প্রস্থ<input aria-label="ছবির প্রস্থ" type="range" min="80" max="600" step="10" value={selectedElementLayout.width ?? 360} disabled={!editingEnabled} onChange={(event) => updateElement(selectedElement, { width: Number(event.target.value) })} /><output aria-live="polite">{bengaliNumber(selectedElementLayout.width ?? 360)} px</output></label>
-            : <label>আকার<input type="range" min="0.6" max="2" step="0.1" value={selectedElementLayout.scale ?? 1} disabled={!selectedElement || !editingEnabled} onChange={(event) => updateElement(selectedElement, { scale: Number(event.target.value) })} /><output className="preview-font-size" aria-live="polite">{selectedFontSize === null ? '—' : `${Math.round(selectedFontSize)} px`}</output></label>}
+            : <label>আকার<input type="range" min="0.6" max="2" step="0.1" value={selectedElementLayout.scale ?? 1} disabled={!selectedElements.length || !editingEnabled} onChange={(event) => {
+              const scale = Number(event.target.value)
+              setCustomLayout((current) => ({
+                ...current,
+                elements: {
+                  ...(current.elements ?? {}),
+                  ...Object.fromEntries(selectedElements.map((id) => [id, { ...(current.elements?.[id] ?? {}), scale }])),
+                },
+              }))
+            }} /><output className="preview-font-size" aria-live="polite">{selectedFontSize === null ? '—' : `${Math.round(selectedFontSize)} px`}</output></label>}
           <button type="button" className="quiet-button preview-delete" disabled={!selectedElement || !editingEnabled} onClick={() => {
-            setCustomLayout((current) => ({ ...current, deleted: [...new Set([...(current.deleted ?? []), selectedElement])] }))
-            setSelectedElement('')
+            setCustomLayout((current) => ({ ...current, deleted: [...new Set([...(current.deleted ?? []), ...selectedElements])] }))
+            setSelectedElements([])
+            setSelectedText('')
           }}><Trash2 size={14} /> মুছুন</button>
-          <button type="button" className="quiet-button" disabled={!editingEnabled} onClick={() => { setCustomLayout({}); setSelectedElement('') }}><RotateCcw size={14} /> রিসেট</button>
+          <button type="button" className="quiet-button" disabled={!editingEnabled} onClick={() => { setCustomLayout({}); setSelectedElements([]); setSelectedText('') }}><RotateCcw size={14} /> রিসেট</button>
         </div>
         <article className="paper-preview" style={{ '--paper-text-color': /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d' }}>
           {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${watermark.size}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}

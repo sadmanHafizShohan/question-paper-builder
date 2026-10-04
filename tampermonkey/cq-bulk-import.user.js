@@ -13,7 +13,6 @@
   'use strict'
 
   const apiBase = 'http://localhost:4000/api'
-  const legacyStorageKey = 'class-seven-math-questions'
   const equationMarker = '[[সূত্র]]'
 
   function extractInlineMath(value) {
@@ -197,32 +196,16 @@
       }))
 
       try {
-        let useApi = false
-        try {
-          const response = await fetch(`${apiBase}/questions?${params}`)
-          useApi = response.ok
-        } catch {
-          useApi = false
-        }
-
-        if (useApi) {
-          for (const [index, payload] of payloads.slice().reverse().entries()) {
-            setStatus(`সংরক্ষণ হচ্ছে: ${index + 1} / ${payloads.length}`)
-            const response = await fetch(`${apiBase}/questions`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            })
-            if (!response.ok) throw new Error(`প্রশ্ন ${index + 1} সংরক্ষণ হয়নি (HTTP ${response.status})`)
-          }
-        } else {
-          const storageKey = `question-bank-${grade}-${subject}`
-          const previous = localStorage.getItem(storageKey)
-            ?? (grade === 7 && subject === 'math' ? localStorage.getItem(legacyStorageKey) : null)
-          const storedQuestions = previous ? JSON.parse(previous) : []
-          if (!Array.isArray(storedQuestions)) throw new Error('লোকাল প্রশ্নের তথ্য সঠিক ফরম্যাটে নেই।')
-          storedQuestions.unshift(...payloads)
-          localStorage.setItem(storageKey, JSON.stringify(storedQuestions))
+        const availability = await fetch(`${apiBase}/questions?${params}`)
+        if (!availability.ok) throw new Error('MongoDB/API সংযোগ নেই; প্রশ্ন localStorage-এ সংরক্ষণ করা হবে না।')
+        for (const [index, payload] of payloads.slice().reverse().entries()) {
+          setStatus(`সংরক্ষণ হচ্ছে: ${index + 1} / ${payloads.length}`)
+          const response = await fetch(`${apiBase}/questions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          if (!response.ok) throw new Error(`প্রশ্ন ${index + 1} সংরক্ষণ হয়নি (HTTP ${response.status})`)
         }
 
         setStatus(`${payloads.length}টি সৃজনশীল প্রশ্ন যোগ হয়েছে। তালিকা আপডেট হচ্ছে…`)
