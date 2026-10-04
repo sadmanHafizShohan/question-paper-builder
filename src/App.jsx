@@ -499,7 +499,7 @@ function App() {
 
               <section className="stats-row" aria-label="প্রশ্ন ব্যাংকের সারাংশ">
                 <div className="stat-card"><div className="stat-icon mint"><BookOpen size={18} /></div><div><span>মোট প্রশ্ন</span><strong>{bengaliNumber(questions.length)}</strong></div><small>প্রশ্ন ব্যাংকে</small></div>
-                <div className="stat-card"><div className="stat-icon sky"><ClipboardList size={18} /></div><div><span>অধ্যায়</span><strong>{bengaliNumber(new Set(questions.map((question) => question.chapter)).size)}</strong></div><small>প্রশ্ন রয়েছে</small></div>
+                <div className="stat-card"><div className="stat-icon sky"><ClipboardList size={18} /></div><div><span>অধ্যায়</span><strong>{bengaliNumber(new Set(questions.map((question) => question.chapter).filter(Boolean)).size)}</strong></div><small>প্রশ্ন রয়েছে</small></div>
                 <div className="stat-card"><div className="stat-icon peach"><FileText size={18} /></div><div><span>প্রশ্নের ধরন</span><strong>{bengaliNumber(new Set(questions.map((question) => question.type)).size)}</strong></div><small>ধরন সক্রিয়</small></div>
                 <button className="stat-card stat-action" onClick={() => setPage('builder')}><div className="stat-icon lavender"><FilePlus2 size={18} /></div><div><span>নির্বাচিত প্রশ্ন</span><strong>{bengaliNumber(selected.length)}</strong></div><small>প্রশ্নপত্র তৈরি <ChevronRight size={13} /></small></button>
               </section>
@@ -522,7 +522,7 @@ function App() {
                       <tr key={question.id} className={selected.includes(question.id) ? 'row-selected' : ''}>
                         <td className="check-column"><input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} aria-label="প্রশ্ন নির্বাচন" /></td>
                         <td><div className="question-cell"><span className="row-number">{bengaliNumber(index + 1).padStart(2, '০')}</span><span className="question-copy"><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong>{question.type === 'mcq' && <small>{question.statements?.length ? `${question.statements.map((statement, statementIndex) => `${statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}. ${statement}`).join(' · ')} ${question.statementQuestion ?? ''} ${question.options.join(' · ')}` : question.options.join(' · ')}</small>}</span></div></td>
-                        <td><span className="chapter-pill">{question.chapter}</span></td>
+                        <td><span className="chapter-pill">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></td>
                         <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span></td>
                         <td className="marks-cell">{bengaliNumber(question.marks)}</td>
                         <td><div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title="সম্পাদনা" onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title="মুছুন" onClick={() => deleteQuestion(question.id)}><Trash2 size={15} /></button></div></td>
@@ -544,7 +544,7 @@ function App() {
                   <div className="builder-question-list">{filteredQuestions.map((question) => (
                     <label className={`builder-question ${selected.includes(question.id) ? 'checked' : ''}`} key={question.id}>
                       <input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} /><span className="custom-check"><Check size={13} /></span>
-                      <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
+                      <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
                       <span className="builder-mark">{bengaliNumber(question.marks)} নম্বর</span>
                     </label>
                   ))}{filteredQuestions.length === 0 && <div className="empty-state"><strong>মিল পাওয়া যায়নি</strong></div>}</div>
@@ -607,6 +607,8 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
   const [statements, setStatements] = useState(() => Array.from({ length: 3 }, (_, index) => question?.statements?.[index] ?? ''))
   const optionTextRefs = useRef([])
   const [answer, setAnswer] = useState(question?.answer ?? '')
+  const answerMarkerCount = answer.split(equationMarker).length - 1
+  const inlineAnswerEquations = question?.inlineAnswerEquations?.length === answerMarkerCount ? question.inlineAnswerEquations : []
   const [equation, setEquation] = useState(question?.equation ?? '')
   const [answerEquation, setAnswerEquation] = useState(question?.answerEquation ?? '')
   const [marks, setMarks] = useState(question?.marks ?? 1)
@@ -695,6 +697,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
       equation: subject === 'math' ? equation : '',
       inlineEquations: subject === 'math' ? inlineEquations : [],
       answerEquation: subject === 'math' ? answerEquation : '',
+      inlineAnswerEquations: subject === 'math' ? inlineAnswerEquations : [],
       marks: Number(marks) || 1,
       figure: figure === 'custom' ? figureUrl.trim() : figure,
     })
@@ -711,7 +714,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
           </div>
           <div className="form-row">
             <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => { setType(event.target.value); setMarks(event.target.value === 'mcq' ? 1 : event.target.value === 'cq' ? 10 : 2) }}>{questionTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-            <label className="field-label">অধ্যায়<input required list="question-chapter-options" value={chapter} onChange={(event) => setChapter(event.target.value)} placeholder="অধ্যায় নির্বাচন বা লিখুন" /><datalist id="question-chapter-options">{chapterOptions.map((item) => <option key={item} value={item} />)}</datalist></label>
+            <label className="field-label">অধ্যায়<input required={!question || Boolean(question.chapter)} list="question-chapter-options" value={chapter} onChange={(event) => setChapter(event.target.value)} placeholder="অধ্যায় নির্বাচন বা লিখুন" /><datalist id="question-chapter-options">{chapterOptions.map((item) => <option key={item} value={item} />)}</datalist></label>
           </div>
           <div className="field-label prompt-field"><label htmlFor="question-prompt">প্রশ্নের বিবরণ</label><textarea id="question-prompt" ref={promptRef} required rows={type === 'cq' ? 4 : 3} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="এখানে প্রশ্ন লিখুন..." />{subject === 'math' && <div className="prompt-field-tools"><button type="button" className="prompt-insert-button" onClick={insertEquationMarker}><Sigma size={14} /> সূত্র এখানে বসান</button><small>কার্সর যেখানে রাখবেন, সূত্র সেখানে বসবে</small></div>}</div>
           {subject === 'math' && <label className="field-label equation-label">গাণিতিক রাশি / সমীকরণ<MathFormula value={equation} onChange={setEquation} placeholder="যেমন x^2, ভগ্নাংশ, বর্গমূল বা সমীকরণ" /></label>}
@@ -735,6 +738,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
             {mcqFormat === 'standard' && <div className="field-label"><span>চারটি উত্তর বিকল্প <small className="field-hint">সাধারণ MCQ-র জন্য</small></span><div className="option-inputs">{options.map((option, index) => <div className="option-editor" key={index}><div className="option-text-line"><label className="option-text-control"><span>{optionLabelsFor(subject)[index]})</span><input ref={(element) => { optionTextRefs.current[index] = element }} aria-label={`${optionLabelsFor(subject)[index]}) option`} value={option} onChange={(event) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={`${optionLabelsFor(subject)[index]}) option`} /></label>{subject === 'math' && <button type="button" className="option-equation-insert" aria-label={`${optionLabelsFor(subject)[index]}) option-এ সূত্র বসান`} title="কার্সর যেখানে রাখবেন, সূত্র সেখানে বসবে" onClick={() => insertOptionEquationMarker(index)}><Sigma size={14} /></button>}</div>{subject === 'math' && <MathFormula compact value={optionEquations[index]} onChange={(value) => setOptionEquations((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} placeholder="সূত্র কিবোর্ড (ঐচ্ছিক)" />}</div>)}</div></div>}
           </>}
           <label className="field-label">{type === 'mcq' ? 'সঠিক উত্তর' : type === 'cq' ? 'উপপ্রশ্ন / নির্দেশনা' : 'উত্তর (ঐচ্ছিক)'}{type === 'mcq' ? <select value={answer} onChange={(event) => setAnswer(event.target.value)}><option value="">সঠিক উত্তর নির্বাচন করুন</option>{effectiveOptions.map((option, index) => { const optionText = promptText(option); const value = optionText || optionEquations[index].trim() || `option:${index}`; return <option key={index} value={value}>{optionLabelsFor(subject)[index]}) {optionText || (optionEquations[index] ? 'গাণিতিক রাশি' : 'খালি বিকল্প')}</option> })}</select> : <textarea rows={type === 'cq' ? 3 : 2} value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder={type === 'cq' ? 'ক. ...\nখ. ...\nগ. ...' : 'উত্তর লিখুন...'} />}</label>
+          {subject === 'math' && answerMarkerCount > 0 && inlineAnswerEquations.length === answerMarkerCount && <div className="field-label"><span>উত্তরের সূত্র প্রিভিউ</span><div className="answer-equation-preview"><QuestionPrompt prompt={answer} inlineEquations={inlineAnswerEquations} /></div></div>}
           {formError && <p className="form-error" role="alert">{formError}</p>}
           {subject === 'math' && type !== 'mcq' && <label className="field-label equation-label">উত্তরের গাণিতিক রাশি<MathFormula value={answerEquation} onChange={setAnswerEquation} placeholder="উত্তরের সমীকরণ লিখুন" /></label>}
           <label className="field-label marks-field">নম্বর<input type="number" min="1" max="100" value={marks} onChange={(event) => setMarks(event.target.value)} /></label>
@@ -1010,6 +1014,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                       return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
                     })}</div>}
                     {question.type === 'cq' && <p className="paper-answer-parts">{question.answer}</p>}
+                    {question.type === 'short' && question.answer && <p className="paper-answer-parts"><QuestionPrompt prompt={question.answer} inlineEquations={question.inlineAnswerEquations} /></p>}
                     {question.answerEquation && <MathFormula display value={question.answerEquation} />}
                   </>, 'paper-question')}</Fragment>
                 ))}

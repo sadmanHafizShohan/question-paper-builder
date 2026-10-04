@@ -32,8 +32,8 @@ app.get('/api/questions', async (request, response, next) => {
 
 app.post('/api/questions', async (request, response, next) => {
   try {
-    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', marks, figure = '' } = request.body
-    const question = await Question.create({ subject, grade, type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, marks, figure })
+    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body
+    const question = await Question.create({ subject, grade, type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, inlineAnswerEquations, marks, figure })
     response.status(201).json(question)
   } catch (error) {
     next(error)
@@ -42,10 +42,10 @@ app.post('/api/questions', async (request, response, next) => {
 
 app.put('/api/questions/:id', async (request, response, next) => {
   try {
-    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', marks, figure = '' } = request.body
+    const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body
     const question = await Question.findByIdAndUpdate(
       request.params.id,
-      { $set: { subject, grade, type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, marks, figure } },
+      { $set: { subject, grade, type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, inlineAnswerEquations, marks, figure } },
       { new: true, runValidators: true },
     )
     if (!question) return response.status(404).json({ error: 'Question not found' })

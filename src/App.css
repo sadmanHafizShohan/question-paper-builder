@@ -280,7 +280,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .paper-watermark.watermark-image img { display: block; width: 100%; height: auto; filter: grayscale(1); }
 .paper-watermark.watermark-image::after { position: absolute; inset: 0; background: var(--watermark-color); mix-blend-mode: multiply; content: ''; }
 .paper-editable { position: relative; transform: translate(var(--paper-offset-x, 0), var(--paper-offset-y, 0)) scale(var(--paper-scale-x, 1), var(--paper-scale-y, 1)); transform-origin: var(--paper-transform-origin, center center); zoom: var(--paper-scale, 1); touch-action: none; cursor: grab; }
-.paper-school-item,.paper-subtitle-item,.paper-title-item,.paper-meta-item,.paper-heading-item { width: fit-content; max-width: 100%; margin-right: auto; margin-left: auto; }
+.paper-school-item,.paper-subtitle-item,.z-item,.paper-meta-item,.paper-heading-item { width: fit-content; max-width: 100%; margin-right: auto; margin-left: auto; }
 .paper-set-code-item { width: fit-content; max-width: 100%; margin-left: auto; }
 .paper-set-code { text-align: right; padding: 2px; text-wrap: nowrap; bottom: 0px; left: -30px; border: 2px solid #000; position: absolute; font-family: 'Noto Sans Bengali', sans-serif; font-size: 10px; font-weight: 650; }
 .paper-rule-item,.paper-editable.paper-question { width: 100%; }
@@ -299,7 +299,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .handle-w { top: 50%; left: 0; transform: translate(-50%, -50%); cursor: ew-resize; }
 .paper-school { text-align: center; font-size: 18px; font-weight: 700; }
 .paper-school-subtitle { margin-top: 3px; text-align: center; white-space: pre-line; font-size: 12px; line-height: 1.65; }
-.paper-preview .paper-title { margin: 8px 0 12px; text-align: center; font-size: 17px; }
+.paper-preview .paper-title { margin: 8px 0 8px; text-align: center; font-size: 14px; }
 .paper-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 7px 15px; font-size: 10px; }
 .paper-meta-chapters { flex-basis: 100%; text-align: center; }
 .paper-rule { height: 1px; margin: 15px 0 19px; background: #333; }
@@ -322,6 +322,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .statement-editor { padding: 10px; border: 1px solid #e7ece8; border-radius: 6px; background: #fafcfb; }
 .statement-generated-field { padding: 10px; border: 1px solid #cbded1; border-radius: 6px; background: #f6faf7; }
 .statement-question-preview { padding: 10px; border: 1px solid #e7ece8; border-radius: 5px; background: white; color: #34433a; font-family: 'Noto Serif Bengali', 'Noto Sans Bengali', serif; font-size: 10px; font-weight: 400; line-height: 1.7; }
+.answer-equation-preview { padding: 10px; border: 1px solid #e7ece8; border-radius: 5px; background: white; color: #34433a; font-family: 'Noto Serif Bengali', 'Noto Sans Bengali', serif; font-size: 10px; font-weight: 400; line-height: 1.7; }
 .statement-question-preview-prompt { margin-bottom: 4px; }
 .statement-question-preview-line { display: flex; gap: 6px; padding-left: 12px; }
 .statement-question-preview-line > span { flex: 0 0 22px; font-style: italic; }
@@ -572,6 +573,7 @@ html[data-theme='dark'] .field-label textarea::placeholder { color: #819388; }
 html[data-theme='dark'] .field-label input:focus,
 html[data-theme='dark'] .field-label select:focus,
 html[data-theme='dark'] .field-label textarea:focus { border-color: #66ad82; }
+html[data-theme='dark'] .answer-equation-preview { border-color: #2a3930; background: #202b24; color: #b3c0b7; }
 html[data-theme='dark'] .field-label,
 html[data-theme='dark'] .paper-setting-toggle,
 html[data-theme='dark'] .preview-chapter-toggle,

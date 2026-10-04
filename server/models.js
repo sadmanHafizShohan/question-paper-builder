@@ -15,7 +15,7 @@ const questionSchema = new mongoose.Schema({
   subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'islam', 'ict'], required: true, default: 'math', index: true },
   grade: { type: Number, min: 5, max: 10, required: true, default: 7, index: true },
   type: { type: String, enum: ['mcq', 'short', 'cq', 'long'], required: true },
-  chapter: { type: String, required: true, trim: true },
+  chapter: { type: String, default: '', trim: true },
   prompt: { type: String, required: true, trim: true },
   equation: { type: String, default: '' },
   inlineEquations: { type: [String], default: [] },
@@ -26,6 +26,7 @@ const questionSchema = new mongoose.Schema({
   optionInlineEquations: { type: [[String]], default: [] },
   answer: { type: String, default: '' },
   answerEquation: { type: String, default: '' },
+  inlineAnswerEquations: { type: [String], default: [] },
   marks: { type: Number, min: 1, required: true },
   figure: {
     type: String,
