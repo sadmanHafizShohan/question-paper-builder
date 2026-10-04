@@ -1032,8 +1032,12 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                 {type.questions.map((question, index) => (
                   <div className="paper-answer" key={question.id}>
                     <strong>{bengaliNumber(index + 1)}.</strong>{' '}
-                    {question.answer && <QuestionPrompt prompt={question.answer} inlineEquations={question.inlineAnswerEquations} />}
-                    {question.answerEquation && <MathFormula display value={question.answerEquation} />}
+                    {question.answer && <QuestionPrompt
+                      prompt={question.answer}
+                      equation={question.type === 'short' && question.answer.split(equationMarker).length === 2 ? question.answerEquation : ''}
+                      inlineEquations={question.inlineAnswerEquations}
+                    />}
+                    {question.answerEquation && !(question.type === 'short' && question.answer.split(equationMarker).length === 2) && <MathFormula display value={question.answerEquation} />}
                   </div>
                 ))}
               </section>
@@ -1046,27 +1050,22 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
 }
 
 function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
-  let text = prompt ?? ''
-  let resolvedInlineEquations = inlineEquations
-  if (!text.includes(equationMarker) && !inlineEquations.length) {
-    const dollarEquations = []
-    const parsedText = text.replace(/\$([^$]+)\$/g, (_match, value) => {
-      dollarEquations.push(value.trim())
-      return equationMarker
-    })
-    if (dollarEquations.length) {
-      text = parsedText
-      resolvedInlineEquations = dollarEquations
-    }
-  }
+  const sourceText = prompt ?? ''
+  const tokens = sourceText.split(/(\$\$\[\[সূত্র\]\]\$\$|\$\[\[সূত্র\]\]\$|\[\[সূত্র\]\]|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/g)
+  const equationTokens = tokens.filter((_token, index) => index % 2 === 1)
+  const equations = equationTokens.map((token, index) => {
+    if (!token.includes(equationMarker)) return token.startsWith('$$') ? token.slice(2, -2).trim() : token.slice(1, -1).trim()
+    const markerIndex = equationTokens.slice(0, index).filter((previousToken) => previousToken.includes(equationMarker)).length
+    return inlineEquations[markerIndex] || (markerIndex === 0 ? equation : '')
+  })
+  const text = tokens.map((token, index) => index % 2 === 1 ? equationMarker : token).join('')
   const hasEquationMarker = text.includes(equationMarker)
-  const equations = resolvedInlineEquations.length ? resolvedInlineEquations : equation ? [equation] : []
 
   if (!hasEquationMarker) {
     return (
       <Fragment>
         {text}
-        {equations.map((value, index) => <MathFormula key={index} display value={value} />)}
+        {equation && <MathFormula display value={equation} />}
       </Fragment>
     )
   }
