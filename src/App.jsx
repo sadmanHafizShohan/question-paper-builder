@@ -870,7 +870,6 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
             setSelectedText(elementLayout.text ?? event.currentTarget.innerText)
             return
           }
-          if (isSingleSelected && id !== 'paper-rule' && !id.startsWith('figure-') && !event.altKey) return
           event.preventDefault()
           const ids = selectedElements.includes(id) ? selectedElements : [id]
           dragRef.current = {
@@ -963,7 +962,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         <header className="preview-toolbar"><div><strong>প্রশ্নপত্র প্রিভিউ</strong><span>{bengaliNumber(questions.length)}টি প্রশ্ন · {bengaliNumber(totalMarks)} নম্বর</span></div><div><button className="quiet-button" onClick={onClose}><X size={16} /> বন্ধ করুন</button><button className="primary-button" onClick={() => window.print()}><Printer size={16} /> PDF / প্রিন্ট</button></div></header>
         <div className="preview-editbar">
           <span title={selectedElementLabel}>{selectedElementLabel}</span>
-          <small className="preview-edit-help">লেখা: নির্বাচিত অংশের ঘরে লিখুন · Ctrl/⌘+click: group select · Alt+drag: একক লেখা সরান</small>
+          <small className="preview-edit-help">লেখা: ড্র্যাগ করে সরান · Ctrl/⌘+click: group select · Alt+drag: একক লেখা টেনে নিন</small>
           <button type="button" className={`quiet-button preview-edit-toggle ${editingEnabled ? 'is-enabled' : ''}`} aria-pressed={editingEnabled} onClick={() => { setEditingEnabled((current) => !current); setSelectedElements([]); setSelectedText('') }}><Pencil size={14} /> লাইভ এডিট {editingEnabled ? 'চালু' : 'বন্ধ'}</button>
           {selectedTextEditable && <textarea
             className="preview-text-editor"
