@@ -5,6 +5,7 @@
 // @description  Import numbered and statement-based Bengali MCQs into Question Ghor
 // @match        http://localhost/*
 // @match        http://127.0.0.1/*
+// @match        https://question-paper-builder-frontend.onrender.com/*
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
@@ -12,7 +13,10 @@
 (() => {
   'use strict'
 
-  const apiBase = 'http://localhost:4000/api'
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  const apiBase = isLocalhost
+    ? 'http://localhost:4000/api'
+    : 'https://question-paper-builder-api.onrender.com/api'
   const equationMarker = '[[সূত্র]]'
 
   function extractInlineMath(value) {

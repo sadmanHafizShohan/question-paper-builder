@@ -268,6 +268,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .preview-chapter-toggle { color: #43534a; }
 .preview-chapter-toggle input { accent-color: #16715d; }
 .preview-editbar input[type='range'] { width: 100px; accent-color: #16715d; }
+.preview-columns select,
 .preview-option-style select { max-width: 95px; padding: 5px 6px; border: 1px solid #e1e8e2; border-radius: 5px; background: white; color: #43534a; font-size: 9px; }
 .preview-editbar .preview-edit-toggle { min-height: 30px; padding: 0 9px; font-size: 9px; }
 .preview-editbar .preview-edit-toggle.is-enabled { border-color: #a9c8b3; background: #eef6f0; color: #176b55; }
@@ -315,6 +316,15 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .paper-rule { height: 1px; margin: 15px 0 19px; background: #333; }
 .paper-question-group { margin-bottom: 17px; }
 .paper-question-group h3 { margin: 0 0 10px; font-size: 12px; }
+.paper-question-list { display: block; }
+.paper-question-list[data-columns='2'] {
+  column-count: 2;
+  column-gap: 30px;
+  column-rule: 1px solid rgba(38, 53, 45, 0.22);
+  column-rule-style: solid;
+  column-rule-color: rgba(38, 53, 45, 0.22);
+}
+.paper-question-list[data-columns='2'] > .paper-question { break-inside: avoid; }
 .paper-question { margin: 0 0 13px; font-size: 11px; line-height: 1.8; }
 .paper-question-cq { line-height: 1.8; }
 .paper-cq-prompt { display: flex; align-items: flex-start; gap: 4px; }
@@ -333,6 +343,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .paper-statements { margin: 5px 0 0 22px; }
 .paper-statements > div { display: flex; gap: 5px; line-height: 1.8; }
 .paper-statements > div > span { flex: 0 0 auto; font-style: italic; }
+.paper-statements > div > .paper-statement-copy { min-width: 0; flex: 1; font-style: normal; }
 .paper-statement-body { display: block; }
 .paper-statement-question { display: block; margin: 3px 0 0; }
 .statement-editor { padding: 10px; border: 1px solid #e7ece8; border-radius: 6px; background: #fafcfb; }

@@ -721,6 +721,14 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
       return 'paren'
     }
   })
+  const [previewColumns, setPreviewColumns] = useState(() => {
+    try {
+      const value = Number(localStorage.getItem(`paper-preview-columns-${customizationKey}`))
+      return Number.isFinite(value) && (value === 1 || value === 2) ? value : 1
+    } catch {
+      return 1
+    }
+  })
   const [customLayout, setCustomLayout] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem(`paper-preview-layout-${customizationKey}`) || '{}')
@@ -736,6 +744,10 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   useEffect(() => {
     localStorage.setItem(`paper-preview-option-style-${customizationKey}`, optionStyle)
   }, [optionStyle, customizationKey])
+
+  useEffect(() => {
+    localStorage.setItem(`paper-preview-columns-${customizationKey}`, String(previewColumns))
+  }, [previewColumns, customizationKey])
 
   useEffect(() => {
     function moveElement(event) {
@@ -977,6 +989,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
             }}
           />}
           <label className="preview-chapter-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => onShowChaptersChange(event.target.checked)} /> অধ্যায় দেখান</label>
+          <label className="preview-columns">কলাম<select aria-label="প্রশ্নপত্রের কলামের সংখ্যা" value={previewColumns} onChange={(event) => setPreviewColumns(Number(event.target.value))}>{[1, 2].map((columnCount) => <option value={columnCount} key={columnCount}>{bengaliNumber(columnCount)}</option>)}</select></label>
           <label className="preview-option-style">অপশন<select aria-label="MCQ অপশন নম্বরের ধরন" value={optionStyle} onChange={(event) => setOptionStyle(event.target.value)}>{optionStyles.map((style) => <option value={style.id} key={style.id}>{style.label}</option>)}</select></label>
           {selectedImage
             ? <label className="preview-image-size">ছবির প্রস্থ<input aria-label="ছবির প্রস্থ" type="range" min="80" max="600" step="10" value={selectedElementLayout.width ?? 360} disabled={!editingEnabled} onChange={(event) => updateElement(selectedElement, { width: Number(event.target.value) })} /><output aria-live="polite">{bengaliNumber(selectedElementLayout.width ?? 360)} px</output></label>
@@ -1011,25 +1024,27 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
             return (
               <section className="paper-question-group" key={type.id}>
                 {renderEditable(`heading-${type.id}`, <h3>{type.heading}</h3>, 'paper-heading-item')}
-                {group.map((question, index) => (
-                  <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
-                    {question.type === 'cq'
-                      ? <CreativeQuestionPrompt question={question} number={index + 1} />
-                      : <div>
-                        <span>{bengaliNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
-                        <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>{' '}
-                        <small>({bengaliNumber(question.marks)} নম্বর)</small>
-                      </div>}
-                    {question.figure && (builtInFigures.includes(question.figure)
-                      ? <QuestionFigure figure={question.figure} />
-                      : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
-                    {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}.</span>{statement}</div>)}</div>{question.statementQuestion && <div className="paper-statement-question">{question.statementQuestion}</div>}</div>}
-                    {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{question.options.map((option, optionIndex) => {
-                      const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
-                      return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
-                    })}</div>}
-                  </>, `paper-question paper-question-${question.type}`)}</Fragment>
-                ))}
+                <div className={`paper-question-list paper-question-list-columns-${previewColumns}`} data-columns={previewColumns}>
+                  {group.map((question, index) => (
+                    <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
+                      {question.type === 'cq'
+                        ? <CreativeQuestionPrompt question={question} number={index + 1} />
+                        : <div>
+                          <span>{bengaliNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
+                          <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>{' '}
+                          <small>({bengaliNumber(question.marks)} নম্বর)</small>
+                        </div>}
+                      {question.figure && (builtInFigures.includes(question.figure)
+                        ? <QuestionFigure figure={question.figure} />
+                        : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
+                      {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
+                      {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{question.options.map((option, optionIndex) => {
+                        const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
+                        return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
+                      })}</div>}
+                    </>, `paper-question paper-question-${question.type}`)}</Fragment>
+                  ))}
+                </div>
               </section>
             )
           })}
@@ -1060,34 +1075,69 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   )
 }
 
+function normalizeMathValue(value = '') {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+
+  const withoutMarkers = text
+    .replace(/^\$\$([\s\S]*?)\$\$$/, '$1')
+    .replace(/^\$([^$]+)\$$/, '$1')
+    .replace(/^\\\s*/, '')
+    .trim()
+
+  if (!withoutMarkers) return ''
+
+  const leadingCommandPattern = /^(frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom|left|right|cdot|times|div|pm|mp|theta|alpha|beta|gamma|delta|pi|omega|root)/i
+  if (leadingCommandPattern.test(withoutMarkers)) {
+    return withoutMarkers.startsWith('\\') ? withoutMarkers : `\\${withoutMarkers}`
+  }
+
+  return withoutMarkers
+}
+
 function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
   const sourceText = prompt ?? ''
-  const tokens = sourceText.split(/(\$\$\[\[সূত্র\]\]\$\$|\$\[\[সূত্র\]\]\$|\[\[সূত্র\]\]|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$)/g)
-  const equationTokens = tokens.filter((_token, index) => index % 2 === 1)
-  const equations = equationTokens.map((token, index) => {
-    if (!token.includes(equationMarker)) return token.startsWith('$$') ? token.slice(2, -2).trim() : token.slice(1, -1).trim()
-    const markerIndex = equationTokens.slice(0, index).filter((previousToken) => previousToken.includes(equationMarker)).length
-    return inlineEquations[markerIndex] || (markerIndex === 0 ? equation : '')
-  })
-  const text = tokens.map((token, index) => index % 2 === 1 ? equationMarker : token).join('')
-  const hasEquationMarker = text.includes(equationMarker)
+  const mathTokenPattern = /(\[\[সূত্র\]\]|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\(?:frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom)\{[^\n]*\}(?:\{[^\n]*\})?)/g
+  const hasMathSyntax = mathTokenPattern.test(sourceText)
 
-  if (!hasEquationMarker) {
+  if (!hasMathSyntax) {
     return (
       <Fragment>
-        {text}
-        {equation && <MathFormula display value={equation} />}
+        {sourceText}
+        {equation && <MathFormula display value={normalizeMathValue(equation)} />}
       </Fragment>
     )
   }
 
-  const parts = text.split(equationMarker)
-  return parts.map((part, index) => (
-    <Fragment key={index}>
-      {part}
-      {index < parts.length - 1 && equations[index] && <MathFormula display value={equations[index]} />}
+  const mathTokens = sourceText.split(mathTokenPattern)
+
+  return (
+    <Fragment>
+      {mathTokens.map((token, index) => {
+        if (!token) return null
+
+        if (token === equationMarker) {
+          const equationIndex = mathTokens.slice(0, index).filter((previousToken) => previousToken === equationMarker).length
+          const resolvedEquation = inlineEquations[equationIndex] ?? equation ?? ''
+          return resolvedEquation ? <MathFormula key={`${index}-${equationIndex}`} display value={normalizeMathValue(resolvedEquation)} /> : null
+        }
+
+        if (token.startsWith('$$') && token.endsWith('$$')) {
+          return <MathFormula key={`${index}-raw-double`} display value={normalizeMathValue(token.slice(2, -2))} />
+        }
+
+        if (token.startsWith('$') && token.endsWith('$')) {
+          return <MathFormula key={`${index}-raw-single`} display value={normalizeMathValue(token)} />
+        }
+
+        if (token.startsWith('\\') && /^(?:\\(?:frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom))/i.test(token)) {
+          return <MathFormula key={`${index}-raw-latex`} display value={normalizeMathValue(token)} />
+        }
+
+        return <Fragment key={`${index}-text`}>{token}</Fragment>
+      })}
     </Fragment>
-  ))
+  )
 }
 
 function CreativeQuestionPrompt({ question, number }) {
@@ -1158,14 +1208,15 @@ function ImageFigure({ src }) {
 }
 
 function MathFormula({ value, onChange, placeholder, compact = false, display = false }) {
+  const safeValue = normalizeMathValue(value)
   const mathfieldRef = useRef(null)
-  const valueRef = useRef(value)
+  const valueRef = useRef(safeValue)
   const onChangeRef = useRef(onChange)
   const [mathLiveReady, setMathLiveReady] = useState(() => Boolean(customElements.get('math-field')))
 
   useEffect(() => {
-    valueRef.current = value
-  }, [value])
+    valueRef.current = safeValue
+  }, [safeValue])
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -1196,13 +1247,13 @@ function MathFormula({ value, onChange, placeholder, compact = false, display = 
 
   useEffect(() => {
     const mathfield = mathfieldRef.current
-    if (mathfield && customElements.get('math-field') && mathfield.value !== (value ?? '')) {
-      mathfield.value = value ?? ''
+    if (mathfield && customElements.get('math-field') && mathfield.value !== safeValue) {
+      mathfield.value = safeValue
     }
-  }, [value])
+  }, [safeValue])
 
-  if (display) return value ? <StaticMathFormula value={value} /> : null
-  if (!mathLiveReady) return <input className={`math-field math-field-fallback ${compact ? 'math-field-compact' : ''}`} aria-label="গাণিতিক রাশি লিখুন" value={value ?? ''} onChange={(event) => onChangeRef.current?.(event.target.value)} placeholder={placeholder} />
+  if (display) return safeValue ? <StaticMathFormula value={safeValue} /> : null
+  if (!mathLiveReady) return <input className={`math-field math-field-fallback ${compact ? 'math-field-compact' : ''}`} aria-label="গাণিতিক রাশি লিখুন" value={safeValue} onChange={(event) => onChangeRef.current?.(event.target.value)} placeholder={placeholder} />
   return (
     <math-field
       ref={mathfieldRef}
