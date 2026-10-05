@@ -10,7 +10,7 @@ function responseError(result, status) {
   return result && typeof result.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${status} ত্রুটি এসেছে।`
 }
 
-export default function BulkQuestionImporter({ apiUrl, grade, subject, enabled, onImported, onNotice, onClose }) {
+export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, onImported, onNotice, onClose }) {
   const [rows, setRows] = useState([])
   const [fileName, setFileName] = useState('')
   const [parseError, setParseError] = useState('')
@@ -38,10 +38,30 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, enabled, 
 
   async function saveQuestions() {
     const validRows = rows.filter((row) => row.question && row.errors.length === 0)
-    if (!enabled || validRows.length === 0 || isImporting) return
+    if (validRows.length === 0 || isImporting) return
 
     setIsImporting(true)
     setProgress(0)
+    if (!isAdmin) {
+      const importedQuestions = validRows.map((row) => ({
+        ...row.question,
+        id: `local-${crypto.randomUUID()}`,
+        isLocal: true,
+        subject,
+        grade,
+      }))
+      if (onImported(importedQuestions) === false) {
+        setIsImporting(false)
+        return
+      }
+      setProgress(validRows.length)
+      setRows((current) => current.filter((row) => row.errors.length > 0))
+      setIsImporting(false)
+      onNotice(`${importedQuestions.length}টি প্রশ্ন এই ডিভাইসে ইমপোর্ট হয়েছে; MongoDB-তে নয়।`)
+      onClose()
+      return
+    }
+
     const savedQuestions = []
     const failedRows = new Map()
     let completed = 0
@@ -90,7 +110,12 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, enabled, 
       .map((row) => row.rowNumber))
     const remainingCount = rows.length - successfulRowNumbers.size
 
-    onImported(savedQuestions)
+    if (onImported(savedQuestions) === false) {
+      setRows((current) => current.map((row) => validRows.some((validRow) => validRow.rowNumber === row.rowNumber)
+        ? { ...row, saveError: 'এই ডিভাইসে প্রশ্ন সংরক্ষণ করা যায়নি।' }
+        : row))
+      return
+    }
     setRows((current) => current
       .filter((row) => !successfulRowNumbers.has(row.rowNumber))
       .map((row) => failedRows.has(row.rowNumber)
@@ -127,7 +152,9 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, enabled, 
             <span>.xlsx · সর্বোচ্চ ১০ MB</span>
             <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={selectFile} disabled={isReading || isImporting} />
           </label>
-          {!enabled && <p className="bulk-import-error" role="alert">প্রশ্ন ইমপোর্ট করতে MongoDB সংযোগ প্রয়োজন।</p>}
+          {isAdmin
+            ? <p className="bulk-import-status">Admin হিসেবে ইমপোর্ট করলে প্রশ্নগুলো main MongoDB-তে সংরক্ষিত হবে।</p>
+            : <p className="bulk-import-status">এই account-এর ইমপোর্ট করা প্রশ্ন শুধু এই ডিভাইসেই সংরক্ষিত হবে; main database অপরিবর্তিত থাকবে।</p>}
           {isReading && <p className="bulk-import-status">Excel ফাইল পড়া হচ্ছে…</p>}
           {parseError && <p className="bulk-import-error" role="alert">{parseError}</p>}
           {rows.length > 0 && <>
@@ -149,7 +176,7 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, enabled, 
         </div>
         <footer className="modal-footer">
           <button type="button" className="quiet-button" disabled={isImporting} onClick={onClose}>বাতিল</button>
-          <button type="button" className="primary-button" disabled={!enabled || validCount === 0 || isImporting} onClick={saveQuestions}>
+          <button type="button" className="primary-button" disabled={validCount === 0 || isImporting} onClick={saveQuestions}>
             <Check size={16} /> {isImporting ? 'সংরক্ষণ হচ্ছে…' : ` ${validCount}টি প্রশ্ন ইমপোর্ট করুন`}
           </button>
         </footer>

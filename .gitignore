@@ -28,3 +28,4 @@ serviceAccountKey.json
 *.sln
 *.sw?
 service-account.json
+service-account*.json

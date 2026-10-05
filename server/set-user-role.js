@@ -13,6 +13,7 @@ if (!email || !['admin', 'user'].includes(role)) {
       ...user.customClaims,
       role,
     })
+    await firebaseAdminAuth.revokeRefreshTokens(user.uid)
     console.log(`Set ${role} role for ${user.email}`)
   } catch (error) {
     console.error(`Could not set role: ${error.message}`)

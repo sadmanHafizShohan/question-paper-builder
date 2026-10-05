@@ -27,7 +27,7 @@ app.use('/api', async (request, response, next) => {
   if (!tokenMatch) return response.status(401).json({ error: 'Authentication required' })
 
   try {
-    request.firebaseUser = await firebaseAdminAuth.verifyIdToken(tokenMatch[1])
+    request.firebaseUser = await firebaseAdminAuth.verifyIdToken(tokenMatch[1], true)
     next()
   } catch (error) {
     if (error.code?.startsWith('auth/')) return response.status(401).json({ error: 'Invalid or expired authentication token' })
@@ -98,6 +98,7 @@ app.put('/api/admin/users/:uid/role', requireAdmin, async (request, response, ne
       ...targetUser.customClaims,
       role,
     })
+    await firebaseAdminAuth.revokeRefreshTokens(request.params.uid)
     response.json({ uid: targetUser.uid, email: targetUser.email ?? '', role })
   } catch (error) {
     next(error)
@@ -116,7 +117,7 @@ app.get('/api/questions', async (request, response, next) => {
   }
 })
 
-app.post('/api/questions', async (request, response, next) => {
+app.post('/api/questions', requireAdmin, async (request, response, next) => {
   try {
     const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body
     const question = await Question.create({ subject, grade: questionBankGrade(grade), type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, inlineAnswerEquations, marks, figure })
@@ -126,7 +127,7 @@ app.post('/api/questions', async (request, response, next) => {
   }
 })
 
-app.put('/api/questions/:id', async (request, response, next) => {
+app.put('/api/questions/:id', requireAdmin, async (request, response, next) => {
   try {
     const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body
     const question = await Question.findByIdAndUpdate(
@@ -141,7 +142,7 @@ app.put('/api/questions/:id', async (request, response, next) => {
   }
 })
 
-app.delete('/api/questions/:id', async (request, response, next) => {
+app.delete('/api/questions/:id', requireAdmin, async (request, response, next) => {
   try {
     const question = await Question.findByIdAndDelete(request.params.id)
     if (!question) return response.status(404).json({ error: 'Question not found' })
@@ -161,7 +162,7 @@ app.get('/api/settings/:subject/:grade', async (request, response, next) => {
   }
 })
 
-app.put('/api/settings/:subject/:grade', async (request, response, next) => {
+app.put('/api/settings/:subject/:grade', requireAdmin, async (request, response, next) => {
   try {
     const { schoolName, schoolSubtitle, paperSetCode, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } = request.body
     const settings = await PaperSettings.findOneAndUpdate(

@@ -127,9 +127,22 @@ const defaultPaperSettings = {
   },
 }
 
-function getLocalPaperSettings(grade, subject) {
+function getLocalQuestions(uid) {
   try {
-    const storageKey = `paper-settings-${grade}-${subject}`
+    const saved = JSON.parse(localStorage.getItem(`question-builder-local-questions-${uid}`) || '[]')
+    if (!Array.isArray(saved)) throw new Error('Stored local question data is not an array')
+    return saved
+  } catch (error) {
+    console.error('Could not read this account’s local questions', error)
+    return []
+  }
+}
+
+function getLocalPaperSettings(grade, subject, uid, isAdmin) {
+  try {
+    const storageKey = isAdmin
+      ? `paper-settings-${grade}-${subject}`
+      : `paper-settings-${uid}-${grade}-${subject}`
     const savedSettings = JSON.parse(localStorage.getItem(storageKey) || '{}')
     const settings = {
       ...defaultPaperSettings,
@@ -144,10 +157,12 @@ function getLocalPaperSettings(grade, subject) {
 }
 
 function QuestionPaperBuilder({ user, role }) {
+  const isAdmin = role === 'admin'
   const [workspaceState] = useState(readWorkspaceState)
   const [grade, setGrade] = useState(() => grades.includes(workspaceState.grade) ? questionBankGrade(workspaceState.grade) : 7)
   const [subject, setSubject] = useState(() => subjects.some((item) => item.id === workspaceState.subject) ? workspaceState.subject : 'math')
   const [questions, setQuestions] = useState([])
+  const [localQuestions, setLocalQuestions] = useState(() => getLocalQuestions(user.uid))
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
   const [activeType, setActiveType] = useState(() => questionTypes.some((type) => type.id === workspaceState.activeType) ? workspaceState.activeType : 'all')
   const [selectedChapters, setSelectedChapters] = useState(() => Array.isArray(workspaceState.selectedChapters)
@@ -161,32 +176,31 @@ function QuestionPaperBuilder({ user, role }) {
   const [editorResetKey, setEditorResetKey] = useState(0)
   const [showPreview, setShowPreview] = useState(() => Boolean(workspaceState.showPreview && workspaceState.selected?.length))
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
-  const [paperTitle, setPaperTitle] = useState(() => getLocalPaperSettings(grade, subject).paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
-  const [paperDuration, setPaperDuration] = useState(() => getLocalPaperSettings(grade, subject).paperDuration ?? '২ ঘণ্টা')
-  const [paperClass, setPaperClass] = useState(() => paperClassLabel(getLocalPaperSettings(grade, subject).paperClass ?? gradeLabel(grade)))
-  const [schoolName, setSchoolName] = useState(() => getLocalPaperSettings(grade, subject).schoolName)
-  const [schoolSubtitle, setSchoolSubtitle] = useState(() => getLocalPaperSettings(grade, subject).schoolSubtitle)
-  const [paperSetCode, setPaperSetCode] = useState(() => getLocalPaperSettings(grade, subject).paperSetCode)
-  const [questionTextColor, setQuestionTextColor] = useState(() => getLocalPaperSettings(grade, subject).questionTextColor)
-  const [showChapters, setShowChapters] = useState(() => getLocalPaperSettings(grade, subject).showChapters ?? true)
-  const [watermark, setWatermark] = useState(() => ({ ...defaultPaperSettings.watermark, ...getLocalPaperSettings(grade, subject).watermark }))
+  const [paperTitle, setPaperTitle] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
+  const [paperDuration, setPaperDuration] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperDuration ?? '২ ঘণ্টা')
+  const [paperClass, setPaperClass] = useState(() => paperClassLabel(getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperClass ?? gradeLabel(grade)))
+  const [schoolName, setSchoolName] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).schoolName)
+  const [schoolSubtitle, setSchoolSubtitle] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).schoolSubtitle)
+  const [paperSetCode, setPaperSetCode] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperSetCode)
+  const [questionTextColor, setQuestionTextColor] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).questionTextColor)
+  const [showChapters, setShowChapters] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).showChapters ?? true)
+  const [watermark, setWatermark] = useState(() => ({ ...defaultPaperSettings.watermark, ...getLocalPaperSettings(grade, subject, user.uid, isAdmin).watermark }))
   const [dataMode, setDataMode] = useState('connecting')
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [notice, setNotice] = useState('')
   const hasRestoredScroll = useRef(false)
-  const isAdmin = role === 'admin'
 
   const applyPaperSettings = useCallback((settings) => {
     setSchoolName(settings.schoolName ?? defaultPaperSettings.schoolName)
     setSchoolSubtitle(settings.schoolSubtitle ?? defaultPaperSettings.schoolSubtitle)
-    setPaperSetCode(settings.paperSetCode ?? getLocalPaperSettings(grade, subject).paperSetCode)
+    setPaperSetCode(settings.paperSetCode ?? getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperSetCode)
     setQuestionTextColor(settings.questionTextColor ?? defaultPaperSettings.questionTextColor)
     setShowChapters(settings.showChapters ?? true)
     setPaperTitle(settings.paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
     setPaperDuration(settings.paperDuration ?? '২ ঘণ্টা')
     setPaperClass(paperClassLabel(settings.paperClass ?? gradeLabel(grade)))
     setWatermark({ ...defaultPaperSettings.watermark, ...(settings.watermark ?? {}) })
-  }, [grade, subject])
+  }, [grade, subject, isAdmin, user.uid])
 
   function updateWatermark(updates) {
     setWatermark((current) => ({ ...current, ...updates }))
@@ -230,6 +244,18 @@ function QuestionPaperBuilder({ user, role }) {
     }))
   }, [grade, subject, page, activeType, selectedChapters, search, selected, showPreview])
 
+  function saveLocalQuestions(nextQuestions) {
+    try {
+      localStorage.setItem(`question-builder-local-questions-${user.uid}`, JSON.stringify(nextQuestions))
+      setLocalQuestions(nextQuestions)
+      return true
+    } catch (error) {
+      console.error('Could not save this account’s local questions', error)
+      setNotice('এই ডিভাইসে প্রশ্ন সংরক্ষণ করা যায়নি; browser storage পরীক্ষা করুন।')
+      return false
+    }
+  }
+
   useEffect(() => {
     if (hasRestoredScroll.current || dataMode === 'connecting' || isLoadingQuestions) return
     hasRestoredScroll.current = true
@@ -271,16 +297,30 @@ function QuestionPaperBuilder({ user, role }) {
         const storedQuestions = await questionsResponse.json()
         const storedSettings = settingsResponse.ok ? await settingsResponse.json() : null
         if (!active) return
-        setQuestions(storedQuestions.map((question) => ({ ...question, id: question._id ?? question.id, grade, subject })))
-        setSelected((current) => current.filter((id) => storedQuestions.some((question) => (question._id ?? question.id) === id)))
-        applyPaperSettings(storedSettings ?? getLocalPaperSettings(grade, subject))
+        const localForContext = getLocalQuestions(user.uid).filter((question) => question.grade === grade && question.subject === subject)
+        const mainQuestions = storedQuestions.map((question) => ({ ...question, id: question._id ?? question.id, grade, subject, isLocal: false }))
+        setQuestions([...localForContext, ...mainQuestions])
+        setSelected((current) => current.filter((id) => localForContext.some((question) => question.id === id) || mainQuestions.some((question) => question.id === id)))
+        const localSettings = getLocalPaperSettings(grade, subject, user.uid, isAdmin)
+        let savedPersonalSettings = false
+        if (!isAdmin) {
+          try {
+            savedPersonalSettings = JSON.parse(
+              localStorage.getItem(`paper-settings-${user.uid}-${grade}-${subject}`) || 'null',
+            )?.userSaved === true
+          } catch {
+            savedPersonalSettings = false
+          }
+        }
+        applyPaperSettings(savedPersonalSettings ? localSettings : storedSettings ?? localSettings)
         setDataMode('mongo')
       } catch {
         if (active) {
-          setQuestions([])
-          setSelected([])
+          const localForContext = getLocalQuestions(user.uid).filter((question) => question.grade === grade && question.subject === subject)
+          setQuestions(localForContext)
+          setSelected((current) => current.filter((id) => localForContext.some((question) => question.id === id)))
           setShowPreview(false)
-          const localSettings = getLocalPaperSettings(grade, subject)
+          const localSettings = getLocalPaperSettings(grade, subject, user.uid, isAdmin)
           applyPaperSettings({ ...localSettings, paperTitle: localSettings.paperTitle ?? 'অর্ধবার্ষিক মূল্যায়ন' })
           setDataMode('unavailable')
         }
@@ -290,7 +330,7 @@ function QuestionPaperBuilder({ user, role }) {
     }
     loadMongoData()
     return () => { active = false }
-  }, [grade, subject, applyPaperSettings])
+  }, [grade, subject, applyPaperSettings, isAdmin, user.uid])
 
   useEffect(() => {
     if (!notice) return undefined
@@ -323,12 +363,43 @@ function QuestionPaperBuilder({ user, role }) {
   }
 
   async function saveQuestion(question) {
-    if (dataMode !== 'mongo') {
-      setNotice('MongoDB সংযোগ ছাড়া প্রশ্ন সংরক্ষণ করা যাবে না')
+    const editing = Boolean(editingQuestion)
+    const isLocalQuestion = !isAdmin || editingQuestion?.isLocal
+    if (editing && !isAdmin && !editingQuestion?.isLocal) {
+      setNotice('Main database-এর প্রশ্ন শুধু admin সম্পাদনা করতে পারবেন')
       return
     }
-    const editing = Boolean(editingQuestion)
+    if (!isLocalQuestion && dataMode !== 'mongo') {
+      setNotice('MongoDB সংযোগ ছাড়া main database-এ প্রশ্ন সংরক্ষণ করা যাবে না')
+      return
+    }
     const payload = { ...question, subject, grade: questionBankGrade(grade) }
+
+    if (isLocalQuestion) {
+      const savedQuestion = {
+        ...payload,
+        id: editingQuestion?.id ?? `local-${crypto.randomUUID()}`,
+        isLocal: true,
+        grade,
+        subject,
+      }
+      const updatedLocalQuestions = localQuestions.some((item) => item.id === savedQuestion.id)
+        ? localQuestions.map((item) => item.id === savedQuestion.id ? savedQuestion : item)
+        : [savedQuestion, ...localQuestions]
+      if (!saveLocalQuestions(updatedLocalQuestions)) return
+      setQuestions((current) => current.some((item) => item.id === savedQuestion.id)
+        ? current.map((item) => item.id === savedQuestion.id ? savedQuestion : item)
+        : [savedQuestion, ...current])
+      if (editing) {
+        setShowEditor(false)
+        setEditingQuestion(null)
+      } else {
+        setEditorResetKey((current) => current + 1)
+      }
+      setNotice(editing ? 'এই ডিভাইসের প্রশ্নটি সম্পাদনা করা হয়েছে' : 'প্রশ্নটি শুধু এই ডিভাইসে সংরক্ষণ করা হয়েছে')
+      return
+    }
+
     let savedQuestion = payload
     let statementFieldsConfirmed
     try {
@@ -345,6 +416,7 @@ function QuestionPaperBuilder({ user, role }) {
         ...payload,
         ...result,
         id: result._id ?? result.id ?? payload.id,
+        isLocal: false,
         grade,
         subject,
         statements: result.statements?.length ? result.statements : payload.statements,
@@ -368,21 +440,32 @@ function QuestionPaperBuilder({ user, role }) {
       : 'API সার্ভার restart করে বিবৃতির প্রশ্নটি আবার সংরক্ষণ করুন')
   }
 
-  async function deleteQuestion(id) {
-    if (dataMode !== 'mongo') {
-      setNotice('MongoDB সংযোগ ছাড়া প্রশ্ন মুছতে পারবেন না')
+  async function deleteQuestion(question) {
+    const { id } = question
+    if (!isAdmin && !question.isLocal) {
+      setNotice('Main database-এর প্রশ্ন শুধু admin মুছতে পারবেন')
       return
     }
-    try {
-      const response = await authenticatedFetch(`${apiUrl}/questions/${id}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error('MongoDB delete failed')
-    } catch {
-      setNotice('MongoDB থেকে মুছতে পারিনি; সংযোগ পরীক্ষা করুন')
-      return
+    if (question.isLocal) {
+      const updatedLocalQuestions = localQuestions.filter((item) => item.id !== id)
+      if (!saveLocalQuestions(updatedLocalQuestions)) return
+    } else {
+      if (dataMode !== 'mongo') {
+        setNotice('MongoDB সংযোগ ছাড়া main database থেকে প্রশ্ন মুছতে পারবেন না')
+        return
+      }
+      try {
+        const response = await authenticatedFetch(`${apiUrl}/questions/${id}`, { method: 'DELETE' })
+        if (!response.ok) throw new Error(`MongoDB delete failed with HTTP ${response.status}`)
+      } catch (error) {
+        console.error('Could not delete question from MongoDB', error)
+        setNotice('Main database থেকে মুছতে পারিনি; সংযোগ পরীক্ষা করুন')
+        return
+      }
     }
     setQuestions((current) => current.filter((question) => question.id !== id))
     setSelected((current) => current.filter((item) => item !== id))
-    setNotice('প্রশ্নটি মুছে ফেলা হয়েছে')
+    setNotice(question.isLocal ? 'এই ডিভাইসের প্রশ্নটি মুছে ফেলা হয়েছে' : 'প্রশ্নটি main database থেকে মুছে ফেলা হয়েছে')
   }
 
   async function savePaperSettings() {
@@ -399,8 +482,11 @@ function QuestionPaperBuilder({ user, role }) {
       return
     }
     const settings = { schoolName, schoolSubtitle, paperSetCode: paperSetCode.trim(), questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark }
-    localStorage.setItem(`paper-settings-${grade}-${subject}`, JSON.stringify(settings))
-    if (dataMode === 'mongo') {
+    const settingsKey = isAdmin
+      ? `paper-settings-${grade}-${subject}`
+      : `paper-settings-${user.uid}-${grade}-${subject}`
+    localStorage.setItem(settingsKey, JSON.stringify(isAdmin ? settings : { ...settings, userSaved: true }))
+    if (isAdmin && dataMode === 'mongo') {
       try {
         const response = await authenticatedFetch(`${apiUrl}/settings/${encodeURIComponent(subject)}/${grade}`, {
           method: 'PUT',
@@ -413,7 +499,7 @@ function QuestionPaperBuilder({ user, role }) {
         return
       }
     }
-    setNotice('প্রশ্নপত্রের ফরম্যাট সংরক্ষণ করা হয়েছে')
+    setNotice(isAdmin ? 'প্রশ্নপত্রের ফরম্যাট সংরক্ষণ করা হয়েছে' : 'প্রশ্নপত্রের ফরম্যাট শুধু এই account-এর জন্য সংরক্ষণ করা হয়েছে')
   }
 
   function openEditor(question = null) {
@@ -491,8 +577,8 @@ function QuestionPaperBuilder({ user, role }) {
               <section className="page-heading">
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>
                 <div className="page-heading-actions">
-                  <button className="quiet-button" disabled={dataMode !== 'mongo'} title={dataMode !== 'mongo' ? 'প্রশ্ন ইমপোর্ট করতে MongoDB সংযোগ প্রয়োজন' : undefined} onClick={() => setShowImporter(true)}><FileSpreadsheet size={16} /> Excel ইমপোর্ট</button>
-                  <button className="primary-button" disabled={dataMode !== 'mongo'} title={dataMode !== 'mongo' ? 'প্রশ্ন যোগ করতে MongoDB সংযোগ প্রয়োজন' : undefined} onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন</button>
+                  <button className="quiet-button" onClick={() => setShowImporter(true)}><FileSpreadsheet size={16} /> Excel ইমপোর্ট {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
+                  <button className="primary-button" onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
                 </div>
               </section>
 
@@ -524,7 +610,7 @@ function QuestionPaperBuilder({ user, role }) {
                         <td><span className="chapter-pill">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></td>
                         <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span></td>
                         <td className="marks-cell">{bengaliNumber(question.marks)}</td>
-                        <td><div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title="সম্পাদনা" onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title="মুছুন" onClick={() => deleteQuestion(question.id)}><Trash2 size={15} /></button></div></td>
+                        <td>{(isAdmin || question.isLocal) && <div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={!question.isLocal && dataMode !== 'mongo'} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={!question.isLocal && dataMode !== 'mongo'} onClick={() => deleteQuestion(question)}><Trash2 size={15} /></button></div>}</td>
                       </tr>
                     ))}</tbody>
                   </table>
@@ -592,8 +678,12 @@ function QuestionPaperBuilder({ user, role }) {
         apiUrl={apiUrl}
         grade={questionBankGrade(grade)}
         subject={subject}
-        enabled={dataMode === 'mongo'}
-        onImported={(savedQuestions) => setQuestions((current) => [...savedQuestions, ...current])}
+        isAdmin={isAdmin}
+        onImported={(savedQuestions) => {
+          if (!isAdmin && !saveLocalQuestions([...savedQuestions, ...localQuestions])) return false
+          setQuestions((current) => [...savedQuestions, ...current])
+          return true
+        }}
         onNotice={setNotice}
         onClose={() => setShowImporter(false)}
       />}
