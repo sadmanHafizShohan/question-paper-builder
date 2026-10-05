@@ -15,7 +15,7 @@ const authErrorMessages = {
   'auth/operation-not-allowed': 'Firebase Console-এ Email/Password sign-in চালু করুন।',
   'auth/too-many-requests': 'অনেকবার চেষ্টা করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।',
   'auth/weak-password': 'পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে।',
-  'auth/user-disabled': 'এই অ্যাকাউন্টটি নিষ্ক্রিয়। Firebase administrator-এর সঙ্গে যোগাযোগ করুন।',
+  'auth/user-disabled': 'এই অ্যাকাউন্টটি নিষ্ক্রিয়। যোগাযোগ করুন - 01709613535',
   'auth/user-not-found': 'এই ইমেইলে কোনো অ্যাকাউন্ট নেই।',
   'auth/wrong-password': 'পাসওয়ার্ড সঠিক নয়।',
 }
@@ -70,7 +70,7 @@ export default function FirebaseAuthScreen({ setupRequired = false, fatalError =
   return (
     <main className="auth-shell">
       <section className="auth-card" aria-labelledby="auth-title">
-        <div className="auth-brand"><span className="auth-brand-mark"><BookOpen size={22} /></span><span><strong>প্রশ্নঘর</strong><small>শিক্ষকের প্রশ্নপত্র workspace</small></span></div>
+        <div className="auth-brand"><span className="auth-brand-mark"><BookOpen size={22} /></span><span><strong>প্রশ্নঘর</strong><small>Developed By Md. Shohanoor Rahman Shohan</small></span></div>
 
         {setupRequired ? (
           <div className="auth-setup" role="alert">

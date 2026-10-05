@@ -181,6 +181,33 @@ app.post('/api/questions', requireAdmin, async (request, response, next) => {
   }
 })
 
+app.delete('/api/questions', requireAdmin, async (request, response, next) => {
+  try {
+    const { ids } = request.body
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 500) {
+      return response.status(400).json({ error: 'Provide between 1 and 500 question IDs' })
+    }
+    if (ids.some((id) => typeof id !== 'string' || !/^[a-f\d]{24}$/i.test(id))) {
+      return response.status(400).json({ error: 'Every question ID must be a valid MongoDB ID' })
+    }
+
+    const uniqueIds = [...new Set(ids)]
+    const existingQuestions = await Question.find({ _id: { $in: uniqueIds } }).select('_id').lean()
+    const existingIds = existingQuestions.map((question) => String(question._id))
+    if (existingIds.length === 0) {
+      return response.json({ deletedCount: 0, deletedIds: [] })
+    }
+
+    const result = await Question.deleteMany({ _id: { $in: existingIds } })
+    response.json({
+      deletedCount: result.deletedCount,
+      deletedIds: existingIds,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.put('/api/questions/:id', requireAdmin, async (request, response, next) => {
   try {
     const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body

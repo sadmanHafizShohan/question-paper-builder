@@ -468,6 +468,62 @@ function QuestionPaperBuilder({ user, role }) {
     setNotice(question.isLocal ? 'এই ডিভাইসের প্রশ্নটি মুছে ফেলা হয়েছে' : 'প্রশ্নটি main database থেকে মুছে ফেলা হয়েছে')
   }
 
+  async function deleteSelectedQuestions() {
+    const removableQuestions = selectedQuestions.filter((question) => isAdmin || question.isLocal)
+    if (removableQuestions.length === 0) {
+      setNotice('মুছতে হলে নিজের local প্রশ্ন নির্বাচন করুন')
+      return
+    }
+
+    const localIds = removableQuestions.filter((question) => question.isLocal).map((question) => question.id)
+    const serverQuestions = removableQuestions.filter((question) => !question.isLocal)
+    if (serverQuestions.length > 0 && dataMode !== 'mongo') {
+      setNotice('MongoDB সংযোগ ছাড়া main database-এর প্রশ্ন মুছতে পারবেন না')
+      return
+    }
+
+    const deleteDescription = isAdmin
+      ? `${removableQuestions.length}টি নির্বাচিত প্রশ্ন মুছবেন?${serverQuestions.length ? ` এর মধ্যে ${serverQuestions.length}টি main MongoDB থেকে মুছে যাবে` : ''}${localIds.length ? ` এবং ${localIds.length}টি এই device-এর local storage থেকে মুছে যাবে` : ''}।`
+      : `${removableQuestions.length}টি local প্রশ্ন এই ডিভাইস থেকে মুছবেন?`
+    if (!window.confirm(deleteDescription)) return
+
+    let deletedServerIds = []
+    if (serverQuestions.length > 0) {
+      try {
+        const response = await authenticatedFetch(`${apiUrl}/questions`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: serverQuestions.map((question) => question.id) }),
+        })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result?.error || `HTTP ${response.status}`)
+        deletedServerIds = Array.isArray(result.deletedIds) ? result.deletedIds : []
+      } catch (error) {
+        console.error('Could not bulk delete questions from MongoDB', error)
+        setNotice('Main database থেকে নির্বাচিত প্রশ্নগুলো মুছতে পারিনি; কোনো local প্রশ্নও মুছিনি।')
+        return
+      }
+    }
+
+    if (localIds.length > 0) {
+      const remainingLocalQuestions = localQuestions.filter((question) => !localIds.includes(question.id))
+      if (!saveLocalQuestions(remainingLocalQuestions)) {
+        setQuestions((current) => current.filter((question) => !deletedServerIds.includes(question.id)))
+        setSelected((current) => current.filter((id) => !deletedServerIds.includes(id)))
+        if (deletedServerIds.length > 0) {
+          setNotice(`${deletedServerIds.length}টি main প্রশ্ন মুছে গেছে, কিন্তু local প্রশ্নগুলো এই ডিভাইসে সংরক্ষণ সমস্যার কারণে মুছতে পারিনি।`)
+        }
+        return
+      }
+    }
+
+    const removedIds = [...localIds, ...serverQuestions.map((question) => question.id)]
+    const deletedCount = localIds.length + deletedServerIds.length
+    setQuestions((current) => current.filter((question) => !removedIds.includes(question.id)))
+    setSelected((current) => current.filter((id) => !removedIds.includes(id)))
+    setNotice(`${bengaliNumber(deletedCount)}টি নির্বাচিত প্রশ্ন মুছে ফেলা হয়েছে${deletedServerIds.length < serverQuestions.length ? `; ${bengaliNumber(serverQuestions.length - deletedServerIds.length)}টি আগে থেকেই নেই` : ''}`)
+  }
+
   async function savePaperSettings() {
     if (!/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor)) {
       setNotice('রঙের জন্য সঠিক HEX কোড দিন, যেমন #26352D')
@@ -553,7 +609,7 @@ function QuestionPaperBuilder({ user, role }) {
         <div className="side-label subject-label">বিষয়</div>
         <button className="subject-switch"><span className="subject-dot">{subjectLabel(subject).slice(0, 1)}</span><span><strong>{subjectLabel(subject)}</strong><small>{gradeLabel(grade)}</small></span><ChevronDown size={16} /></button>
         <div className="sidebar-bottom">
-          <div className="help-card"><CircleHelp size={17} /><span>Developed by সৃজনশীল প্রাইভেট সেন্টার</span><ChevronRight size={15} /></div>
+          <div className="help-card"><CircleHelp size={17} /><span>Developed By Md. Shohanoor Rahman Shohan</span><ChevronRight size={15} /></div>
           <div className="profile-row"><div className="avatar">{accountInitial}</div><span><strong>{accountName}</strong><small>{isAdmin ? 'Admin' : 'User'} · Firebase</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
         </div>
       </aside>
@@ -616,7 +672,13 @@ function QuestionPaperBuilder({ user, role }) {
                   </table>
                   {filteredQuestions.length === 0 && <div className="empty-state"><Search size={22} /><strong>{dataMode === 'unavailable' ? 'MongoDB সংযোগ নেই' : 'কোনো প্রশ্ন পাওয়া যায়নি'}</strong><span>{dataMode === 'unavailable' ? 'MongoDB চালু হলে এই শ্রেণি ও বিষয়ের প্রশ্ন লোড হবে।' : 'অন্য শব্দ বা অধ্যায় দিয়ে খুঁজে দেখুন।'}</span></div>}
                 </div>
-                <footer className="table-footer"><span>মোট {bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হচ্ছে</span><div><button aria-label="আগের পৃষ্ঠা" disabled><ChevronLeft size={16} /></button><span>১ / ১</span><button aria-label="পরের পৃষ্ঠা" disabled><ChevronRight size={16} /></button></div></footer>
+                <footer className="table-footer">
+                  <div className="table-footer-actions">
+                    <span>মোট {bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হচ্ছে</span>
+                    {selectedQuestions.some((question) => isAdmin || question.isLocal) && <button type="button" className="danger-button" onClick={deleteSelectedQuestions}><Trash2 size={14} /> নির্বাচিত মুছুন</button>}
+                  </div>
+                  <div className="table-pagination"><button aria-label="আগের পৃষ্ঠা" disabled><ChevronLeft size={16} /></button><span>১ / ১</span><button aria-label="পরের পৃষ্ঠা" disabled><ChevronRight size={16} /></button></div>
+                </footer>
               </section>
             </>
           ) : (
