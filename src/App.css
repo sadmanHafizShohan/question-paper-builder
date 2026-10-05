@@ -497,6 +497,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 	.brand-mark { width: 31px; height: 31px; }
 	.nav-item { gap: 5px; margin-left: 2px; padding: 8px 6px; font-size: 9px; }
 	.nav-item svg { width: 15px; }
+	.admin-nav-item > span:nth-child(2) { display: none; }
 	.save-indicator { display: none; }
 	.topbar-actions { gap: 9px; }
 	.content-area { padding-right: 10px; padding-left: 10px; }

@@ -1,0 +1,46 @@
+.admin-user-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.admin-user-summary > div { display: flex; align-items: center; gap: 11px; padding: 15px; border: 1px solid #e8ede9; border-radius: 8px; background: #fff; }
+.admin-summary-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 8px; background: #e8f4ed; color: #2a8060; }
+.admin-summary-icon.admin-shield { background: #eef0e3; color: #788047; }
+.admin-user-summary small,.admin-user-summary strong { display: block; }
+.admin-user-summary small { color: #7c8981; font-size: 10px; }
+.admin-user-summary strong { margin-top: 2px; color: #27352e; font-size: 18px; }
+.admin-role-help { margin-bottom: 13px; padding: 11px 13px; border: 1px solid #dcebe0; border-radius: 7px; background: #f4faf5; color: #53685b; font-size: 11px; line-height: 1.65; }
+.admin-message { display: flex; align-items: center; gap: 7px; margin: 0 0 12px; padding: 10px 12px; border-radius: 7px; font-size: 11px; line-height: 1.6; }
+.admin-message-error { border: 1px solid #efd5d1; background: #fff7f5; color: #a53f35; }
+.admin-message-success { border: 1px solid #d6e6da; background: #f5fbf6; color: #357451; }
+.admin-user-table { overflow: hidden; }
+.admin-table-state { padding: 28px 18px; color: #7e8a83; text-align: center; font-size: 12px; }
+.admin-user-name { display: flex; min-width: 175px; align-items: center; gap: 9px; }
+.admin-user-name > span:last-child { min-width: 0; }
+.admin-user-name strong,.admin-user-name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-user-name strong { color: #34453b; font-size: 11px; }
+.admin-user-name small { max-width: 170px; margin-top: 3px; color: #929d96; font-size: 9px; }
+.admin-user-avatar { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 50%; background: #eaf4ef; color: #176b55; font-size: 11px; font-weight: 700; }
+.admin-user-status { display: inline-flex; padding: 4px 8px; border-radius: 20px; background: #eaf4ef; color: #28734f; font-size: 10px; }
+.admin-user-status.is-disabled { background: #fbefe7; color: #a45d37; }
+.admin-user-table .question-table { min-width: 650px; }
+.admin-user-table .question-table select { min-width: 95px; padding: 6px 8px; border: 1px solid #e2e9e3; border-radius: 6px; background: #fff; color: #38483f; font-size: 10px; }
+.admin-user-table .question-table select:disabled { cursor: not-allowed; opacity: .65; }
+.admin-refreshing { animation: admin-refresh .8s linear infinite; }
+@keyframes admin-refresh { to { transform: rotate(360deg); } }
+
+html[data-theme='dark'] .admin-user-summary > div { border-color: #2a3930; background: #18221c; }
+html[data-theme='dark'] .admin-summary-icon { background: #244331; color: #9bd3ad; }
+html[data-theme='dark'] .admin-summary-icon.admin-shield { background: #3d392b; color: #d2c98d; }
+html[data-theme='dark'] .admin-user-summary small,
+html[data-theme='dark'] .admin-user-summary strong { color: #b3c0b7; }
+html[data-theme='dark'] .admin-role-help { border-color: #365844; background: #1b2a20; color: #b3c0b7; }
+html[data-theme='dark'] .admin-message-error { border-color: #70443e; background: #352421; color: #f19c91; }
+html[data-theme='dark'] .admin-message-success { border-color: #365844; background: #1b2a20; color: #a7d8b4; }
+html[data-theme='dark'] .admin-user-name strong { color: #e2ebe5; }
+html[data-theme='dark'] .admin-user-avatar { background: #203b2e; color: #8bd0a7; }
+html[data-theme='dark'] .admin-user-status { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .admin-user-status.is-disabled { background: #493628; color: #e8c09a; }
+html[data-theme='dark'] .admin-user-table .question-table select { border-color: #35463b; background: #202c24; color: #e0e9e3; }
+
+@media (max-width: 760px) {
+	.admin-user-summary { gap: 8px; }
+	.admin-user-summary > div { padding: 11px; }
+	.admin-user-table .question-table { min-width: 650px; }
+}

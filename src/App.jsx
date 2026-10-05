@@ -20,6 +20,7 @@ import {
   Printer,
   RotateCcw,
   Search,
+  Shield,
   Sigma,
   Sun,
   Trash2,
@@ -32,6 +33,7 @@ import './App.css'
 import BulkQuestionImporter from './BulkQuestionImporter.jsx'
 import FirebaseAuthGate from './FirebaseAuthGate.jsx'
 import authenticatedFetch from './authenticatedFetch.js'
+import AdminUsersPanel from './AdminUsersPanel.jsx'
 import { auth } from './firebase.js'
 
 const grades = [5, 6, 7, 8, 9, 10]
@@ -141,7 +143,7 @@ function getLocalPaperSettings(grade, subject) {
   }
 }
 
-function QuestionPaperBuilder({ user }) {
+function QuestionPaperBuilder({ user, role }) {
   const [workspaceState] = useState(readWorkspaceState)
   const [grade, setGrade] = useState(() => grades.includes(workspaceState.grade) ? questionBankGrade(workspaceState.grade) : 7)
   const [subject, setSubject] = useState(() => subjects.some((item) => item.id === workspaceState.subject) ? workspaceState.subject : 'math')
@@ -172,6 +174,7 @@ function QuestionPaperBuilder({ user }) {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
   const [notice, setNotice] = useState('')
   const hasRestoredScroll = useRef(false)
+  const isAdmin = role === 'admin'
 
   const applyPaperSettings = useCallback((settings) => {
     setSchoolName(settings.schoolName ?? defaultPaperSettings.schoolName)
@@ -458,27 +461,32 @@ function QuestionPaperBuilder({ user }) {
           <ClipboardList size={18} /><span>প্রশ্নপত্র তৈরি</span>
           {selected.length > 0 && <span className="nav-count selected-count">{bengaliNumber(selected.length)}</span>}
         </button>
+        {isAdmin && <button type="button" className={`nav-item admin-nav-item ${page === 'users' ? 'active' : ''}`} aria-label="ব্যবহারকারী ও role পরিচালনা" title="ব্যবহারকারী" onClick={() => setPage('users')}>
+          <Shield size={18} /><span>ব্যবহারকারী</span>
+        </button>}
         <div className="side-label subject-label">বিষয়</div>
         <button className="subject-switch"><span className="subject-dot">{subjectLabel(subject).slice(0, 1)}</span><span><strong>{subjectLabel(subject)}</strong><small>{gradeLabel(grade)}</small></span><ChevronDown size={16} /></button>
         <div className="sidebar-bottom">
           <div className="help-card"><CircleHelp size={17} /><span>Developed by সৃজনশীল প্রাইভেট সেন্টার</span><ChevronRight size={15} /></div>
-          <div className="profile-row"><div className="avatar">{accountInitial}</div><span><strong>{accountName}</strong><small>Firebase অ্যাকাউন্ট</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
+          <div className="profile-row"><div className="avatar">{accountInitial}</div><span><strong>{accountName}</strong><small>{isAdmin ? 'Admin' : 'User'} · Firebase</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
         </div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
-          <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : 'প্রশ্নপত্র তৈরি'}</strong></div>
+          <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : page === 'users' ? 'ব্যবহারকারী' : 'প্রশ্নপত্র তৈরি'}</strong></div>
           <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'MongoDB সংযোগ নেই'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}>{accountInitial}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
         </header>
 
         <div className="content-area">
-          <div className="context-bar">
+          {page !== 'users' && <div className="context-bar">
             <label><span>শ্রেণি</span><select value={grade} onChange={(event) => changeContext(Number(event.target.value), subject)}>{selectableGrades.map((item) => <option key={item} value={item}>{gradeLabel(item)}</option>)}</select></label>
             <label className="context-subject"><span>বিষয়</span><select value={subject} onChange={(event) => changeContext(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <span className="context-hint">{isLoadingQuestions ? 'প্রশ্ন লোড হচ্ছে…' : `${gradeLabel(grade)} · ${subjectLabel(subject)}${grade >= 9 ? ' · শ্রেণি ৯–১০-এর অভিন্ন প্রশ্ন ব্যাংক' : ''}`}</span>
-          </div>
-          {page === 'bank' ? (
+          </div>}
+          {page === 'users' && isAdmin
+            ? <AdminUsersPanel apiUrl={apiUrl} currentUserId={user.uid} />
+            : page === 'bank' ? (
             <>
               <section className="page-heading">
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>
@@ -1358,5 +1366,5 @@ function StaticMathFormula({ value, displayMode = false }) {
 }
 
 export default function App() {
-  return <FirebaseAuthGate>{(user) => <QuestionPaperBuilder user={user} />}</FirebaseAuthGate>
+  return <FirebaseAuthGate>{(user, role) => <QuestionPaperBuilder user={user} role={role} />}</FirebaseAuthGate>
 }

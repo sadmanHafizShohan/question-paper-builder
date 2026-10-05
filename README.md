@@ -18,7 +18,7 @@
 4. MongoDB demo প্রশ্ন যোগ করতে `npm run seed:demo` চালান। এটি পুনরায় চালালেও একই demo duplicate হবে না।
 5. একটি terminal-এ `npm run server` চালান। আরেকটি terminal-এ `npm run dev` চালান। Vite যদি 5173 ব্যবহার করতে না পারে, terminal-এ দেখানো 5174 URL-টি খুলুন।
 
-## Firebase লগইন ও API সুরক্ষা
+## Firebase লগইন, admin ও user role
 
 1. Firebase Console-এ project ও Web App তৈরি করে **Authentication → Sign-in method → Email/Password** চালু করুন।
 2. project root-এ `.env` ফাইলে Firebase Web App-এর মানগুলো যোগ করুন:
@@ -33,10 +33,11 @@
    ```
 
    এগুলো Firebase Console → **Project settings → Your apps**-এ পাবেন। `.env` Git-এ commit করবেন না।
-3. Express API-র ID token যাচাইয়ের জন্য Firebase Console → **Project settings → Service accounts** থেকে Admin SDK service-account JSON ডাউনলোড করুন। JSON ফাইলটি repository-র বাইরে নিরাপদ স্থানে রাখুন এবং `.env`-এ `GOOGLE_APPLICATION_CREDENTIALS`-এ তার absolute path দিন (যেমন Windows-এ `C:/secure/firebase-service-account.json`)। Service-account key কখনো Git-এ commit করবেন না। Google Cloud environment-এ Application Default Credentials-ও ব্যবহার করা যায়।
-4. Firebase Console-এর Authentication → **Users** থেকে ব্যবহারকারী যোগ করুন, অথবা login page-এর account creation ব্যবহার করুন। Google Cloud-এ service identity/Application Default Credentials যুক্ত থাকলে `FIREBASE_ADMIN_USE_ADC=true` সেট করতে পারেন; Admin credential ছাড়া `npm run server` চালু হবে না।
+3. Express API-র ID token যাচাই ও role পরিচালনার জন্য Firebase Console → **Project settings → Service accounts** থেকে Admin SDK service-account JSON ডাউনলোড করুন। JSON ফাইলটি repository-র বাইরে নিরাপদ স্থানে রাখুন এবং `.env`-এ `GOOGLE_APPLICATION_CREDENTIALS`-এ তার absolute path দিন (যেমন Windows-এ `C:/secure/firebase-service-account.json`)। Service-account key কখনো Git-এ commit করবেন না। Google Cloud environment-এ Application Default Credentials-ও ব্যবহার করা যায়।
+4. Login screen থেকে প্রথম account তৈরি করুন। এরপর API server বন্ধ করে terminal-এ `npm run user:role -- you@example.com admin` চালিয়ে সেই Firebase account-কে প্রথম admin বানান, তারপর API server আবার চালু করে sign out/sign in করুন। Google Cloud-এ service identity/Application Default Credentials যুক্ত থাকলে `FIREBASE_ADMIN_USE_ADC=true` সেট করতে পারেন।
+5. পরবর্তী account-গুলো signup করলে স্বয়ংক্রিয়ভাবে `user` role পাবে। Admin account থেকে **ব্যবহারকারী** পৃষ্ঠা খুলে তাদের `admin` বা `user` করা যাবে। সর্বশেষ admin-কে user-এ নামানো বা নিজের role পরিবর্তন করা যাবে না। Role update-এর পর সংশ্লিষ্ট account-কে sign out/sign in করতে হবে, যাতে Firebase নতুন custom claim token-এ দেয়।
 
-প্রতিটি login করা ব্যবহারকারীর Firebase ID token প্রশ্ন/সেটিংস API-তে পাঠানো এবং server-এ যাচাই করা হয়; `/api/health` public থাকে। বর্তমানে role-based permission নেই—যে কোনো authenticated account API-র প্রশ্ন পড়া/লেখা ও settings পরিবর্তন করতে পারে। Production-এ অবশ্যই HTTPS এবং নির্দিষ্ট `CLIENT_ORIGIN` ব্যবহার করুন।
+Admin/user custom role Firebase Authentication-এর signed custom claim-এ থাকে। Server `/api/admin/users` ও role update API-তে `admin` claim বাধ্যতামূলকভাবে যাচাই করে; forged client-side role গ্রহণ করা হয় না। উভয় role-ই প্রশ্ন ব্যাংক, Excel import ও প্রশ্নপত্র ব্যবহার করতে পারে; শুধু admin user account ও role পরিচালনা করতে পারে। `/api/health` public; অন্যান্য API-তে Firebase ID token আবশ্যক। Production-এ অবশ্যই HTTPS এবং নির্দিষ্ট `CLIENT_ORIGIN` ব্যবহার করুন।
 
 ## MongoDB credential কোথায় পাবেন
 

@@ -1,27 +1,13 @@
 import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
-import { applicationDefault, cert, initializeApp } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
 import mongoose from 'mongoose'
 import process from 'node:process'
+import { firebaseAdminAuth } from './firebaseAdmin.js'
 import { PaperSettings, Question } from './models.js'
 
 dotenv.config()
 
-const useApplicationDefaultCredentials = Boolean(
-  process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.FIREBASE_ADMIN_USE_ADC === 'true',
-)
-if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON && !useApplicationDefaultCredentials) {
-  throw new Error('Configure Firebase Admin credentials with GOOGLE_APPLICATION_CREDENTIALS, FIREBASE_SERVICE_ACCOUNT_JSON, or FIREBASE_ADMIN_USE_ADC=true before starting the API.')
-}
-
-const firebaseAdminApp = initializeApp({
-  credential: process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-    ? cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON))
-    : applicationDefault(),
-})
-const firebaseAuth = getAuth(firebaseAdminApp)
 const app = express()
 const port = Number(process.env.PORT || 4000)
 const questionBankGrade = (grade) => Number(grade) === 10 ? 9 : Number(grade)
@@ -41,12 +27,80 @@ app.use('/api', async (request, response, next) => {
   if (!tokenMatch) return response.status(401).json({ error: 'Authentication required' })
 
   try {
-    request.firebaseUser = await firebaseAuth.verifyIdToken(tokenMatch[1])
+    request.firebaseUser = await firebaseAdminAuth.verifyIdToken(tokenMatch[1])
     next()
   } catch (error) {
     if (error.code?.startsWith('auth/')) return response.status(401).json({ error: 'Invalid or expired authentication token' })
     console.error('Firebase ID token verification failed', error)
     response.status(500).json({ error: 'Authentication service unavailable' })
+  }
+})
+
+function requireAdmin(request, response, next) {
+  if (request.firebaseUser.role !== 'admin') {
+    return response.status(403).json({ error: 'Admin role required' })
+  }
+  next()
+}
+
+app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
+  try {
+    const users = []
+    let pageToken
+    do {
+      const page = await firebaseAdminAuth.listUsers(1000, pageToken)
+      users.push(...page.users.map((user) => ({
+        uid: user.uid,
+        email: user.email ?? '',
+        displayName: user.displayName ?? '',
+        disabled: user.disabled,
+        role: user.customClaims?.role === 'admin' ? 'admin' : 'user',
+        createdAt: user.metadata.creationTime,
+        lastSignInAt: user.metadata.lastSignInTime ?? null,
+      })))
+      pageToken = page.pageToken
+    } while (pageToken)
+
+    users.sort((left, right) => left.email.localeCompare(right.email))
+    response.json(users)
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.put('/api/admin/users/:uid/role', requireAdmin, async (request, response, next) => {
+  try {
+    const { role } = request.body
+    if (role !== 'admin' && role !== 'user') {
+      return response.status(400).json({ error: 'Role must be admin or user' })
+    }
+    if (request.params.uid === request.firebaseUser.uid) {
+      return response.status(400).json({ error: 'You cannot change your own role' })
+    }
+
+    const targetUser = await firebaseAdminAuth.getUser(request.params.uid)
+    const previousRole = targetUser.customClaims?.role === 'admin' ? 'admin' : 'user'
+    if (previousRole === 'admin' && role === 'user') {
+      let adminCount = 0
+      let pageToken
+      do {
+        const page = await firebaseAdminAuth.listUsers(1000, pageToken)
+        adminCount += page.users.filter((user) => user.customClaims?.role === 'admin').length
+        pageToken = page.pageToken
+      } while (pageToken)
+
+      if (adminCount <= 1) {
+        return response.status(409).json({ error: 'The last admin cannot be demoted' })
+      }
+    }
+
+    await firebaseAdminAuth.setCustomUserClaims(request.params.uid, {
+      ...targetUser.customClaims,
+      role,
+    })
+    response.json({ uid: targetUser.uid, email: targetUser.email ?? '', role })
+  } catch (error) {
+    next(error)
   }
 })
 
