@@ -602,6 +602,9 @@ function QuestionPaperBuilder({ user, role }) {
 
   const accountName = user.displayName || user.email || 'ব্যবহারকারী'
   const accountInitial = user.displayName?.trim().charAt(0) || user.email?.charAt(0)?.toUpperCase() || 'শা'
+  const questionCount = (value) => isLoadingQuestions
+    ? <span className="loading-spinner question-count-spinner" aria-hidden="true" />
+    : bengaliNumber(value)
 
   return (
     <div className="app-shell">
@@ -612,7 +615,7 @@ function QuestionPaperBuilder({ user, role }) {
         </button>
         <div className="side-label">ওয়ার্কস্পেস</div>
         <button className={`nav-item ${page === 'bank' ? 'active' : ''}`} onClick={() => setPage('bank')}>
-          <LayoutDashboard size={18} /><span>প্রশ্ন ব্যাংক</span><span className="nav-count">{bengaliNumber(questions.length)}</span>
+          <LayoutDashboard size={18} /><span>প্রশ্ন ব্যাংক</span><span className="nav-count">{questionCount(questions.length)}</span>
         </button>
         <button className={`nav-item ${page === 'builder' ? 'active' : ''}`} onClick={() => setPage('builder')}>
           <ClipboardList size={18} /><span>প্রশ্নপত্র তৈরি</span>
@@ -657,9 +660,9 @@ function QuestionPaperBuilder({ user, role }) {
               </section>
 
               <section className="stats-row" aria-label="প্রশ্ন ব্যাংকের সারাংশ">
-                <div className="stat-card"><div className="stat-icon mint"><BookOpen size={18} /></div><div><span>মোট প্রশ্ন</span><strong>{bengaliNumber(questions.length)}</strong></div><small>প্রশ্ন ব্যাংকে</small></div>
-                <div className="stat-card"><div className="stat-icon sky"><ClipboardList size={18} /></div><div><span>অধ্যায়</span><strong>{bengaliNumber(new Set(questions.map((question) => question.chapter).filter(Boolean)).size)}</strong></div><small>প্রশ্ন রয়েছে</small></div>
-                <div className="stat-card"><div className="stat-icon peach"><FileText size={18} /></div><div><span>প্রশ্নের ধরন</span><strong>{bengaliNumber(new Set(questions.map((question) => question.type)).size)}</strong></div><small>ধরন সক্রিয়</small></div>
+                <div className="stat-card"><div className="stat-icon mint"><BookOpen size={18} /></div><div><span>মোট প্রশ্ন</span><strong>{questionCount(questions.length)}</strong></div><small>প্রশ্ন ব্যাংকে</small></div>
+                <div className="stat-card"><div className="stat-icon sky"><ClipboardList size={18} /></div><div><span>অধ্যায়</span><strong>{questionCount(new Set(questions.map((question) => question.chapter).filter(Boolean)).size)}</strong></div><small>প্রশ্ন রয়েছে</small></div>
+                <div className="stat-card"><div className="stat-icon peach"><FileText size={18} /></div><div><span>প্রশ্নের ধরন</span><strong>{questionCount(new Set(questions.map((question) => question.type)).size)}</strong></div><small>ধরন সক্রিয়</small></div>
                 <button className="stat-card stat-action" onClick={() => setPage('builder')}><div className="stat-icon lavender"><FilePlus2 size={18} /></div><div><span>নির্বাচিত প্রশ্ন</span><strong>{bengaliNumber(selected.length)}</strong></div><small>প্রশ্নপত্র তৈরি <ChevronRight size={13} /></small></button>
               </section>
 
@@ -671,8 +674,8 @@ function QuestionPaperBuilder({ user, role }) {
                   <button className="sort-button" onClick={() => setQuestions((current) => [...current].reverse())}><ArrowDownUp size={15} /> সাজান</button>
                 </div>
                 <div className="type-tabs" role="tablist" aria-label="প্রশ্নের ধরন">
-                  <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন <span>{bengaliNumber(questions.length)}</span></button>
-                  {questionTypes.map((type) => <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{type.label}<span>{bengaliNumber(questions.filter((question) => question.type === type.id).length)}</span></button>)}
+                  <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন <span>{questionCount(questions.length)}</span></button>
+                  {questionTypes.map((type) => <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{type.label}<span>{questionCount(questions.filter((question) => question.type === type.id).length)}</span></button>)}
                 </div>
                 <div className="question-table-wrap">
                   <table className="question-table">
@@ -692,7 +695,9 @@ function QuestionPaperBuilder({ user, role }) {
                 </div>
                 <footer className="table-footer">
                   <div className="table-footer-actions">
-                    <span>মোট {bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হচ্ছে</span>
+                    {isLoadingQuestions
+                      ? <span className="question-count-loading-label"><span className="loading-spinner question-count-spinner" aria-hidden="true" /> প্রশ্ন লোড হচ্ছে…</span>
+                      : <span>মোট {bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হচ্ছে</span>}
                     {selectedQuestions.some((question) => isAdmin || question.isLocal) && <button type="button" className="danger-button" onClick={deleteSelectedQuestions}><Trash2 size={14} /> নির্বাচিত মুছুন</button>}
                   </div>
                   <div className="table-pagination"><button aria-label="আগের পৃষ্ঠা" disabled><ChevronLeft size={16} /></button><span>১ / ১</span><button aria-label="পরের পৃষ্ঠা" disabled><ChevronRight size={16} /></button></div>

@@ -39,6 +39,8 @@ textarea:focus-visible {
 .nav-item.active { background: #eaf4ef; color: #176b55; font-weight: 700; }
 .nav-item > span:nth-child(2) { flex: 1; }
 .nav-count { color: #8e9993; font-size: 11px; }
+.question-count-spinner { display: inline-block; width: 14px; height: 14px; flex: 0 0 14px; vertical-align: middle; border-width: 2px; }
+.question-count-loading-label { display: inline-flex; align-items: center; gap: 7px; }
 .selected-count { color: #176b55; }
 .subject-label { margin: 31px 0 11px; }
 .subject-switch { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; border: 1px solid #e9eeea; border-radius: 8px; background: white; text-align: left; cursor: pointer; }
