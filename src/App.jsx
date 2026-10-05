@@ -31,6 +31,7 @@ import './App.css'
 import BulkQuestionImporter from './BulkQuestionImporter.jsx'
 
 const grades = [5, 6, 7, 8, 9, 10]
+const selectableGrades = grades.filter((item) => item !== 10)
 const subjects = [
   { id: 'math', label: 'গণিত' },
   { id: 'bangla-1', label: 'বাংলা ১ম পত্র' },
@@ -67,7 +68,9 @@ function readWorkspaceState() {
 }
 const typeLabel = (id) => questionTypes.find((type) => type.id === id)?.label ?? id
 const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
-const gradeLabel = (grade) => `শ্রেণি ${bengaliNumber(grade)}`
+const gradeLabel = (grade) => grade >= 9 ? 'নবম-দশম শ্রেণি' : `শ্রেণি ${bengaliNumber(grade)}`
+const paperClassLabel = (value) => value === 'নবম' || value === 'দশম' ? 'নবম-দশম শ্রেণি' : value
+const questionBankGrade = (grade) => grade === 10 ? 9 : grade
 const subjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
 const optionLabelsFor = (subject) => subject.startsWith('english-')
   ? ['a', 'b', 'c', 'd']
@@ -136,7 +139,7 @@ function getLocalPaperSettings(grade, subject) {
 
 function App() {
   const [workspaceState] = useState(readWorkspaceState)
-  const [grade, setGrade] = useState(() => grades.includes(workspaceState.grade) ? workspaceState.grade : 7)
+  const [grade, setGrade] = useState(() => grades.includes(workspaceState.grade) ? questionBankGrade(workspaceState.grade) : 7)
   const [subject, setSubject] = useState(() => subjects.some((item) => item.id === workspaceState.subject) ? workspaceState.subject : 'math')
   const [questions, setQuestions] = useState([])
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
@@ -154,7 +157,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
   const [paperTitle, setPaperTitle] = useState(() => getLocalPaperSettings(grade, subject).paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
   const [paperDuration, setPaperDuration] = useState(() => getLocalPaperSettings(grade, subject).paperDuration ?? '২ ঘণ্টা')
-  const [paperClass, setPaperClass] = useState(() => getLocalPaperSettings(grade, subject).paperClass ?? gradeLabel(grade))
+  const [paperClass, setPaperClass] = useState(() => paperClassLabel(getLocalPaperSettings(grade, subject).paperClass ?? gradeLabel(grade)))
   const [schoolName, setSchoolName] = useState(() => getLocalPaperSettings(grade, subject).schoolName)
   const [schoolSubtitle, setSchoolSubtitle] = useState(() => getLocalPaperSettings(grade, subject).schoolSubtitle)
   const [paperSetCode, setPaperSetCode] = useState(() => getLocalPaperSettings(grade, subject).paperSetCode)
@@ -174,7 +177,7 @@ function App() {
     setShowChapters(settings.showChapters ?? true)
     setPaperTitle(settings.paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
     setPaperDuration(settings.paperDuration ?? '২ ঘণ্টা')
-    setPaperClass(settings.paperClass ?? gradeLabel(grade))
+    setPaperClass(paperClassLabel(settings.paperClass ?? gradeLabel(grade)))
     setWatermark({ ...defaultPaperSettings.watermark, ...(settings.watermark ?? {}) })
   }, [grade, subject])
 
@@ -254,7 +257,7 @@ function App() {
       setQuestions([])
       try {
         const [questionsResponse, settingsResponse] = await Promise.all([
-          fetch(`${apiUrl}/questions?subject=${encodeURIComponent(subject)}&grade=${grade}`),
+          fetch(`${apiUrl}/questions?subject=${encodeURIComponent(subject)}&grade=${questionBankGrade(grade)}`),
           fetch(`${apiUrl}/settings/${encodeURIComponent(subject)}/${grade}`),
         ])
         if (!questionsResponse.ok) throw new Error('Question API unavailable')
@@ -318,7 +321,7 @@ function App() {
       return
     }
     const editing = Boolean(editingQuestion)
-    const payload = { ...question, subject, grade }
+    const payload = { ...question, subject, grade: questionBankGrade(grade) }
     let savedQuestion = payload
     let statementFieldsConfirmed
     try {
@@ -335,6 +338,8 @@ function App() {
         ...payload,
         ...result,
         id: result._id ?? result.id ?? payload.id,
+        grade,
+        subject,
         statements: result.statements?.length ? result.statements : payload.statements,
         statementQuestion: result.statementQuestion || payload.statementQuestion,
       }
@@ -449,9 +454,9 @@ function App() {
 
         <div className="content-area">
           <div className="context-bar">
-            <label><span>শ্রেণি</span><select value={grade} onChange={(event) => changeContext(Number(event.target.value), subject)}>{grades.map((item) => <option key={item} value={item}>{gradeLabel(item)}</option>)}</select></label>
+            <label><span>শ্রেণি</span><select value={grade} onChange={(event) => changeContext(Number(event.target.value), subject)}>{selectableGrades.map((item) => <option key={item} value={item}>{gradeLabel(item)}</option>)}</select></label>
             <label className="context-subject"><span>বিষয়</span><select value={subject} onChange={(event) => changeContext(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-            <span className="context-hint">{isLoadingQuestions ? 'প্রশ্ন লোড হচ্ছে…' : `${gradeLabel(grade)} · ${subjectLabel(subject)}`}</span>
+            <span className="context-hint">{isLoadingQuestions ? 'প্রশ্ন লোড হচ্ছে…' : `${gradeLabel(grade)} · ${subjectLabel(subject)}${grade >= 9 ? ' · শ্রেণি ৯–১০-এর অভিন্ন প্রশ্ন ব্যাংক' : ''}`}</span>
           </div>
           {page === 'bank' ? (
             <>
@@ -521,7 +526,7 @@ function App() {
                   <label className="field-label">নামের নিচের তথ্য<textarea rows={3} value={schoolSubtitle} onChange={(event) => setSchoolSubtitle(event.target.value)} placeholder="প্রতিষ্ঠানের ঠিকানা, ফোন নম্বর..." /></label>
                   <label className="field-label">প্রশ্নপত্রের নাম<input value={paperTitle} onChange={(event) => setPaperTitle(event.target.value)} /></label>
                   <label className="field-label">প্রশ্নপত্রের সেট কোড<input required maxLength="32" value={paperSetCode} onChange={(event) => setPaperSetCode(event.target.value)} placeholder="যেমন SET-A" /><small>প্রিভিউ header-এ [SET-A] আকারে দেখাবে।</small></label>
-                  <label className="field-label">শ্রেণি<select value={paperClass} onChange={(event) => setPaperClass(event.target.value)}><option>ষষ্ঠ</option><option>সপ্তম</option><option>অষ্টম</option><option>নবম</option></select></label>
+                  <label className="field-label">শ্রেণি<select value={paperClass} onChange={(event) => setPaperClass(event.target.value)}><option>ষষ্ঠ</option><option>সপ্তম</option><option>অষ্টম</option><option>নবম-দশম শ্রেণি</option></select></label>
                   <label className="field-label">পরীক্ষার সময়<input value={paperDuration} onChange={(event) => setPaperDuration(event.target.value)} /></label>
                   <label className="paper-setting-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => setShowChapters(event.target.checked)} /><span>প্রশ্নপত্রে অধ্যায়ের নাম দেখান</span></label>
                   <label className="field-label">প্রিভিউ ও প্রশ্নপত্রের সব লেখার রং<div className="color-field-row"><input aria-label="রং বাছাই" type="color" value={/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d'} onChange={(event) => setQuestionTextColor(event.target.value)} /><input aria-label="HEX রঙের কোড" value={questionTextColor} onChange={(event) => setQuestionTextColor(event.target.value)} placeholder="#26352D" /></div></label>
@@ -557,7 +562,7 @@ function App() {
       )}
       {showImporter && <BulkQuestionImporter
         apiUrl={apiUrl}
-        grade={grade}
+        grade={questionBankGrade(grade)}
         subject={subject}
         enabled={dataMode === 'mongo'}
         onImported={(savedQuestions) => setQuestions((current) => [...savedQuestions, ...current])}
@@ -717,7 +722,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
         <header className="modal-heading"><div><span className="modal-icon"><FilePlus2 size={19} /></span><div><h2>{question ? 'প্রশ্ন সম্পাদনা' : 'নতুন প্রশ্ন'}</h2><p>প্রশ্ন ব্যাংকের জন্য তথ্য যোগ করুন</p></div></div><button type="button" className="icon-button" aria-label="বন্ধ করুন" onClick={onClose}><X size={18} /></button></header>
         <div className="modal-body">
           <div className="form-row">
-            <label className="field-label">শ্রেণি<select value={grade} onChange={(event) => onContextChange(Number(event.target.value), subject)}>{grades.map((item) => <option key={item} value={item}>{gradeLabel(item)}</option>)}</select></label>
+            <label className="field-label">শ্রেণি<select value={grade} onChange={(event) => onContextChange(Number(event.target.value), subject)}>{selectableGrades.map((item) => <option key={item} value={item}>{gradeLabel(item)}</option>)}</select></label>
             <label className="field-label">বিষয়<select value={subject} onChange={(event) => onContextChange(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
           </div>
           <div className="form-row">

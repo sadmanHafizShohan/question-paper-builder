@@ -413,9 +413,9 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .question-figure svg { display: block; width: 100%; height: auto; overflow: visible; }
 .question-figure svg text { fill: currentColor; font-family: 'Noto Sans Bengali', sans-serif; font-size: 9px; }
 .question-figure.figure-circle { width: 165px; }
-.question-figure.question-figure-image { width: min(100%, 360px); }
+.question-figure.question-figure-image { width: min(100%, 80px); }
 .paper-figure-item .question-figure.question-figure-image { width: 100%; max-width: 100%; }
-.question-figure-image img { display: block; width: 100%; height: auto; max-width: 100%; max-height: 360px; object-fit: contain; object-position: left center; }
+.question-figure-image img { display: block; width: 100%; height: auto; max-width: 100%; max-height: 80px; object-fit: contain; object-position: left center; }
 .question-figure-image figcaption { color: #a34d42; font-family: 'Noto Sans Bengali', sans-serif; font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
 .question-figure-image figcaption a { color: #287554; }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; display: flex; align-items: center; gap: 8px; padding: 11px 15px; border: 1px solid #d6e6da; border-radius: 7px; background: white; box-shadow: 0 8px 25px #203c2b1a; color: #357451; font-size: 10px; animation: fade-in .16s ease-out; }

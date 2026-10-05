@@ -9,6 +9,7 @@ dotenv.config()
 
 const app = express()
 const port = Number(process.env.PORT || 4000)
+const questionBankGrade = (grade) => Number(grade) === 10 ? 9 : Number(grade)
 const allowedOrigins = process.env.CLIENT_ORIGIN?.split(',').map((origin) => origin.trim()) ?? []
 if (process.env.NODE_ENV !== 'production') allowedOrigins.push(/^http:\/\/localhost:517\d+$/)
 
@@ -23,7 +24,8 @@ app.get('/api/questions', async (request, response, next) => {
   try {
     const subject = request.query.subject || 'math'
     const grade = Number(request.query.grade || 7)
-    const questions = await Question.find({ subject, grade }).sort({ createdAt: -1 }).lean()
+    const grades = grade === 9 || grade === 10 ? [9, 10] : [grade]
+    const questions = await Question.find({ subject, grade: { $in: grades } }).sort({ createdAt: -1 }).lean()
     response.json(questions)
   } catch (error) {
     next(error)
@@ -33,7 +35,7 @@ app.get('/api/questions', async (request, response, next) => {
 app.post('/api/questions', async (request, response, next) => {
   try {
     const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body
-    const question = await Question.create({ subject, grade, type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, inlineAnswerEquations, marks, figure })
+    const question = await Question.create({ subject, grade: questionBankGrade(grade), type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, inlineAnswerEquations, marks, figure })
     response.status(201).json(question)
   } catch (error) {
     next(error)
@@ -45,7 +47,7 @@ app.put('/api/questions/:id', async (request, response, next) => {
     const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body
     const question = await Question.findByIdAndUpdate(
       request.params.id,
-      { $set: { subject, grade, type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, inlineAnswerEquations, marks, figure } },
+      { $set: { subject, grade: questionBankGrade(grade), type, chapter, prompt, equation, inlineEquations, options, statements, statementQuestion, optionEquations, optionInlineEquations, answer, answerEquation, inlineAnswerEquations, marks, figure } },
       { new: true, runValidators: true },
     )
     if (!question) return response.status(404).json({ error: 'Question not found' })
