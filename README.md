@@ -18,6 +18,26 @@
 4. MongoDB demo প্রশ্ন যোগ করতে `npm run seed:demo` চালান। এটি পুনরায় চালালেও একই demo duplicate হবে না।
 5. একটি terminal-এ `npm run server` চালান। আরেকটি terminal-এ `npm run dev` চালান। Vite যদি 5173 ব্যবহার করতে না পারে, terminal-এ দেখানো 5174 URL-টি খুলুন।
 
+## Firebase লগইন ও API সুরক্ষা
+
+1. Firebase Console-এ project ও Web App তৈরি করে **Authentication → Sign-in method → Email/Password** চালু করুন।
+2. project root-এ `.env` ফাইলে Firebase Web App-এর মানগুলো যোগ করুন:
+
+   ```dotenv
+   VITE_FIREBASE_API_KEY=আপনার-web-api-key
+   VITE_FIREBASE_AUTH_DOMAIN=আপনার-project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=আপনার-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=আপনার-project.firebasestorage.app
+   VITE_FIREBASE_MESSAGING_SENDER_ID=আপনার-sender-id
+   VITE_FIREBASE_APP_ID=আপনার-app-id
+   ```
+
+   এগুলো Firebase Console → **Project settings → Your apps**-এ পাবেন। `.env` Git-এ commit করবেন না।
+3. Express API-র ID token যাচাইয়ের জন্য Firebase Console → **Project settings → Service accounts** থেকে Admin SDK service-account JSON ডাউনলোড করুন। JSON ফাইলটি repository-র বাইরে নিরাপদ স্থানে রাখুন এবং `.env`-এ `GOOGLE_APPLICATION_CREDENTIALS`-এ তার absolute path দিন (যেমন Windows-এ `C:/secure/firebase-service-account.json`)। Service-account key কখনো Git-এ commit করবেন না। Google Cloud environment-এ Application Default Credentials-ও ব্যবহার করা যায়।
+4. Firebase Console-এর Authentication → **Users** থেকে ব্যবহারকারী যোগ করুন, অথবা login page-এর account creation ব্যবহার করুন। Google Cloud-এ service identity/Application Default Credentials যুক্ত থাকলে `FIREBASE_ADMIN_USE_ADC=true` সেট করতে পারেন; Admin credential ছাড়া `npm run server` চালু হবে না।
+
+প্রতিটি login করা ব্যবহারকারীর Firebase ID token প্রশ্ন/সেটিংস API-তে পাঠানো এবং server-এ যাচাই করা হয়; `/api/health` public থাকে। বর্তমানে role-based permission নেই—যে কোনো authenticated account API-র প্রশ্ন পড়া/লেখা ও settings পরিবর্তন করতে পারে। Production-এ অবশ্যই HTTPS এবং নির্দিষ্ট `CLIENT_ORIGIN` ব্যবহার করুন।
+
 ## MongoDB credential কোথায় পাবেন
 
 MongoDB Atlas-এ cluster তৈরি করুন, **Database Access** থেকে database user ও password বানান, এবং **Network Access**-এ আপনার বর্তমান IP allow করুন। এরপর cluster-এর **Connect → Drivers** থেকে Node.js connection string নিন। `.env`-এ `<database-user>`, `<database-password>`, `<cluster-host>` এবং `<database-name>` নিজের মান দিয়ে বদলান। Password-এ `@`, `:`, `/`-এর মতো reserved character থাকলে URI-তে ব্যবহারের আগে percent-encode করুন। Atlas database user এবং Atlas account login এক জিনিস নয়।
@@ -29,6 +49,7 @@ MONGODB_URI=mongodb+srv://my-user:encoded-password@cluster.example.mongodb.net/c
 PORT=4000
 CLIENT_ORIGIN=http://localhost:5173,http://localhost:5174
 VITE_API_URL=http://localhost:4000/api
+AUTH_SECRET=replace-with-a-unique-random-secret-at-least-32-bytes
 ```
 
 উদাহরণের URI-টি কাল্পনিক; নিজের Atlas dashboard থেকে পাওয়া URI ব্যবহার করবেন। `.env` ইতিমধ্যে `.gitignore`-এ বাদ দেওয়া আছে।

@@ -13,8 +13,8 @@ import {
   FileText,
   Filter,
   LayoutDashboard,
+  LogOut,
   Moon,
-  MoreHorizontal,
   Pencil,
   Plus,
   Printer,
@@ -25,10 +25,14 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
+import { signOut } from '@firebase/auth'
 import 'mathlive/fonts.css'
 import 'mathlive/static.css'
 import './App.css'
 import BulkQuestionImporter from './BulkQuestionImporter.jsx'
+import FirebaseAuthGate from './FirebaseAuthGate.jsx'
+import authenticatedFetch from './authenticatedFetch.js'
+import { auth } from './firebase.js'
 
 const grades = [5, 6, 7, 8, 9, 10]
 const selectableGrades = grades.filter((item) => item !== 10)
@@ -137,7 +141,7 @@ function getLocalPaperSettings(grade, subject) {
   }
 }
 
-function App() {
+function QuestionPaperBuilder({ user }) {
   const [workspaceState] = useState(readWorkspaceState)
   const [grade, setGrade] = useState(() => grades.includes(workspaceState.grade) ? questionBankGrade(workspaceState.grade) : 7)
   const [subject, setSubject] = useState(() => subjects.some((item) => item.id === workspaceState.subject) ? workspaceState.subject : 'math')
@@ -257,8 +261,8 @@ function App() {
       setQuestions([])
       try {
         const [questionsResponse, settingsResponse] = await Promise.all([
-          fetch(`${apiUrl}/questions?subject=${encodeURIComponent(subject)}&grade=${questionBankGrade(grade)}`),
-          fetch(`${apiUrl}/settings/${encodeURIComponent(subject)}/${grade}`),
+          authenticatedFetch(`${apiUrl}/questions?subject=${encodeURIComponent(subject)}&grade=${questionBankGrade(grade)}`),
+          authenticatedFetch(`${apiUrl}/settings/${encodeURIComponent(subject)}/${grade}`),
         ])
         if (!questionsResponse.ok) throw new Error('Question API unavailable')
         const storedQuestions = await questionsResponse.json()
@@ -325,7 +329,7 @@ function App() {
     let savedQuestion = payload
     let statementFieldsConfirmed
     try {
-      const response = await fetch(editing ? `${apiUrl}/questions/${payload.id}` : `${apiUrl}/questions`, {
+      const response = await authenticatedFetch(editing ? `${apiUrl}/questions/${payload.id}` : `${apiUrl}/questions`, {
         method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -367,7 +371,7 @@ function App() {
       return
     }
     try {
-      const response = await fetch(`${apiUrl}/questions/${id}`, { method: 'DELETE' })
+      const response = await authenticatedFetch(`${apiUrl}/questions/${id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('MongoDB delete failed')
     } catch {
       setNotice('MongoDB থেকে মুছতে পারিনি; সংযোগ পরীক্ষা করুন')
@@ -395,7 +399,7 @@ function App() {
     localStorage.setItem(`paper-settings-${grade}-${subject}`, JSON.stringify(settings))
     if (dataMode === 'mongo') {
       try {
-        const response = await fetch(`${apiUrl}/settings/${encodeURIComponent(subject)}/${grade}`, {
+        const response = await authenticatedFetch(`${apiUrl}/settings/${encodeURIComponent(subject)}/${grade}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(settings),
@@ -423,6 +427,22 @@ function App() {
     setSubject(nextSubject)
   }
 
+  async function handleLogout() {
+    if (!auth) {
+      setNotice('Firebase configuration পাওয়া যায়নি; লগআউট করা যায়নি')
+      return
+    }
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.error('Firebase sign-out failed', error)
+      setNotice('লগআউট করা যায়নি। আবার চেষ্টা করুন।')
+    }
+  }
+
+  const accountName = user.displayName || user.email || 'ব্যবহারকারী'
+  const accountInitial = user.displayName?.trim().charAt(0) || user.email?.charAt(0)?.toUpperCase() || 'শা'
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -442,14 +462,14 @@ function App() {
         <button className="subject-switch"><span className="subject-dot">{subjectLabel(subject).slice(0, 1)}</span><span><strong>{subjectLabel(subject)}</strong><small>{gradeLabel(grade)}</small></span><ChevronDown size={16} /></button>
         <div className="sidebar-bottom">
           <div className="help-card"><CircleHelp size={17} /><span>Developed by সৃজনশীল প্রাইভেট সেন্টার</span><ChevronRight size={15} /></div>
-          <div className="profile-row"><div className="avatar">শা</div><span><strong>শিক্ষক অ্যাকাউন্ট</strong><small>গণিত বিভাগ</small></span><MoreHorizontal size={18} /></div>
+          <div className="profile-row"><div className="avatar">{accountInitial}</div><span><strong>{accountName}</strong><small>Firebase অ্যাকাউন্ট</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
         </div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : 'প্রশ্নপত্র তৈরি'}</strong></div>
-          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'MongoDB সংযোগ নেই'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar">শা</div></div>
+          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'MongoDB সংযোগ নেই'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}>{accountInitial}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
         </header>
 
         <div className="content-area">
@@ -1337,4 +1357,6 @@ function StaticMathFormula({ value, displayMode = false }) {
   return <span className={`math-static-display ${displayMode ? 'math-static-display-block' : ''}`} dangerouslySetInnerHTML={{ __html: markup }} />
 }
 
-export default App
+export default function App() {
+  return <FirebaseAuthGate>{(user) => <QuestionPaperBuilder user={user} />}</FirebaseAuthGate>
+}

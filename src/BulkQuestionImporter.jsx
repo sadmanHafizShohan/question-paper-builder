@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, Download, FileSpreadsheet, Upload, X } from 'lucide-react'
 import { downloadQuestionTemplate, parseQuestionWorkbook } from './questionImport.js'
+import authenticatedFetch from './authenticatedFetch.js'
 
 const concurrency = 4
 const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক' }
@@ -49,7 +50,7 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, enabled, 
         const batch = validRows.slice(index, index + concurrency)
         const results = await Promise.all(batch.map(async (row) => {
           try {
-            const response = await fetch(`${apiUrl}/questions`, {
+            const response = await authenticatedFetch(`${apiUrl}/questions`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ ...row.question, subject, grade }),

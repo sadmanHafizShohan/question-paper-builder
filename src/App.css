@@ -55,6 +55,8 @@ textarea:focus-visible {
 .profile-row strong { font-size: 10px; }
 .profile-row small { margin-top: 3px; color: #929d97; font-size: 9px; }
 .profile-row > svg { color: #929d97; }
+.profile-row .icon-button { width: 30px; height: 30px; }
+.mobile-logout { display: none; }
 .avatar { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 50%; background: #f4d8c9; color: #85543d; font-size: 11px; font-weight: 700; }
 .main-area { min-height: 100vh; margin-left: 246px; }
 .topbar { position: sticky; top: 0; z-index: 4; display: flex; height: 61px; align-items: center; justify-content: space-between; padding: 0 35px; border-bottom: 1px solid #e9ede9; background: rgba(255,255,255,.92); backdrop-filter: blur(12px); }
@@ -434,6 +436,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 	.brand-mark { width: 34px; height: 34px; }
 	.brand strong { font-size: 14px; }
 	.brand small,.side-label,.subject-switch,.sidebar-bottom { display: none; }
+	.mobile-logout { display: grid; }
 	.nav-item { width: auto; gap: 7px; margin: 0 0 0 5px; padding: 9px; font-size: 10px; }
 	.nav-item .nav-count { display: none; }
 	.main-area { margin-left: 0; }

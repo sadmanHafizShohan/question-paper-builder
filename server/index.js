@@ -1,12 +1,27 @@
 import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
+import { applicationDefault, cert, initializeApp } from 'firebase-admin/app'
+import { getAuth } from 'firebase-admin/auth'
 import mongoose from 'mongoose'
 import process from 'node:process'
 import { PaperSettings, Question } from './models.js'
 
 dotenv.config()
 
+const useApplicationDefaultCredentials = Boolean(
+  process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.FIREBASE_ADMIN_USE_ADC === 'true',
+)
+if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON && !useApplicationDefaultCredentials) {
+  throw new Error('Configure Firebase Admin credentials with GOOGLE_APPLICATION_CREDENTIALS, FIREBASE_SERVICE_ACCOUNT_JSON, or FIREBASE_ADMIN_USE_ADC=true before starting the API.')
+}
+
+const firebaseAdminApp = initializeApp({
+  credential: process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+    ? cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON))
+    : applicationDefault(),
+})
+const firebaseAuth = getAuth(firebaseAdminApp)
 const app = express()
 const port = Number(process.env.PORT || 4000)
 const questionBankGrade = (grade) => Number(grade) === 10 ? 9 : Number(grade)
@@ -18,6 +33,21 @@ app.use(express.json({ limit: '1mb' }))
 
 app.get('/api/health', (_request, response) => {
   response.json({ api: 'ok', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' })
+})
+
+app.use('/api', async (request, response, next) => {
+  const authorization = request.get('authorization') || ''
+  const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i)
+  if (!tokenMatch) return response.status(401).json({ error: 'Authentication required' })
+
+  try {
+    request.firebaseUser = await firebaseAuth.verifyIdToken(tokenMatch[1])
+    next()
+  } catch (error) {
+    if (error.code?.startsWith('auth/')) return response.status(401).json({ error: 'Invalid or expired authentication token' })
+    console.error('Firebase ID token verification failed', error)
+    response.status(500).json({ error: 'Authentication service unavailable' })
+  }
 })
 
 app.get('/api/questions', async (request, response, next) => {
