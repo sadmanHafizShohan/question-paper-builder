@@ -141,7 +141,9 @@ function App() {
   const [questions, setQuestions] = useState([])
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
   const [activeType, setActiveType] = useState(() => questionTypes.some((type) => type.id === workspaceState.activeType) ? workspaceState.activeType : 'all')
-  const [activeChapter, setActiveChapter] = useState(() => workspaceState.activeChapter ?? 'সব অধ্যায়')
+  const [selectedChapters, setSelectedChapters] = useState(() => Array.isArray(workspaceState.selectedChapters)
+    ? workspaceState.selectedChapters
+    : workspaceState.activeChapter && workspaceState.activeChapter !== 'সব অধ্যায়' ? [workspaceState.activeChapter] : [])
   const [search, setSearch] = useState(() => workspaceState.search ?? '')
   const [selected, setSelected] = useState(() => Array.isArray(workspaceState.selected) ? workspaceState.selected : [])
   const [editingQuestion, setEditingQuestion] = useState(null)
@@ -211,12 +213,12 @@ function App() {
       subject,
       page,
       activeType,
-      activeChapter,
+      selectedChapters,
       search,
       selected,
       showPreview,
     }))
-  }, [grade, subject, page, activeType, activeChapter, search, selected, showPreview])
+  }, [grade, subject, page, activeType, selectedChapters, search, selected, showPreview])
 
   useEffect(() => {
     if (hasRestoredScroll.current || dataMode === 'connecting' || isLoadingQuestions) return
@@ -288,10 +290,10 @@ function App() {
 
   const filteredQuestions = useMemo(() => questions.filter((question) => {
     const matchesType = activeType === 'all' || question.type === activeType
-    const matchesChapter = activeChapter === 'সব অধ্যায়' || question.chapter === activeChapter
+    const matchesChapter = selectedChapters.length === 0 || selectedChapters.includes(question.chapter)
     const matchesSearch = `${promptText(question.prompt)} ${question.equation ?? ''} ${question.inlineEquations?.join(' ') ?? ''} ${question.chapter} ${question.statements?.join(' ') ?? ''} ${question.statementQuestion ?? ''} ${question.options?.join(' ') ?? ''}`.toLowerCase().includes(search.toLowerCase())
     return matchesType && matchesChapter && matchesSearch
-  }), [questions, activeType, activeChapter, search])
+  }), [questions, activeType, selectedChapters, search])
   const availableChapters = useMemo(() => [...new Set(questions.map((question) => question.chapter).filter(Boolean))].sort(), [questions])
   const selectedQuestions = questions.filter((question) => selected.includes(question.id))
   const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
@@ -410,7 +412,7 @@ function App() {
   function changeContext(nextGrade, nextSubject) {
     if (grade !== nextGrade || subject !== nextSubject) {
       setSelected([])
-      setActiveChapter('সব অধ্যায়')
+      setSelectedChapters([])
     }
     setGrade(nextGrade)
     setSubject(nextSubject)
@@ -472,7 +474,7 @@ function App() {
                 <div className="panel-heading"><div><h2>সব প্রশ্ন</h2><p>প্রশ্ন বাছাই করে নতুন প্রশ্নপত্র তৈরি করুন</p></div><button className="text-button" onClick={() => setPage('builder')}><ClipboardList size={16} /> প্রশ্নপত্র তৈরি <ChevronRight size={15} /></button></div>
                 <div className="filter-toolbar">
                   <label className="search-box"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন বা অধ্যায় খুঁজুন" /></label>
-                  <label className="chapter-select"><Filter size={16} /><select value={activeChapter} onChange={(event) => setActiveChapter(event.target.value)}><option>সব অধ্যায়</option>{availableChapters.map((chapter) => <option key={chapter}>{chapter}</option>)}</select><ChevronDown size={14} /></label>
+                  <ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} />
                   <button className="sort-button" onClick={() => setQuestions((current) => [...current].reverse())}><ArrowDownUp size={15} /> সাজান</button>
                 </div>
                 <div className="type-tabs" role="tablist" aria-label="প্রশ্নের ধরন">
@@ -504,7 +506,7 @@ function App() {
               <div className="builder-layout">
                 <section className="builder-main panel">
                   <div className="builder-section-title"><div><h2>প্রশ্ন নির্বাচন</h2><p>প্রশ্ন ব্যাংক থেকে প্রশ্ন যোগ বা বাদ দিন</p></div><button className="text-button" onClick={() => setSelected(questions.map((question) => question.id))}><Check size={15} /> সব যোগ করুন</button></div>
-                  <div className="builder-filters"><label className="chapter-select"><Filter size={16} /><select value={activeChapter} onChange={(event) => setActiveChapter(event.target.value)}><option>সব অধ্যায়</option>{availableChapters.map((chapter) => <option key={chapter}>{chapter}</option>)}</select><ChevronDown size={14} /></label><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন খুঁজুন" /></label></div>
+                  <div className="builder-filters"><ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} /><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন খুঁজুন" /></label></div>
                   <div className="builder-question-list">{filteredQuestions.map((question) => (
                     <label className={`builder-question ${selected.includes(question.id) ? 'checked' : ''}`} key={question.id}>
                       <input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} /><span className="custom-check"><Check size={13} /></span>
@@ -566,6 +568,39 @@ function App() {
       {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} paperSetCode={paperSetCode} questionTextColor={questionTextColor} showChapters={showChapters} onShowChaptersChange={setShowChapters} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}
       {notice && <div className="toast"><Check size={16} />{notice}</div>}
     </div>
+  )
+}
+
+function ChapterFilter({ chapters, selectedChapters, onChange }) {
+  const selectedCount = selectedChapters.length
+  return (
+    <details className="chapter-filter chapter-select">
+      <summary aria-label="অধ্যায় অনুযায়ী প্রশ্ন ফিল্টার করুন">
+        <Filter size={16} />
+        <span>{selectedCount === 0 ? 'সব অধ্যায়' : `${bengaliNumber(selectedCount)}টি অধ্যায় নির্বাচিত`}</span>
+        <ChevronDown size={14} />
+      </summary>
+      <div className="chapter-filter-menu">
+        <div className="chapter-filter-heading">
+          <strong>অধ্যায় বাছাই করুন</strong>
+          {selectedCount > 0 && <button type="button" onClick={() => onChange([])}>সব মুছুন</button>}
+        </div>
+        {chapters.length > 0
+          ? chapters.map((chapter) => (
+            <label className="chapter-filter-option" key={chapter}>
+              <input
+                type="checkbox"
+                checked={selectedChapters.includes(chapter)}
+                onChange={() => onChange((current) => current.includes(chapter)
+                  ? current.filter((item) => item !== chapter)
+                  : [...current, chapter])}
+              />
+              <span>{chapter}</span>
+            </label>
+          ))
+          : <span className="chapter-filter-empty">কোনো অধ্যায় পাওয়া যায়নি</span>}
+      </div>
+    </details>
   )
 }
 
