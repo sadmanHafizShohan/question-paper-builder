@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Check, RefreshCw, Shield, UsersRound } from 'lucide-react'
+import { Check, RefreshCw, Shield, ShieldBan, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
 import authenticatedFetch from './authenticatedFetch.js'
 import './AdminUsers.css'
 
 async function readResponse(response) {
+  if (response.status === 204) return null
   let result = null
   try {
     result = await response.json()
@@ -11,6 +12,26 @@ async function readResponse(response) {
     if (response.ok) throw new Error('সার্ভার থেকে ব্যবহারকারীর তথ্য পাওয়া যায়নি।')
   }
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Admin users API route পাওয়া যায়নি। সর্বশেষ server code চালু করতে `npm run server` বন্ধ করে আবার চালান।')
+    }
+    if (response.status === 403) {
+      throw new Error('এই API ব্যবহারের জন্য admin role প্রয়োজন। Firebase session refresh করতে sign out করে আবার sign in করুন।')
+    }
+    if (response.status === 409 && typeof result?.error === 'string') {
+      throw new Error(result.error === 'The last active admin cannot be blocked'
+        ? 'শেষ সক্রিয় admin-কে block করা যাবে না। আগে অন্য একজনকে admin করুন।'
+        : result.error === 'The last active admin cannot be deleted'
+          ? 'শেষ সক্রিয় admin account delete করা যাবে না। আগে অন্য একজনকে admin করুন।'
+          : result.error === 'The last admin cannot be demoted'
+            ? 'শেষ admin-কে user করা যাবে না। আগে অন্য একজনকে admin করুন।'
+            : result.error)
+    }
+    if (response.status === 400 && typeof result?.error === 'string') {
+      throw new Error(result.error === 'You cannot block your own account' || result.error === 'You cannot delete your own account'
+        ? 'নিজের account block বা delete করা যাবে না।'
+        : result.error)
+    }
     throw new Error(typeof result?.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${response.status} ত্রুটি এসেছে।`)
   }
   return result
@@ -72,6 +93,50 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
     }
   }
 
+  async function updateBlockedStatus(user) {
+    const disabled = !user.disabled
+    if (disabled && !window.confirm(`${user.email || user.displayName || 'এই ব্যবহারকারী'}-কে block করবেন? Block করলে সে login বা API ব্যবহার করতে পারবে না।`)) return
+
+    setBusyUid(user.uid)
+    setError('')
+    setNotice('')
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/admin/users/${encodeURIComponent(user.uid)}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disabled }),
+      })
+      await readResponse(response)
+      setUsers((current) => current.map((item) => item.uid === user.uid ? { ...item, disabled } : item))
+      setNotice(`${user.email || user.displayName || 'ব্যবহারকারী'}-কে ${disabled ? 'block' : 'unblock'} করা হয়েছে।`)
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : 'Account status পরিবর্তন করা যায়নি।')
+    } finally {
+      setBusyUid('')
+    }
+  }
+
+  async function deleteUser(user) {
+    const identity = user.email || user.displayName || user.uid
+    if (!window.confirm(`${identity}-এর Firebase account স্থায়ীভাবে delete করবেন? এই কাজটি undo করা যাবে না।`)) return
+
+    setBusyUid(user.uid)
+    setError('')
+    setNotice('')
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/admin/users/${encodeURIComponent(user.uid)}`, {
+        method: 'DELETE',
+      })
+      await readResponse(response)
+      setUsers((current) => current.filter((item) => item.uid !== user.uid))
+      setNotice(`${identity}-এর Firebase account স্থায়ীভাবে delete করা হয়েছে।`)
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Account delete করা যায়নি।')
+    } finally {
+      setBusyUid('')
+    }
+  }
+
   const adminCount = users.filter((user) => user.role === 'admin').length
 
   return (
@@ -101,7 +166,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
           : users.length === 0 ? <div className="admin-table-state">কোনো ব্যবহারকারী পাওয়া যায়নি।</div>
             : <div className="question-table-wrap">
               <table className="question-table">
-                <thead><tr><th>ব্যবহারকারী</th><th>ইমেইল</th><th>স্ট্যাটাস</th><th>Role</th></tr></thead>
+                <thead><tr><th>ব্যবহারকারী</th><th>ইমেইল</th><th>স্ট্যাটাস</th><th>Role</th><th>অ্যাকশন</th></tr></thead>
                 <tbody>{users.map((user) => (
                   <tr key={user.uid}>
                     <td><div className="admin-user-name"><span className="admin-user-avatar">{(user.displayName || user.email || '?').charAt(0).toUpperCase()}</span><span><strong>{user.displayName || 'নাম দেওয়া হয়নি'}</strong><small>{user.uid}</small></span></div></td>
@@ -116,6 +181,24 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
                     </select></td>
+                    <td><div className="admin-user-actions">
+                      <button
+                        type="button"
+                        className={`admin-action-button ${user.disabled ? 'admin-action-unblock' : 'admin-action-block'}`}
+                        aria-label={`${user.disabled ? 'Unblock' : 'Block'} ${user.email || user.uid}`}
+                        title={user.disabled ? 'Unblock account' : 'Block account'}
+                        disabled={user.uid === currentUserId || busyUid === user.uid}
+                        onClick={() => updateBlockedStatus(user)}
+                      >{user.disabled ? <ShieldCheck size={15} /> : <ShieldBan size={15} />}</button>
+                      <button
+                        type="button"
+                        className="admin-action-button admin-action-delete"
+                        aria-label={`Delete ${user.email || user.uid}`}
+                        title="স্থায়ীভাবে account delete"
+                        disabled={user.uid === currentUserId || busyUid === user.uid}
+                        onClick={() => deleteUser(user)}
+                      ><Trash2 size={15} /></button>
+                    </div></td>
                   </tr>
                 ))}</tbody>
               </table>

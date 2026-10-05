@@ -43,6 +43,17 @@ function requireAdmin(request, response, next) {
   next()
 }
 
+async function countEnabledAdmins() {
+  let count = 0
+  let pageToken
+  do {
+    const page = await firebaseAdminAuth.listUsers(1000, pageToken)
+    count += page.users.filter((user) => !user.disabled && user.customClaims?.role === 'admin').length
+    pageToken = page.pageToken
+  } while (pageToken)
+  return count
+}
+
 app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
   try {
     const users = []
@@ -81,15 +92,7 @@ app.put('/api/admin/users/:uid/role', requireAdmin, async (request, response, ne
     const targetUser = await firebaseAdminAuth.getUser(request.params.uid)
     const previousRole = targetUser.customClaims?.role === 'admin' ? 'admin' : 'user'
     if (previousRole === 'admin' && role === 'user') {
-      let adminCount = 0
-      let pageToken
-      do {
-        const page = await firebaseAdminAuth.listUsers(1000, pageToken)
-        adminCount += page.users.filter((user) => user.customClaims?.role === 'admin').length
-        pageToken = page.pageToken
-      } while (pageToken)
-
-      if (adminCount <= 1) {
+      if (!targetUser.disabled && await countEnabledAdmins() <= 1) {
         return response.status(409).json({ error: 'The last admin cannot be demoted' })
       }
     }
@@ -101,6 +104,57 @@ app.put('/api/admin/users/:uid/role', requireAdmin, async (request, response, ne
     await firebaseAdminAuth.revokeRefreshTokens(request.params.uid)
     response.json({ uid: targetUser.uid, email: targetUser.email ?? '', role })
   } catch (error) {
+    next(error)
+  }
+})
+
+app.put('/api/admin/users/:uid/status', requireAdmin, async (request, response, next) => {
+  try {
+    const { disabled } = request.body
+    if (typeof disabled !== 'boolean') {
+      return response.status(400).json({ error: 'disabled must be a boolean' })
+    }
+    if (request.params.uid === request.firebaseUser.uid && disabled) {
+      return response.status(400).json({ error: 'You cannot block your own account' })
+    }
+
+    const targetUser = await firebaseAdminAuth.getUser(request.params.uid)
+    if (disabled && !targetUser.disabled && targetUser.customClaims?.role === 'admin' && await countEnabledAdmins() <= 1) {
+      return response.status(409).json({ error: 'The last active admin cannot be blocked' })
+    }
+
+    await firebaseAdminAuth.updateUser(targetUser.uid, { disabled })
+    await firebaseAdminAuth.revokeRefreshTokens(targetUser.uid)
+    response.json({
+      uid: targetUser.uid,
+      email: targetUser.email ?? '',
+      disabled,
+    })
+  } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+      return response.status(404).json({ error: 'User not found' })
+    }
+    next(error)
+  }
+})
+
+app.delete('/api/admin/users/:uid', requireAdmin, async (request, response, next) => {
+  try {
+    if (request.params.uid === request.firebaseUser.uid) {
+      return response.status(400).json({ error: 'You cannot delete your own account' })
+    }
+
+    const targetUser = await firebaseAdminAuth.getUser(request.params.uid)
+    if (!targetUser.disabled && targetUser.customClaims?.role === 'admin' && await countEnabledAdmins() <= 1) {
+      return response.status(409).json({ error: 'The last active admin cannot be deleted' })
+    }
+
+    await firebaseAdminAuth.deleteUser(targetUser.uid)
+    response.status(204).end()
+  } catch (error) {
+    if (error.code === 'auth/user-not-found') {
+      return response.status(404).json({ error: 'User not found' })
+    }
     next(error)
   }
 })
