@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check, RefreshCw, Shield, ShieldBan, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
 import authenticatedFetch from './authenticatedFetch.js'
+import LoadingStatus from './LoadingStatus.jsx'
 import './AdminUsers.css'
 
 async function readResponse(response) {
@@ -147,8 +148,8 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
           <h1>ব্যবহারকারী ও role</h1>
           <p>Firebase account-কে admin বা সাধারণ user হিসেবে পরিচালনা করুন।</p>
         </div>
-        <button type="button" className="quiet-button" onClick={loadUsers} disabled={loading}>
-          <RefreshCw size={15} className={loading ? 'admin-refreshing' : ''} /> রিফ্রেশ
+        <button type="button" className="quiet-button" onClick={loadUsers} disabled={loading || Boolean(busyUid)}>
+          <RefreshCw size={15} className={loading ? 'admin-refreshing' : ''} /> {loading ? 'লোড হচ্ছে…' : 'রিফ্রেশ'}
         </button>
       </header>
 
@@ -162,7 +163,8 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
       <div className="admin-role-help">সাধারণ user প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করতে পারবেন। Admin-এর অতিরিক্তভাবে সব account-এর role পরিবর্তনের অধিকার আছে।</div>
 
       <section className="admin-user-table panel" aria-label="ব্যবহারকারীর তালিকা">
-        {loading ? <div className="admin-table-state" role="status">ব্যবহারকারীর তালিকা লোড হচ্ছে…</div>
+        {loading ? <div className="admin-table-state"><LoadingStatus label="ব্যবহারকারীর তালিকা লোড হচ্ছে…" detail="Firebase account-গুলো যাচাই করা হচ্ছে" /></div>
+          : error && users.length === 0 ? <div className="admin-table-state" role="alert">তালিকা লোড করা যায়নি। উপরের রিফ্রেশ বাটনে আবার চেষ্টা করুন।</div>
           : users.length === 0 ? <div className="admin-table-state">কোনো ব্যবহারকারী পাওয়া যায়নি।</div>
             : <div className="question-table-wrap">
               <table className="question-table">
@@ -175,19 +177,21 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
                     <td><select
                       aria-label={`${user.email || user.uid}-এর role`}
                       value={user.role}
-                      disabled={user.uid === currentUserId || busyUid === user.uid}
+                      disabled={user.uid === currentUserId || Boolean(busyUid)}
                       onChange={(event) => updateRole(user, event.target.value)}
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
                     </select></td>
-                    <td><div className="admin-user-actions">
+                    <td>{busyUid === user.uid
+                      ? <LoadingStatus compact label="আপডেট হচ্ছে…" />
+                      : <div className="admin-user-actions">
                       <button
                         type="button"
                         className={`admin-action-button ${user.disabled ? 'admin-action-unblock' : 'admin-action-block'}`}
                         aria-label={`${user.disabled ? 'Unblock' : 'Block'} ${user.email || user.uid}`}
                         title={user.disabled ? 'Unblock account' : 'Block account'}
-                        disabled={user.uid === currentUserId || busyUid === user.uid}
+                        disabled={user.uid === currentUserId || Boolean(busyUid)}
                         onClick={() => updateBlockedStatus(user)}
                       >{user.disabled ? <ShieldCheck size={15} /> : <ShieldBan size={15} />}</button>
                       <button
@@ -195,10 +199,10 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
                         className="admin-action-button admin-action-delete"
                         aria-label={`Delete ${user.email || user.uid}`}
                         title="স্থায়ীভাবে account delete"
-                        disabled={user.uid === currentUserId || busyUid === user.uid}
+                        disabled={user.uid === currentUserId || Boolean(busyUid)}
                         onClick={() => deleteUser(user)}
                       ><Trash2 size={15} /></button>
-                    </div></td>
+                    </div>}</td>
                   </tr>
                 ))}</tbody>
               </table>

@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDownUp,
+  CircleAlert,
   BookOpen,
   Check,
   ChevronDown,
@@ -34,6 +35,8 @@ import BulkQuestionImporter from './BulkQuestionImporter.jsx'
 import FirebaseAuthGate from './FirebaseAuthGate.jsx'
 import authenticatedFetch from './authenticatedFetch.js'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
+import LoadingStatus from './LoadingStatus.jsx'
+import AnimatedNumber from './AnimatedNumber.jsx'
 import { auth } from './firebase.js'
 
 const grades = [5, 6, 7, 8, 9, 10]
@@ -186,8 +189,10 @@ function QuestionPaperBuilder({ user, role }) {
   const [showChapters, setShowChapters] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).showChapters ?? true)
   const [watermark, setWatermark] = useState(() => ({ ...defaultPaperSettings.watermark, ...getLocalPaperSettings(grade, subject, user.uid, isAdmin).watermark }))
   const [dataMode, setDataMode] = useState('connecting')
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true)
+  const [dataReloadKey, setDataReloadKey] = useState(0)
   const [notice, setNotice] = useState('')
+  const [busyMessage, setBusyMessage] = useState('')
   const hasRestoredScroll = useRef(false)
 
   const applyPaperSettings = useCallback((settings) => {
@@ -330,11 +335,12 @@ function QuestionPaperBuilder({ user, role }) {
     }
     loadMongoData()
     return () => { active = false }
-  }, [grade, subject, applyPaperSettings, isAdmin, user.uid])
+  }, [grade, subject, applyPaperSettings, isAdmin, user.uid, dataReloadKey])
 
   useEffect(() => {
     if (!notice) return undefined
-    const timer = window.setTimeout(() => setNotice(''), 2600)
+    const errorNotice = /হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice)
+    const timer = window.setTimeout(() => setNotice(''), errorNotice ? 5200 : 3200)
     return () => window.clearTimeout(timer)
   }, [notice])
 
@@ -347,6 +353,15 @@ function QuestionPaperBuilder({ user, role }) {
   const availableChapters = useMemo(() => [...new Set(questions.map((question) => question.chapter).filter(Boolean))].sort(), [questions])
   const selectedQuestions = questions.filter((question) => selected.includes(question.id))
   const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
+
+  async function runWithActivity(message, action) {
+    setBusyMessage(message)
+    try {
+      return await action()
+    } finally {
+      setBusyMessage('')
+    }
+  }
 
   function toggleSelected(id) {
     setSelected((current) => current.includes(id)
@@ -610,14 +625,14 @@ function QuestionPaperBuilder({ user, role }) {
         <button className="subject-switch"><span className="subject-dot">{subjectLabel(subject).slice(0, 1)}</span><span><strong>{subjectLabel(subject)}</strong><small>{gradeLabel(grade)}</small></span><ChevronDown size={16} /></button>
         <div className="sidebar-bottom">
           <div className="help-card"><CircleHelp size={17} /><span>Developed By Md. Shohanoor Rahman Shohan</span><ChevronRight size={15} /></div>
-          <div className="profile-row"><div className="avatar">{accountInitial}</div><span><strong>{accountName}</strong><small>{isAdmin ? 'Admin' : 'User'} · Firebase</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
+          <div className="profile-row"><div className="avatar">{accountInitial}</div><span><strong>{accountName}</strong><small>{isAdmin ? 'Admin' : 'User'} · Firebase</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
         </div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : page === 'users' ? 'ব্যবহারকারী' : 'প্রশ্নপত্র তৈরি'}</strong></div>
-          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'MongoDB সংযোগ নেই'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}>{accountInitial}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" onClick={handleLogout}><LogOut size={16} /></button></div>
+          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'MongoDB সংযোগ নেই'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}>{accountInitial}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
         </header>
 
         <div className="content-area">
@@ -626,6 +641,9 @@ function QuestionPaperBuilder({ user, role }) {
             <label className="context-subject"><span>বিষয়</span><select value={subject} onChange={(event) => changeContext(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <span className="context-hint">{isLoadingQuestions ? 'প্রশ্ন লোড হচ্ছে…' : `${gradeLabel(grade)} · ${subjectLabel(subject)}${grade >= 9 ? ' · শ্রেণি ৯–১০-এর অভিন্ন প্রশ্ন ব্যাংক' : ''}`}</span>
           </div>}
+          {busyMessage && <div className="app-activity" aria-busy="true"><LoadingStatus compact label={busyMessage} /></div>}
+          {isLoadingQuestions && page !== 'bank' && <div className="data-loading-banner" aria-busy="true"><LoadingStatus compact className="question-loading-status" label="প্রশ্নগুলো লোড হচ্ছে—একটু অপেক্ষা করুন" detail={`${gradeLabel(grade)} · ${subjectLabel(subject)}-এর প্রশ্ন ও ফরম্যাট আনা হচ্ছে`} /></div>}
+          {!isLoadingQuestions && dataMode === 'unavailable' && page !== 'users' && <div className="data-unavailable-banner" role="status"><strong>Server-এর সঙ্গে সংযোগ পাওয়া যায়নি</strong><span>এই account-এর local প্রশ্ন দেখানো হচ্ছে। Main database-এর প্রশ্ন ও settings লোড হয়নি।</span><button type="button" onClick={() => setDataReloadKey((current) => current + 1)}>আবার চেষ্টা করুন</button></div>}
           {page === 'users' && isAdmin
             ? <AdminUsersPanel apiUrl={apiUrl} currentUserId={user.uid} />
             : page === 'bank' ? (
@@ -666,11 +684,11 @@ function QuestionPaperBuilder({ user, role }) {
                         <td><span className="chapter-pill">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></td>
                         <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span></td>
                         <td className="marks-cell">{bengaliNumber(question.marks)}</td>
-                        <td>{(isAdmin || question.isLocal) && <div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={!question.isLocal && dataMode !== 'mongo'} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={!question.isLocal && dataMode !== 'mongo'} onClick={() => deleteQuestion(question)}><Trash2 size={15} /></button></div>}</td>
+                        <td>{(isAdmin || question.isLocal) && <div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => runWithActivity('প্রশ্ন মুছে ফেলা হচ্ছে…', () => deleteQuestion(question))}><Trash2 size={15} /></button></div>}</td>
                       </tr>
                     ))}</tbody>
                   </table>
-                  {filteredQuestions.length === 0 && <div className="empty-state"><Search size={22} /><strong>{dataMode === 'unavailable' ? 'MongoDB সংযোগ নেই' : 'কোনো প্রশ্ন পাওয়া যায়নি'}</strong><span>{dataMode === 'unavailable' ? 'MongoDB চালু হলে এই শ্রেণি ও বিষয়ের প্রশ্ন লোড হবে।' : 'অন্য শব্দ বা অধ্যায় দিয়ে খুঁজে দেখুন।'}</span></div>}
+                  {filteredQuestions.length === 0 && !isLoadingQuestions && <div className="empty-state"><Search size={22} /><strong>{dataMode === 'unavailable' ? 'MongoDB সংযোগ নেই' : 'কোনো প্রশ্ন পাওয়া যায়নি'}</strong><span>{dataMode === 'unavailable' ? 'MongoDB চালু হলে এই শ্রেণি ও বিষয়ের প্রশ্ন লোড হবে।' : 'অন্য শব্দ বা অধ্যায় দিয়ে খুঁজে দেখুন।'}</span></div>}
                 </div>
                 <footer className="table-footer">
                   <div className="table-footer-actions">
@@ -724,7 +742,7 @@ function QuestionPaperBuilder({ user, role }) {
                   <div className="marks-summary"><span>মোট নম্বর</span><strong>{bengaliNumber(totalMarks)}</strong></div>
                   <div className="paper-types"><span>প্রশ্নের ধরন</span><div>{questionTypes.filter((type) => selectedQuestions.some((question) => question.type === type.id)).map((type) => <span className={`type-pill type-${type.id}`} key={type.id}>{type.label}</span>)}</div></div>
                   <button className="primary-button full-button" disabled={selected.length === 0} onClick={() => setShowPreview(true)}><FileText size={17} /> প্রিভিউ দেখুন</button>
-                  <button className="quiet-button full-button settings-save-button" onClick={savePaperSettings}><Check size={15} /> ফরম্যাট সংরক্ষণ</button>
+                  <button className="quiet-button full-button settings-save-button" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('প্রশ্নপত্রের ফরম্যাট সংরক্ষণ হচ্ছে…', savePaperSettings)}><Check size={15} /> ফরম্যাট সংরক্ষণ</button>
                   <p className="paper-hint"><CircleHelp size={14} /> PDF তৈরি করতে প্রিভিউ থেকে প্রিন্ট করুন</p>
                 </aside>
               </div>
@@ -734,7 +752,7 @@ function QuestionPaperBuilder({ user, role }) {
       </main>
 
       {selected.length > 0 && page === 'bank' && (
-        <div className="selection-bar"><div><span className="selection-check"><Check size={14} /></span><strong>{bengaliNumber(selected.length)}টি প্রশ্ন নির্বাচিত</strong><button onClick={() => setSelected([])}>বাছাই বাতিল</button></div><button className="primary-button" onClick={() => setPage('builder')}>প্রশ্নপত্রে যোগ করুন <ChevronRight size={16} /></button></div>
+        <div className="selection-bar"><div><span className="selection-check"><Check size={14} /></span><strong><AnimatedNumber value={selected.length} active={!isLoadingQuestions} />টি প্রশ্ন নির্বাচিত</strong><button onClick={() => setSelected([])}>বাছাই বাতিল</button></div><button className="primary-button" onClick={() => setPage('builder')}>প্রশ্নপত্রে যোগ করুন <ChevronRight size={16} /></button></div>
       )}
       {showImporter && <BulkQuestionImporter
         apiUrl={apiUrl}
@@ -749,9 +767,9 @@ function QuestionPaperBuilder({ user, role }) {
         onNotice={setNotice}
         onClose={() => setShowImporter(false)}
       />}
-      {showEditor && <QuestionModal key={editorResetKey} question={editingQuestion} grade={grade} subject={subject} chapters={availableChapters} loading={isLoadingQuestions} onContextChange={changeContext} onClose={() => { setShowEditor(false); setEditingQuestion(null) }} onSave={saveQuestion} />}
+      {showEditor && <QuestionModal key={editorResetKey} question={editingQuestion} grade={grade} subject={subject} chapters={availableChapters} loading={isLoadingQuestions} onContextChange={changeContext} onClose={() => { setShowEditor(false); setEditingQuestion(null) }} onSave={(question) => runWithActivity(isAdmin ? 'প্রশ্ন main database-এ সংরক্ষণ হচ্ছে…' : 'প্রশ্ন এই device-এ সংরক্ষণ হচ্ছে…', () => saveQuestion(question))} />}
       {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} paperSetCode={paperSetCode} questionTextColor={questionTextColor} showChapters={showChapters} onShowChaptersChange={setShowChapters} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}
-      {notice && <div className="toast"><Check size={16} />{notice}</div>}
+      {notice && <div className={`toast ${/হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice) ? 'toast-error' : ''}`} role={/হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice) ? 'alert' : 'status'}>{/হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice) ? <CircleAlert size={16} /> : <Check size={16} />}{notice}</div>}
     </div>
   )
 }

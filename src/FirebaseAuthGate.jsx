@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getIdTokenResult, onIdTokenChanged } from '@firebase/auth'
 import { auth, isFirebaseConfigured } from './firebase.js'
 import FirebaseAuthScreen from './FirebaseAuthScreen.jsx'
+import LoadingStatus from './LoadingStatus.jsx'
 import './Auth.css'
 
 export default function FirebaseAuthGate({ children }) {
@@ -46,7 +47,7 @@ export default function FirebaseAuthGate({ children }) {
 
   if (status === 'unconfigured') return <FirebaseAuthScreen setupRequired />
   if (status === 'loading') {
-    return <main className="auth-shell"><div className="auth-loading" role="status">Firebase session যাচাই হচ্ছে…</div></main>
+    return <main className="auth-shell"><div className="auth-loading"><LoadingStatus label="Firebase session যাচাই হচ্ছে…" detail="আপনার account নিরাপদভাবে যাচাই করা হচ্ছে" /></div></main>
   }
   if (status === 'error') return <FirebaseAuthScreen fatalError={authError} />
   if (!user) return <FirebaseAuthScreen />

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Check, Download, FileSpreadsheet, Upload, X } from 'lucide-react'
 import { downloadQuestionTemplate, parseQuestionWorkbook } from './questionImport.js'
 import authenticatedFetch from './authenticatedFetch.js'
+import LoadingStatus from './LoadingStatus.jsx'
 
 const concurrency = 4
 const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক' }
@@ -16,6 +17,7 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
   const [parseError, setParseError] = useState('')
   const [isReading, setIsReading] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false)
   const [progress, setProgress] = useState(0)
 
   async function selectFile(event) {
@@ -129,6 +131,18 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
     onNotice(`${savedQuestions.length}টি প্রশ্ন ইমপোর্ট হয়েছে; ${remainingCount}টি সারি এখনো ইমপোর্ট হয়নি।`)
   }
 
+  async function saveTemplate() {
+    setIsDownloadingTemplate(true)
+    setParseError('')
+    try {
+      await downloadQuestionTemplate()
+    } catch (error) {
+      setParseError(error instanceof Error ? error.message : 'টেমপ্লেট তৈরি করা যায়নি।')
+    } finally {
+      setIsDownloadingTemplate(false)
+    }
+  }
+
   const validCount = rows.filter((row) => row.question && row.errors.length === 0).length
   const invalidCount = rows.filter((row) => row.errors.length > 0 || row.saveError).length
 
@@ -142,20 +156,21 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
         <div className="bulk-import-content">
           <div className="bulk-import-help">
             <p>টেমপ্লেট ডাউনলোড করে প্রশ্ন পূরণ করুন। Excel .xlsx ফাইলের প্রথম worksheet পড়া হবে; সর্বোচ্চ ৫০০টি প্রশ্ন ও ১০ MB পর্যন্ত ফাইল সমর্থিত।</p>
-            <button type="button" className="quiet-button" onClick={() => {
-              downloadQuestionTemplate().catch((error) => setParseError(error instanceof Error ? error.message : 'টেমপ্লেট তৈরি করা যায়নি।'))
-            }}><Download size={15} /> টেমপ্লেট ডাউনলোড</button>
+            <button type="button" className="quiet-button" disabled={isDownloadingTemplate || isImporting} onClick={saveTemplate}>
+              {isDownloadingTemplate ? <span className="loading-spinner loading-spinner-button" aria-hidden="true" /> : <Download size={15} />}
+              {isDownloadingTemplate ? 'টেমপ্লেট তৈরি হচ্ছে…' : 'টেমপ্লেট ডাউনলোড'}
+            </button>
           </div>
           <label className="bulk-file-picker">
             <Upload size={18} />
             <strong>{fileName || 'Excel ফাইল বেছে নিন'}</strong>
             <span>.xlsx · সর্বোচ্চ ১০ MB</span>
-            <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={selectFile} disabled={isReading || isImporting} />
+            <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={selectFile} disabled={isReading || isImporting || isDownloadingTemplate} />
           </label>
           {isAdmin
             ? <p className="bulk-import-status">Admin হিসেবে ইমপোর্ট করলে প্রশ্নগুলো main MongoDB-তে সংরক্ষিত হবে।</p>
             : <p className="bulk-import-status">এই account-এর ইমপোর্ট করা প্রশ্ন শুধু এই ডিভাইসেই সংরক্ষিত হবে; main database অপরিবর্তিত থাকবে।</p>}
-          {isReading && <p className="bulk-import-status">Excel ফাইল পড়া হচ্ছে…</p>}
+          {isReading && <LoadingStatus compact label="Excel ফাইল পড়া হচ্ছে…" detail="প্রশ্নগুলো যাচাই ও প্রস্তুত করা হচ্ছে" />}
           {parseError && <p className="bulk-import-error" role="alert">{parseError}</p>}
           {rows.length > 0 && <>
             <div className="bulk-import-summary">
@@ -172,12 +187,18 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
               ))}
             </div>
           </>}
-          {isImporting && <p className="bulk-import-status" aria-live="polite">সংরক্ষণ হচ্ছে: {progress}/{validCount}টি</p>}
+          {isImporting && <LoadingStatus
+            compact
+            label={`সংরক্ষণ হচ্ছে: ${progress.toLocaleString('bn-BD')} / ${validCount.toLocaleString('bn-BD')}টি`}
+            detail={isAdmin ? 'প্রশ্নগুলো MongoDB-তে পাঠানো হচ্ছে' : 'প্রশ্নগুলো এই device-এ সংরক্ষণ করা হচ্ছে'}
+            progress={validCount ? (progress / validCount) * 100 : 0}
+          />}
         </div>
         <footer className="modal-footer">
           <button type="button" className="quiet-button" disabled={isImporting} onClick={onClose}>বাতিল</button>
-          <button type="button" className="primary-button" disabled={validCount === 0 || isImporting} onClick={saveQuestions}>
-            <Check size={16} /> {isImporting ? 'সংরক্ষণ হচ্ছে…' : ` ${validCount}টি প্রশ্ন ইমপোর্ট করুন`}
+          <button type="button" className="primary-button" disabled={validCount === 0 || isImporting || isReading || isDownloadingTemplate} onClick={saveQuestions}>
+            {isImporting ? <span className="loading-spinner loading-spinner-button" aria-hidden="true" /> : <Check size={16} />}
+            {isImporting ? 'সংরক্ষণ হচ্ছে…' : ` ${validCount}টি প্রশ্ন ইমপোর্ট করুন`}
           </button>
         </footer>
       </section>

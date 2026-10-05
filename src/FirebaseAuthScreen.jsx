@@ -6,6 +6,7 @@ import {
 } from '@firebase/auth'
 import { BookOpen, LockKeyhole } from 'lucide-react'
 import { auth } from './firebase.js'
+import LoadingStatus from './LoadingStatus.jsx'
 
 const authErrorMessages = {
   'auth/email-already-in-use': 'এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট আছে। লগইন করুন।',
@@ -128,8 +129,9 @@ VITE_FIREBASE_APP_ID=আপনার-app-id`}</pre>
               </label>}
               {error && <p className="auth-error" role="alert">{error}</p>}
               {message && <p className="auth-success" role="status">{message}</p>}
+              {busy && <LoadingStatus compact label={mode === 'reset' ? 'রিসেট ইমেইল পাঠানো হচ্ছে…' : mode === 'signup' ? 'অ্যাকাউন্ট তৈরি হচ্ছে…' : 'লগইন যাচাই হচ্ছে…'} />}
               <button type="submit" className="auth-submit" disabled={busy}>
-                {busy ? 'অপেক্ষা করুন…' : mode === 'signup' ? 'অ্যাকাউন্ট তৈরি করুন' : mode === 'reset' ? 'রিসেট লিংক পাঠান' : 'লগইন'}
+                {busy ? 'প্রক্রিয়াধীন…' : mode === 'signup' ? 'অ্যাকাউন্ট তৈরি করুন' : mode === 'reset' ? 'রিসেট লিংক পাঠান' : 'লগইন'}
               </button>
             </form>
             <div className="auth-links">
