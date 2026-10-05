@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleHelp,
   ClipboardList,
+  FileSpreadsheet,
   FilePlus2,
   FileText,
   Filter,
@@ -27,6 +28,7 @@ import {
 import 'mathlive/fonts.css'
 import 'mathlive/static.css'
 import './App.css'
+import BulkQuestionImporter from './BulkQuestionImporter.jsx'
 
 const grades = [5, 6, 7, 8, 9, 10]
 const subjects = [
@@ -87,6 +89,7 @@ const optionStyles = [
 ]
 const isMathExpression = (value) => /[\^_=+*/√]|[a-zA-Z]\d/.test(value)
 const equationMarker = '[[সূত্র]]'
+const mathTokenPattern = /(\[\[সূত্র\]\]|\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+\$|\\\([\s\S]+?\\\)|\\(?:frac|dfrac|tfrac|binom)\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\}(?:\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\})?|\\sqrt\s*(?:\[[^\]\n]*\]\s*)?\{(?:[^{}\n]|\{[^{}\n]*\})*\}|\\(?:sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|theta|alpha|beta|gamma|delta|pi|omega)\b(?:\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\})?)/g
 const promptText = (value = '') => value.split(equationMarker).join('').replace(/\s+/g, ' ').trim()
 const watermarkPositions = [
   { id: 'center', label: 'মাঝখানে' },
@@ -143,6 +146,7 @@ function App() {
   const [selected, setSelected] = useState(() => Array.isArray(workspaceState.selected) ? workspaceState.selected : [])
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [showEditor, setShowEditor] = useState(false)
+  const [showImporter, setShowImporter] = useState(false)
   const [editorResetKey, setEditorResetKey] = useState(0)
   const [showPreview, setShowPreview] = useState(() => Boolean(workspaceState.showPreview && workspaceState.selected?.length))
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
@@ -451,7 +455,10 @@ function App() {
             <>
               <section className="page-heading">
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>
-                <button className="primary-button" disabled={dataMode !== 'mongo'} title={dataMode !== 'mongo' ? 'প্রশ্ন যোগ করতে MongoDB সংযোগ প্রয়োজন' : undefined} onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন</button>
+                <div className="page-heading-actions">
+                  <button className="quiet-button" disabled={dataMode !== 'mongo'} title={dataMode !== 'mongo' ? 'প্রশ্ন ইমপোর্ট করতে MongoDB সংযোগ প্রয়োজন' : undefined} onClick={() => setShowImporter(true)}><FileSpreadsheet size={16} /> Excel ইমপোর্ট</button>
+                  <button className="primary-button" disabled={dataMode !== 'mongo'} title={dataMode !== 'mongo' ? 'প্রশ্ন যোগ করতে MongoDB সংযোগ প্রয়োজন' : undefined} onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন</button>
+                </div>
               </section>
 
               <section className="stats-row" aria-label="প্রশ্ন ব্যাংকের সারাংশ">
@@ -546,6 +553,15 @@ function App() {
       {selected.length > 0 && page === 'bank' && (
         <div className="selection-bar"><div><span className="selection-check"><Check size={14} /></span><strong>{bengaliNumber(selected.length)}টি প্রশ্ন নির্বাচিত</strong><button onClick={() => setSelected([])}>বাছাই বাতিল</button></div><button className="primary-button" onClick={() => setPage('builder')}>প্রশ্নপত্রে যোগ করুন <ChevronRight size={16} /></button></div>
       )}
+      {showImporter && <BulkQuestionImporter
+        apiUrl={apiUrl}
+        grade={grade}
+        subject={subject}
+        enabled={dataMode === 'mongo'}
+        onImported={(savedQuestions) => setQuestions((current) => [...savedQuestions, ...current])}
+        onNotice={setNotice}
+        onClose={() => setShowImporter(false)}
+      />}
       {showEditor && <QuestionModal key={editorResetKey} question={editingQuestion} grade={grade} subject={subject} chapters={availableChapters} loading={isLoadingQuestions} onContextChange={changeContext} onClose={() => { setShowEditor(false); setEditingQuestion(null) }} onSave={saveQuestion} />}
       {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} paperSetCode={paperSetCode} questionTextColor={questionTextColor} showChapters={showChapters} onShowChaptersChange={setShowChapters} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}
       {notice && <div className="toast"><Check size={16} />{notice}</div>}
@@ -673,7 +689,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
             <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => { setType(event.target.value); setMarks(event.target.value === 'mcq' ? 1 : event.target.value === 'cq' ? 10 : 2) }}>{questionTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <label className="field-label">অধ্যায়<input required={!question || Boolean(question.chapter)} list="question-chapter-options" value={chapter} onChange={(event) => setChapter(event.target.value)} placeholder="অধ্যায় নির্বাচন বা লিখুন" /><datalist id="question-chapter-options">{chapterOptions.map((item) => <option key={item} value={item} />)}</datalist></label>
           </div>
-          <div className="field-label prompt-field"><label htmlFor="question-prompt">প্রশ্নের বিবরণ</label><textarea id="question-prompt" ref={promptRef} required rows={type === 'cq' ? 4 : 3} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="এখানে প্রশ্ন লিখুন..." />{subject === 'math' && <div className="prompt-field-tools"><button type="button" className="prompt-insert-button" onClick={insertEquationMarker}><Sigma size={14} /> সূত্র এখানে বসান</button><small>কার্সর যেখানে রাখবেন, সূত্র সেখানে বসবে</small></div>}</div>
+          <div className="field-label prompt-field"><label htmlFor="question-prompt">প্রশ্নের বিবরণ</label><textarea id="question-prompt" ref={promptRef} required rows={type === 'cq' ? 4 : 3} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="এখানে প্রশ্ন লিখুন..." />{subject === 'math' && <div className="prompt-field-tools"><button type="button" className="prompt-insert-button" onClick={insertEquationMarker}><Sigma size={14} /> সূত্র এখানে বসান</button><small>LaTeX সূত্র $...$, \( ... \) অথবা \[ ... \] দিয়ে লিখুন</small></div>}{(prompt.trim() || equation.trim()) && <div className="question-live-preview"><span>প্রিভিউ</span><QuestionPrompt prompt={prompt} equation={equation} /></div>}</div>
           {subject === 'math' && <label className="field-label equation-label">গাণিতিক রাশি / সমীকরণ<MathFormula value={equation} onChange={setEquation} placeholder="যেমন x^2, ভগ্নাংশ, বর্গমূল বা সমীকরণ" /></label>}
           <label className="field-label">চিত্র (ঐচ্ছিক)<select value={figure} onChange={(event) => setFigure(event.target.value)}><option value="">কোনো চিত্র নেই</option><option value="triangle">ত্রিভুজ</option><option value="circle">বৃত্ত</option><option value="rectangle">আয়তক্ষেত্র</option><option value="custom">নিজস্ব ছবির লিংক</option></select></label>
           {figure === 'custom' && <>
@@ -686,16 +702,16 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
               <div className="field-label statement-editor"><span>তিনটি বিবৃতি লিখুন <small className="field-hint">চারটি সমন্বয় অপশন নিজে থেকে তৈরি হবে</small></span>{statements.map((statement, index) => <div className="statement-input-row" key={index}><span>{statementLabels[index]}.</span><input aria-label={`${statementLabels[index]} নম্বর বিবৃতি`} value={statement} onChange={(event) => setStatements((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={`বিবৃতি ${statementLabels[index]} লিখুন`} /></div>)}</div>
               <label className="field-label statement-question-field">বিবৃতির পরে নির্দেশনা<input value={statementQuestion} onChange={(event) => setStatementQuestion(event.target.value)} placeholder="যেমন: নিচের কোনটি সঠিক?" /></label>
               <div className="field-label statement-generated-field"><span>প্রশ্নের প্রিভিউ <small className="field-hint">তিনটি বিবৃতি ও চারটি অপশন একসঙ্গে দেখুন</small></span><div className="statement-question-preview">
-                <div className="statement-question-preview-prompt">{prompt.trim() || 'এখানে মূল প্রশ্ন দেখা যাবে'}</div>
-                {statements.map((statement, index) => <div className="statement-question-preview-line" key={statementLabels[index]}><span>{statementLabels[index]}.</span>{statement.trim() || `বিবৃতি ${statementLabels[index]} এখানে দেখা যাবে`}</div>)}
-                <div className="statement-question-preview-instruction">{statementQuestion.trim() || 'বিবৃতির পরের নির্দেশনা এখানে দেখা যাবে'}</div>
+                <div className="statement-question-preview-prompt"><QuestionPrompt prompt={prompt.trim() || 'এখানে মূল প্রশ্ন দেখা যাবে'} equation={equation} /></div>
+                {statements.map((statement, index) => <div className="statement-question-preview-line" key={statementLabels[index]}><span>{statementLabels[index]}.</span><QuestionPrompt prompt={statement.trim() || `বিবৃতি ${statementLabels[index]} এখানে দেখা যাবে`} /></div>)}
+                <div className="statement-question-preview-instruction"><QuestionPrompt prompt={statementQuestion.trim() || 'বিবৃতির পরের নির্দেশনা এখানে দেখা যাবে'} /></div>
                 <div className="statement-generated-options">{effectiveOptions.map((option, index) => <div className="statement-generated-option" key={option}><strong>{optionLabelsFor(subject)[index]}.</strong><span>{option}</span></div>)}</div>
               </div></div>
             </>}
-            {mcqFormat === 'standard' && <div className="field-label"><span>চারটি উত্তর বিকল্প <small className="field-hint">সাধারণ MCQ-র জন্য</small></span><div className="option-inputs">{options.map((option, index) => <div className="option-editor" key={index}><div className="option-text-line"><label className="option-text-control"><span>{optionLabelsFor(subject)[index]})</span><input ref={(element) => { optionTextRefs.current[index] = element }} aria-label={`${optionLabelsFor(subject)[index]}) option`} value={option} onChange={(event) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={`${optionLabelsFor(subject)[index]}) option`} /></label>{subject === 'math' && <button type="button" className="option-equation-insert" aria-label={`${optionLabelsFor(subject)[index]}) option-এ সূত্র বসান`} title="কার্সর যেখানে রাখবেন, সূত্র সেখানে বসবে" onClick={() => insertOptionEquationMarker(index)}><Sigma size={14} /></button>}</div>{subject === 'math' && <MathFormula compact value={optionEquations[index]} onChange={(value) => setOptionEquations((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} placeholder="সূত্র কিবোর্ড (ঐচ্ছিক)" />}</div>)}</div></div>}
+            {mcqFormat === 'standard' && <div className="field-label"><span>চারটি উত্তর বিকল্প <small className="field-hint">সাধারণ MCQ-র জন্য</small></span><div className="option-inputs">{options.map((option, index) => <div className="option-editor" key={index}><div className="option-text-line"><label className="option-text-control"><span>{optionLabelsFor(subject)[index]})</span><input ref={(element) => { optionTextRefs.current[index] = element }} aria-label={`${optionLabelsFor(subject)[index]}) option`} value={option} onChange={(event) => setOptions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} placeholder={`${optionLabelsFor(subject)[index]}) option`} /></label>{subject === 'math' && <button type="button" className="option-equation-insert" aria-label={`${optionLabelsFor(subject)[index]}) option-এ সূত্র বসান`} title="কার্সর যেখানে রাখবেন, সূত্র সেখানে বসবে" onClick={() => insertOptionEquationMarker(index)}><Sigma size={14} /></button>}</div>{subject === 'math' && <MathFormula compact value={optionEquations[index]} onChange={(value) => setOptionEquations((current) => current.map((item, itemIndex) => itemIndex === index ? value : item))} placeholder="সূত্র কিবোর্ড (ঐচ্ছিক)" />}{(option.trim() || optionEquations[index].trim()) && <div className="option-math-preview"><QuestionPrompt prompt={option} equation={optionEquations[index]} inlineEquations={question?.optionInlineEquations?.[index]} /></div>}</div>)}</div></div>}
           </>}
           <label className="field-label">{type === 'mcq' ? 'সঠিক উত্তর' : type === 'cq' ? 'উপপ্রশ্ন / নির্দেশনা' : 'উত্তর (ঐচ্ছিক)'}{type === 'mcq' ? <select value={answer} onChange={(event) => setAnswer(event.target.value)}><option value="">সঠিক উত্তর নির্বাচন করুন</option>{effectiveOptions.map((option, index) => { const optionText = promptText(option); const value = optionText || optionEquations[index].trim() || `option:${index}`; return <option key={index} value={value}>{optionLabelsFor(subject)[index]}) {optionText || (optionEquations[index] ? 'গাণিতিক রাশি' : 'খালি বিকল্প')}</option> })}</select> : <textarea rows={type === 'cq' ? 3 : 2} value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder={type === 'cq' ? 'ক. ...\nখ. ...\nগ. ...' : 'উত্তর লিখুন...'} />}</label>
-          {subject === 'math' && answerMarkerCount > 0 && inlineAnswerEquations.length === answerMarkerCount && <div className="field-label"><span>উত্তরের সূত্র প্রিভিউ</span><div className="answer-equation-preview"><QuestionPrompt prompt={answer} inlineEquations={inlineAnswerEquations} /></div></div>}
+          {type !== 'mcq' && (answer.trim() || answerEquation.trim()) && <div className="field-label"><span>উত্তরের প্রিভিউ</span><div className="answer-equation-preview"><QuestionPrompt prompt={answer} equation={answerEquation} inlineEquations={inlineAnswerEquations} /></div></div>}
           {formError && <p className="form-error" role="alert">{formError}</p>}
           {subject === 'math' && type !== 'mcq' && <label className="field-label equation-label">উত্তরের গাণিতিক রাশি<MathFormula value={answerEquation} onChange={setAnswerEquation} placeholder="উত্তরের সমীকরণ লিখুন" /></label>}
           <label className="field-label marks-field">নম্বর<input type="number" min="1" max="100" value={marks} onChange={(event) => setMarks(event.target.value)} /></label>
@@ -1040,7 +1056,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                       {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
                       {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{question.options.map((option, optionIndex) => {
                         const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
-                        return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
+                        return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) && !option.includes('$') && !option.includes('\\') ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
                       })}</div>}
                     </>, `paper-question paper-question-${question.type}`)}</Fragment>
                   ))}
@@ -1082,6 +1098,8 @@ function normalizeMathValue(value = '') {
   const withoutMarkers = text
     .replace(/^\$\$([\s\S]*?)\$\$$/, '$1')
     .replace(/^\$([^$]+)\$$/, '$1')
+    .replace(/^\\\(([\s\S]*)\\\)$/, '$1')
+    .replace(/^\\\[([\s\S]*)\\\]$/, '$1')
     .replace(/^\\\s*/, '')
     .trim()
 
@@ -1097,19 +1115,8 @@ function normalizeMathValue(value = '') {
 
 function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
   const sourceText = prompt ?? ''
-  const mathTokenPattern = /(\[\[সূত্র\]\]|\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\(?:frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom)\{[^\n]*\}(?:\{[^\n]*\})?)/g
-  const hasMathSyntax = mathTokenPattern.test(sourceText)
-
-  if (!hasMathSyntax) {
-    return (
-      <Fragment>
-        {sourceText}
-        {equation && <MathFormula display value={normalizeMathValue(equation)} />}
-      </Fragment>
-    )
-  }
-
   const mathTokens = sourceText.split(mathTokenPattern)
+  const hasEquationMarker = sourceText.includes(equationMarker)
 
   return (
     <Fragment>
@@ -1117,25 +1124,34 @@ function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
         if (!token) return null
 
         if (token === equationMarker) {
-          const equationIndex = mathTokens.slice(0, index).filter((previousToken) => previousToken === equationMarker).length
-          const resolvedEquation = inlineEquations[equationIndex] ?? equation ?? ''
-          return resolvedEquation ? <MathFormula key={`${index}-${equationIndex}`} display value={normalizeMathValue(resolvedEquation)} /> : null
+          const currentEquationIndex = mathTokens.slice(0, index).filter((previousToken) => previousToken === equationMarker).length
+          const resolvedEquation = inlineEquations[currentEquationIndex] ?? equation ?? ''
+          return resolvedEquation ? <MathFormula key={`${index}-${currentEquationIndex}`} display value={normalizeMathValue(resolvedEquation)} /> : null
         }
 
         if (token.startsWith('$$') && token.endsWith('$$')) {
-          return <MathFormula key={`${index}-raw-double`} display value={normalizeMathValue(token.slice(2, -2))} />
+          return <MathFormula key={`${index}-raw-double`} display displayMode value={normalizeMathValue(token.slice(2, -2))} />
+        }
+
+        if (token.startsWith('\\[') && token.endsWith('\\]')) {
+          return <MathFormula key={`${index}-raw-bracket`} display displayMode value={normalizeMathValue(token)} />
         }
 
         if (token.startsWith('$') && token.endsWith('$')) {
           return <MathFormula key={`${index}-raw-single`} display value={normalizeMathValue(token)} />
         }
 
-        if (token.startsWith('\\') && /^(?:\\(?:frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom))/i.test(token)) {
+        if (token.startsWith('\\(') && token.endsWith('\\)')) {
+          return <MathFormula key={`${index}-raw-paren`} display value={normalizeMathValue(token)} />
+        }
+
+        if (token.startsWith('\\')) {
           return <MathFormula key={`${index}-raw-latex`} display value={normalizeMathValue(token)} />
         }
 
         return <Fragment key={`${index}-text`}>{token}</Fragment>
       })}
+      {equation && !hasEquationMarker && <MathFormula display displayMode value={normalizeMathValue(equation)} />}
     </Fragment>
   )
 }
@@ -1207,7 +1223,7 @@ function ImageFigure({ src }) {
   )
 }
 
-function MathFormula({ value, onChange, placeholder, compact = false, display = false }) {
+function MathFormula({ value, onChange, placeholder, compact = false, display = false, displayMode = false }) {
   const safeValue = normalizeMathValue(value)
   const mathfieldRef = useRef(null)
   const valueRef = useRef(safeValue)
@@ -1252,7 +1268,7 @@ function MathFormula({ value, onChange, placeholder, compact = false, display = 
     }
   }, [safeValue])
 
-  if (display) return safeValue ? <StaticMathFormula value={safeValue} /> : null
+  if (display) return safeValue ? <StaticMathFormula value={safeValue} displayMode={displayMode} /> : null
   if (!mathLiveReady) return <input className={`math-field math-field-fallback ${compact ? 'math-field-compact' : ''}`} aria-label="গাণিতিক রাশি লিখুন" value={safeValue} onChange={(event) => onChangeRef.current?.(event.target.value)} placeholder={placeholder} />
   return (
     <math-field
@@ -1265,19 +1281,20 @@ function MathFormula({ value, onChange, placeholder, compact = false, display = 
   )
 }
 
-function StaticMathFormula({ value }) {
+function StaticMathFormula({ value, displayMode = false }) {
   const [markup, setMarkup] = useState('')
 
   useEffect(() => {
     let active = true
     import('mathlive').then(({ convertLatexToMarkup }) => {
-      if (active) setMarkup(convertLatexToMarkup(value, { defaultMode: 'textstyle' }))
+      const latex = displayMode ? `\\displaystyle ${value}` : value
+      if (active) setMarkup(convertLatexToMarkup(latex, { defaultMode: 'math' }))
     }).catch(() => setMarkup(''))
     return () => { active = false }
-  }, [value])
+  }, [value, displayMode])
 
-  if (!markup) return <span className="math-fallback-display">{value}</span>
-  return <span className="math-static-display" dangerouslySetInnerHTML={{ __html: markup }} />
+  if (!markup) return <span className={`math-fallback-display ${displayMode ? 'math-static-display-block' : ''}`}>{value}</span>
+  return <span className={`math-static-display ${displayMode ? 'math-static-display-block' : ''}`} dangerouslySetInnerHTML={{ __html: markup }} />
 }
 
 export default App
