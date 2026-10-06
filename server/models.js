@@ -38,6 +38,7 @@ const questionSchema = new mongoose.Schema({
   },
 }, { timestamps: true })
 questionSchema.index({ grade: 1, subject: 1, chapter: 1, type: 1 })
+questionSchema.index({ subject: 1, grade: 1, createdAt: -1, _id: -1 })
 
 const paperSettingsSchema = new mongoose.Schema({
   subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'islam', 'ict'], required: true },

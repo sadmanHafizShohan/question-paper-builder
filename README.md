@@ -39,6 +39,8 @@
 
 Admin/user custom role Firebase Authentication-এর signed custom claim-এ থাকে। Server admin ও role API-তে claim যাচাই করে; forged client-side role গ্রহণ করা হয় না। সব account main MongoDB প্রশ্ন ব্যাংক পড়তে পারে। Admin-এর Excel import, নতুন প্রশ্ন, edit/delete ও bulk delete এবং settings পরিবর্তন main MongoDB-তে সংরক্ষিত হয়। সাধারণ user-এর Excel import, নতুন প্রশ্ন, edit/delete এবং format settings শুধু সেই Firebase account-এর browser localStorage-এ থাকে; অন্য device-এ sync হয় না এবং browser storage মুছলে local প্রশ্নও মুছে যেতে পারে। Main database-এর প্রশ্ন user-এর জন্য read-only; API-তেও প্রশ্ন create/edit/delete (bulk delete-সহ) এবং shared settings write admin-only। `/api/health` public; অন্যান্য API-তে Firebase ID token আবশ্যক। Production-এ অবশ্যই HTTPS এবং নির্দিষ্ট `CLIENT_ORIGIN` ব্যবহার করুন।
 
+প্রশ্ন ব্যাংক একবারে সর্বোচ্চ ৫০টি প্রশ্ন লোড করে; **আরও প্রশ্ন দেখুন** দিয়ে পরের batch আনা যায়। Search, question type ও chapter filter server-side-এ প্রয়োগ হয়, আর grade/subject অনুযায়ী index ব্যবহার করে ফলাফল সাজানো হয়—তাই একসঙ্গে পুরো question bank browser-এ পাঠাতে হয় না।
+
 ## MongoDB credential কোথায় পাবেন
 
 MongoDB Atlas-এ cluster তৈরি করুন, **Database Access** থেকে database user ও password বানান, এবং **Network Access**-এ আপনার বর্তমান IP allow করুন। এরপর cluster-এর **Connect → Drivers** থেকে Node.js connection string নিন। `.env`-এ `<database-user>`, `<database-password>`, `<cluster-host>` এবং `<database-name>` নিজের মান দিয়ে বদলান। Password-এ `@`, `:`, `/`-এর মতো reserved character থাকলে URI-তে ব্যবহারের আগে percent-encode করুন। Atlas database user এবং Atlas account login এক জিনিস নয়।

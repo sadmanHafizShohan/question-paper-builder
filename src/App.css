@@ -167,6 +167,7 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .row-actions button:last-child:hover { background: #fbefee; color: #bd5d53; }
 .table-footer { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 19px; border-top: 1px solid #edf0ed; color: #909b94; font-size: 9px; }
 .table-footer-actions,.table-pagination { display: flex; align-items: center; gap: 8px; }
+.load-more-button { display: flex; margin: 13px auto; }
 .table-footer button { display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #edf0ed; border-radius: 5px; background: white; color: #aab3ad; }
 .table-footer button:disabled { cursor: default; }
 .table-footer .danger-button { display: inline-flex; width: auto; min-height: 32px; align-items: center; justify-content: center; gap: 6px; margin-left: 7px; padding: 0 10px; border-color: #efd5d1; background: #fff7f5; color: #a53f35; cursor: pointer; white-space: nowrap; font-size: 10px; font-weight: 650; }

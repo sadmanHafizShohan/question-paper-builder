@@ -141,6 +141,15 @@ function getLocalQuestions(uid) {
   }
 }
 
+function questionMatchesFilters(question, grade, subject, activeType, selectedChapters, search) {
+  const text = `${promptText(question.prompt)} ${question.equation ?? ''} ${question.inlineEquations?.join(' ') ?? ''} ${question.chapter ?? ''} ${question.statements?.join(' ') ?? ''} ${question.statementQuestion ?? ''} ${question.options?.join(' ') ?? ''}`
+  return question.grade === grade
+    && question.subject === subject
+    && (activeType === 'all' || question.type === activeType)
+    && (selectedChapters.length === 0 || selectedChapters.includes(question.chapter))
+    && text.toLowerCase().includes(search.toLowerCase())
+}
+
 function getLocalPaperSettings(grade, subject, uid, isAdmin) {
   try {
     const storageKey = isAdmin
@@ -165,6 +174,11 @@ function QuestionPaperBuilder({ user, role }) {
   const [grade, setGrade] = useState(() => grades.includes(workspaceState.grade) ? questionBankGrade(workspaceState.grade) : 7)
   const [subject, setSubject] = useState(() => subjects.some((item) => item.id === workspaceState.subject) ? workspaceState.subject : 'math')
   const [questions, setQuestions] = useState([])
+  const [visibleQuestionIds, setVisibleQuestionIds] = useState([])
+  const [nextQuestionCursor, setNextQuestionCursor] = useState(null)
+  const [hasMoreQuestions, setHasMoreQuestions] = useState(false)
+  const [isLoadingMoreQuestions, setIsLoadingMoreQuestions] = useState(false)
+  const [questionMeta, setQuestionMeta] = useState({ total: 0, chapters: [], typeCounts: {} })
   const [localQuestions, setLocalQuestions] = useState(() => getLocalQuestions(user.uid))
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
   const [activeType, setActiveType] = useState(() => questionTypes.some((type) => type.id === workspaceState.activeType) ? workspaceState.activeType : 'all')
@@ -172,6 +186,8 @@ function QuestionPaperBuilder({ user, role }) {
     ? workspaceState.selectedChapters
     : workspaceState.activeChapter && workspaceState.activeChapter !== 'সব অধ্যায়' ? [workspaceState.activeChapter] : [])
   const [search, setSearch] = useState(() => workspaceState.search ?? '')
+  const [debouncedSearch, setDebouncedSearch] = useState(() => workspaceState.search ?? '')
+  const [sortOrder, setSortOrder] = useState('desc')
   const [selected, setSelected] = useState(() => Array.isArray(workspaceState.selected) ? workspaceState.selected : [])
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [showEditor, setShowEditor] = useState(false)
@@ -195,6 +211,11 @@ function QuestionPaperBuilder({ user, role }) {
   const [busyMessage, setBusyMessage] = useState('')
   const [busyProgress, setBusyProgress] = useState(null)
   const hasRestoredScroll = useRef(false)
+  const questionRequestVersion = useRef(0)
+  const activeContext = useRef({ grade, subject })
+  useEffect(() => {
+    activeContext.current = { grade, subject }
+  }, [grade, subject])
 
   const applyPaperSettings = useCallback((settings) => {
     setSchoolName(settings.schoolName ?? defaultPaperSettings.schoolName)
@@ -289,24 +310,31 @@ function QuestionPaperBuilder({ user, role }) {
   }, [darkMode])
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => window.clearTimeout(timeoutId)
+  }, [search])
+
+  useEffect(() => {
     let active = true
     async function loadMongoData() {
       setDataMode('connecting')
       setIsLoadingQuestions(true)
-      setQuestions([])
+      const localForContext = getLocalQuestions(user.uid).filter((question) => question.grade === grade && question.subject === subject)
+      setLocalQuestions(getLocalQuestions(user.uid))
+      setQuestions(localForContext)
+      setVisibleQuestionIds(localForContext.map((question) => question.id))
+      setNextQuestionCursor(null)
+      setHasMoreQuestions(false)
       try {
-        const [questionsResponse, settingsResponse] = await Promise.all([
-          authenticatedFetch(`${apiUrl}/questions?subject=${encodeURIComponent(subject)}&grade=${questionBankGrade(grade)}`),
+        const [metadataResponse, settingsResponse] = await Promise.all([
+          authenticatedFetch(`${apiUrl}/questions/meta?subject=${encodeURIComponent(subject)}&grade=${questionBankGrade(grade)}`),
           authenticatedFetch(`${apiUrl}/settings/${encodeURIComponent(subject)}/${grade}`),
         ])
-        if (!questionsResponse.ok) throw new Error('Question API unavailable')
-        const storedQuestions = await questionsResponse.json()
+        if (!metadataResponse.ok) throw new Error('Question metadata API unavailable')
+        const metadata = await metadataResponse.json()
         const storedSettings = settingsResponse.ok ? await settingsResponse.json() : null
         if (!active) return
-        const localForContext = getLocalQuestions(user.uid).filter((question) => question.grade === grade && question.subject === subject)
-        const mainQuestions = storedQuestions.map((question) => ({ ...question, id: question._id ?? question.id, grade, subject, isLocal: false }))
-        setQuestions([...localForContext, ...mainQuestions])
-        setSelected((current) => current.filter((id) => localForContext.some((question) => question.id === id) || mainQuestions.some((question) => question.id === id)))
+        setQuestionMeta(metadata)
         const localSettings = getLocalPaperSettings(grade, subject, user.uid, isAdmin)
         let savedPersonalSettings = false
         if (!isAdmin) {
@@ -322,9 +350,7 @@ function QuestionPaperBuilder({ user, role }) {
         setDataMode('mongo')
       } catch {
         if (active) {
-          const localForContext = getLocalQuestions(user.uid).filter((question) => question.grade === grade && question.subject === subject)
-          setQuestions(localForContext)
-          setSelected((current) => current.filter((id) => localForContext.some((question) => question.id === id)))
+          setQuestionMeta({ total: 0, chapters: [], typeCounts: {} })
           setShowPreview(false)
           const localSettings = getLocalPaperSettings(grade, subject, user.uid, isAdmin)
           applyPaperSettings({ ...localSettings, paperTitle: localSettings.paperTitle ?? 'অর্ধবার্ষিক মূল্যায়ন' })
@@ -339,21 +365,125 @@ function QuestionPaperBuilder({ user, role }) {
   }, [grade, subject, applyPaperSettings, isAdmin, user.uid, dataReloadKey])
 
   useEffect(() => {
+    if (dataMode !== 'mongo') return undefined
+    let active = true
+    const controller = new AbortController()
+    questionRequestVersion.current += 1
+    async function loadFirstQuestionPage() {
+      setIsLoadingQuestions(true)
+      setIsLoadingMoreQuestions(false)
+      setNextQuestionCursor(null)
+      setHasMoreQuestions(false)
+      const localForContext = getLocalQuestions(user.uid).filter((question) => question.grade === grade && question.subject === subject)
+      setVisibleQuestionIds(localForContext.map((question) => question.id))
+      const params = new URLSearchParams({ subject, grade: String(questionBankGrade(grade)), sort: sortOrder })
+      if (activeType !== 'all') params.set('type', activeType)
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      selectedChapters.forEach((chapter) => params.append('chapter', chapter))
+      try {
+        const response = await authenticatedFetch(`${apiUrl}/questions?${params}`, { signal: controller.signal })
+        if (!response.ok) throw new Error(`Question API failed with HTTP ${response.status}`)
+        const result = await response.json()
+        if (!active) return
+        const mainQuestions = result.questions.map((question) => ({ ...question, id: question._id ?? question.id, grade, subject, isLocal: false }))
+        setQuestions((current) => {
+          const byId = new Map(current.map((question) => [question.id, question]))
+          mainQuestions.forEach((question) => byId.set(question.id, question))
+          return [...byId.values()]
+        })
+        setVisibleQuestionIds([...localForContext.map((question) => question.id), ...mainQuestions.map((question) => question.id)])
+        setNextQuestionCursor(result.nextCursor)
+        setHasMoreQuestions(result.hasMore)
+      } catch (error) {
+        if (active && error.name !== 'AbortError') {
+          console.error('Could not load questions from MongoDB', error)
+          setDataMode('unavailable')
+          setQuestions(localForContext)
+          setVisibleQuestionIds(localForContext.map((question) => question.id))
+        }
+      } finally {
+        if (active) setIsLoadingQuestions(false)
+      }
+    }
+    loadFirstQuestionPage()
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [dataMode, grade, subject, activeType, selectedChapters, debouncedSearch, sortOrder, user.uid])
+
+  useEffect(() => {
     if (!notice) return undefined
     const errorNotice = /হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice)
     const timer = window.setTimeout(() => setNotice(''), errorNotice ? 5200 : 3200)
     return () => window.clearTimeout(timer)
   }, [notice])
 
-  const filteredQuestions = useMemo(() => questions.filter((question) => {
-    const matchesType = activeType === 'all' || question.type === activeType
-    const matchesChapter = selectedChapters.length === 0 || selectedChapters.includes(question.chapter)
-    const matchesSearch = `${promptText(question.prompt)} ${question.equation ?? ''} ${question.inlineEquations?.join(' ') ?? ''} ${question.chapter} ${question.statements?.join(' ') ?? ''} ${question.statementQuestion ?? ''} ${question.options?.join(' ') ?? ''}`.toLowerCase().includes(search.toLowerCase())
-    return matchesType && matchesChapter && matchesSearch
-  }), [questions, activeType, selectedChapters, search])
-  const availableChapters = useMemo(() => [...new Set(questions.map((question) => question.chapter).filter(Boolean))].sort(), [questions])
+  const questionsById = useMemo(() => new Map(questions.map((question) => [question.id, question])), [questions])
+  const filteredQuestions = useMemo(() => {
+    const localForContext = questions.filter((question) => question.isLocal
+      && questionMatchesFilters(question, grade, subject, activeType, selectedChapters, debouncedSearch))
+    const serverForPage = visibleQuestionIds.map((id) => questionsById.get(id)).filter((question) => question && !question.isLocal)
+    return [...localForContext, ...serverForPage]
+  }, [questions, visibleQuestionIds, questionsById, grade, subject, activeType, selectedChapters, debouncedSearch])
+  const localForContext = questions.filter((question) => question.isLocal && question.grade === grade && question.subject === subject)
+  const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
+  const totalQuestionCount = questionMeta.total + localForContext.length
+  const questionTypeCount = new Set([...Object.keys(questionMeta.typeCounts), ...localForContext.map((question) => question.type)]).size
   const selectedQuestions = questions.filter((question) => selected.includes(question.id))
   const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
+
+  async function refreshQuestionMeta() {
+    const requestedContext = { grade, subject }
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/questions/meta?subject=${encodeURIComponent(subject)}&grade=${questionBankGrade(grade)}`)
+      if (!response.ok) throw new Error(`Question metadata API failed with HTTP ${response.status}`)
+      const metadata = await response.json()
+      if (activeContext.current.grade === requestedContext.grade && activeContext.current.subject === requestedContext.subject) {
+        setQuestionMeta(metadata)
+      }
+    } catch (error) {
+      console.error('Could not refresh question bank metadata', error)
+      setNotice('প্রশ্নের তালিকা বদলেছে, কিন্তু সারাংশ হালনাগাদ হয়নি')
+    }
+  }
+
+  async function loadMoreQuestions() {
+    if (!nextQuestionCursor || isLoadingMoreQuestions) return
+    const requestVersion = questionRequestVersion.current
+    setIsLoadingMoreQuestions(true)
+    const params = new URLSearchParams({
+      subject,
+      grade: String(questionBankGrade(grade)),
+      sort: sortOrder,
+      cursor: nextQuestionCursor,
+    })
+    if (activeType !== 'all') params.set('type', activeType)
+    if (debouncedSearch) params.set('search', debouncedSearch)
+    selectedChapters.forEach((chapter) => params.append('chapter', chapter))
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/questions?${params}`)
+      if (!response.ok) throw new Error(`Question API failed with HTTP ${response.status}`)
+      const result = await response.json()
+      if (requestVersion !== questionRequestVersion.current) return
+      const pageQuestions = result.questions.map((question) => ({ ...question, id: question._id ?? question.id, grade, subject, isLocal: false }))
+      setQuestions((current) => {
+        const byId = new Map(current.map((question) => [question.id, question]))
+        pageQuestions.forEach((question) => byId.set(question.id, question))
+        return [...byId.values()]
+      })
+      setVisibleQuestionIds((current) => [...current, ...pageQuestions.map((question) => question.id)])
+      setNextQuestionCursor(result.nextCursor)
+      setHasMoreQuestions(result.hasMore)
+    } catch (error) {
+      if (requestVersion === questionRequestVersion.current) {
+        console.error('Could not load the next question page', error)
+        setNotice('আরও প্রশ্ন লোড হয়নি; সংযোগ পরীক্ষা করে আবার চেষ্টা করুন')
+      }
+    } finally {
+      if (requestVersion === questionRequestVersion.current) setIsLoadingMoreQuestions(false)
+    }
+  }
 
   async function runWithActivity(message, action) {
     setBusyMessage(message)
@@ -447,6 +577,13 @@ function QuestionPaperBuilder({ user, role }) {
     setQuestions((current) => current.some((item) => item.id === payload.id)
       ? current.map((item) => item.id === payload.id ? savedQuestion : item)
       : [savedQuestion, ...current])
+    if (questionMatchesFilters(savedQuestion, grade, subject, activeType, selectedChapters, debouncedSearch)) {
+      setVisibleQuestionIds((current) => {
+        const remaining = current.filter((id) => id !== savedQuestion.id)
+        return sortOrder === 'desc' ? [savedQuestion.id, ...remaining] : [...remaining, savedQuestion.id]
+      })
+    }
+    void refreshQuestionMeta()
     if (editing) {
       setShowEditor(false)
       setEditingQuestion(null)
@@ -482,6 +619,8 @@ function QuestionPaperBuilder({ user, role }) {
       }
     }
     setQuestions((current) => current.filter((question) => question.id !== id))
+    setVisibleQuestionIds((current) => current.filter((visibleId) => visibleId !== id))
+    if (!question.isLocal) void refreshQuestionMeta()
     setSelected((current) => current.filter((item) => item !== id))
     setNotice(question.isLocal ? 'এই ডিভাইসের প্রশ্নটি মুছে ফেলা হয়েছে' : 'প্রশ্নটি main database থেকে মুছে ফেলা হয়েছে')
   }
@@ -512,21 +651,25 @@ function QuestionPaperBuilder({ user, role }) {
       setBusyMessage(`মুছে ফেলা হচ্ছে: ০ / ${bengaliNumber(serverQuestions.length)}টি`)
       setBusyProgress(0)
     }
-    for (const [index, question] of serverQuestions.entries()) {
+    const deleteBatchSize = 500
+    for (let index = 0; index < serverQuestions.length; index += deleteBatchSize) {
+      const batch = serverQuestions.slice(index, index + deleteBatchSize)
       try {
-        const response = await authenticatedFetch(`${apiUrl}/questions/${question.id}`, { method: 'DELETE' })
-        if (response.status === 404) {
-          missingServerIds.push(question.id)
-        } else if (response.ok) {
-          deletedServerIds.push(question.id)
-        } else {
-          throw new Error(`HTTP ${response.status}`)
-        }
+        const response = await authenticatedFetch(`${apiUrl}/questions`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: batch.map((question) => question.id) }),
+        })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const result = await response.json()
+        const batchDeletedIds = new Set(result.deletedIds)
+        deletedServerIds.push(...batch.filter((question) => batchDeletedIds.has(question.id)).map((question) => question.id))
+        missingServerIds.push(...batch.filter((question) => !batchDeletedIds.has(question.id)).map((question) => question.id))
       } catch (error) {
-        console.error(`Could not delete question ${question.id} from MongoDB`, error)
-        failedServerIds.push(question.id)
+        console.error(`Could not delete a batch of ${batch.length} questions from MongoDB`, error)
+        failedServerIds.push(...batch.map((question) => question.id))
       }
-      const completedCount = index + 1
+      const completedCount = Math.min(index + deleteBatchSize, serverQuestions.length)
       setBusyMessage(`মুছে ফেলা হচ্ছে: ${bengaliNumber(completedCount)} / ${bengaliNumber(serverQuestions.length)}টি`)
       setBusyProgress((completedCount / serverQuestions.length) * 100)
     }
@@ -534,7 +677,9 @@ function QuestionPaperBuilder({ user, role }) {
     const processedServerIds = [...deletedServerIds, ...missingServerIds]
     if (failedServerIds.length > 0) {
       setQuestions((current) => current.filter((question) => !processedServerIds.includes(question.id)))
+      setVisibleQuestionIds((current) => current.filter((id) => !processedServerIds.includes(id)))
       setSelected((current) => current.filter((id) => !processedServerIds.includes(id)))
+      if (deletedServerIds.length > 0) void refreshQuestionMeta()
       setNotice(`${bengaliNumber(deletedServerIds.length)}টি main প্রশ্ন মুছে গেছে; ${bengaliNumber(failedServerIds.length)}টি মুছতে পারিনি। কোনো local প্রশ্ন মুছিনি। আবার চেষ্টা করুন।`)
       return
     }
@@ -545,6 +690,8 @@ function QuestionPaperBuilder({ user, role }) {
         setQuestions((current) => current.filter((question) => !processedServerIds.includes(question.id)))
         setSelected((current) => current.filter((id) => !processedServerIds.includes(id)))
         if (deletedServerIds.length > 0) {
+          setVisibleQuestionIds((current) => current.filter((id) => !processedServerIds.includes(id)))
+          void refreshQuestionMeta()
           setNotice(`${deletedServerIds.length}টি main প্রশ্ন মুছে গেছে, কিন্তু local প্রশ্নগুলো এই ডিভাইসে সংরক্ষণ সমস্যার কারণে মুছতে পারিনি।`)
         }
         return
@@ -554,7 +701,9 @@ function QuestionPaperBuilder({ user, role }) {
     const removedIds = [...localIds, ...processedServerIds]
     const deletedCount = localIds.length + deletedServerIds.length
     setQuestions((current) => current.filter((question) => !removedIds.includes(question.id)))
+    setVisibleQuestionIds((current) => current.filter((id) => !removedIds.includes(id)))
     setSelected((current) => current.filter((id) => !removedIds.includes(id)))
+    if (deletedServerIds.length > 0) void refreshQuestionMeta()
     setNotice(`${bengaliNumber(deletedCount)}টি নির্বাচিত প্রশ্ন মুছে ফেলা হয়েছে${missingServerIds.length ? `; ${bengaliNumber(missingServerIds.length)}টি আগে থেকেই নেই` : ''}`)
   }
 
@@ -634,7 +783,7 @@ function QuestionPaperBuilder({ user, role }) {
         </button>
         <div className="side-label">ওয়ার্কস্পেস</div>
         <button className={`nav-item ${page === 'bank' ? 'active' : ''}`} onClick={() => setPage('bank')}>
-          <LayoutDashboard size={18} /><span>প্রশ্ন ব্যাংক</span><span className="nav-count">{questionCount(questions.length)}</span>
+          <LayoutDashboard size={18} /><span>প্রশ্ন ব্যাংক</span><span className="nav-count">{questionCount(totalQuestionCount)}</span>
         </button>
         <button className={`nav-item ${page === 'builder' ? 'active' : ''}`} onClick={() => setPage('builder')}>
           <ClipboardList size={18} /><span>প্রশ্নপত্র তৈরি</span>
@@ -663,7 +812,7 @@ function QuestionPaperBuilder({ user, role }) {
             <label className="context-subject"><span>বিষয়</span><select value={subject} onChange={(event) => changeContext(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <span className="context-hint">{isLoadingQuestions ? 'প্রশ্ন লোড হচ্ছে…' : `${gradeLabel(grade)} · ${subjectLabel(subject)}${grade >= 9 ? ' · শ্রেণি ৯–১০-এর অভিন্ন প্রশ্ন ব্যাংক' : ''}`}</span>
           </div>}
-          {busyMessage && <div className="app-activity" aria-busy="true"><LoadingStatus compact label={busyMessage} detail={busyProgress !== null ? 'প্রশ্নগুলো main database থেকে একে একে মুছে ফেলা হচ্ছে' : undefined} progress={busyProgress ?? undefined} /></div>}
+          {busyMessage && <div className="app-activity" aria-busy="true"><LoadingStatus compact label={busyMessage} detail={busyProgress !== null ? 'নির্বাচিত প্রশ্নগুলো main database থেকে মুছে ফেলা হচ্ছে' : undefined} progress={busyProgress ?? undefined} /></div>}
           {isLoadingQuestions && page !== 'bank' && <div className="data-loading-banner" aria-busy="true"><LoadingStatus compact className="question-loading-status" label="প্রশ্নগুলো লোড হচ্ছে—একটু অপেক্ষা করুন" detail={`${gradeLabel(grade)} · ${subjectLabel(subject)}-এর প্রশ্ন ও ফরম্যাট আনা হচ্ছে`} /></div>}
           {!isLoadingQuestions && dataMode === 'unavailable' && page !== 'users' && <div className="data-unavailable-banner" role="status"><strong>Server-এর সঙ্গে সংযোগ পাওয়া যায়নি</strong><span>এই account-এর local প্রশ্ন দেখানো হচ্ছে। Main database-এর প্রশ্ন ও settings লোড হয়নি।</span><button type="button" onClick={() => setDataReloadKey((current) => current + 1)}>আবার চেষ্টা করুন</button></div>}
           {page === 'users' && isAdmin
@@ -679,9 +828,9 @@ function QuestionPaperBuilder({ user, role }) {
               </section>
 
               <section className="stats-row" aria-label="প্রশ্ন ব্যাংকের সারাংশ">
-                <div className="stat-card"><div className="stat-icon mint"><BookOpen size={18} /></div><div><span>মোট প্রশ্ন</span><strong>{questionCount(questions.length)}</strong></div><small>প্রশ্ন ব্যাংকে</small></div>
-                <div className="stat-card"><div className="stat-icon sky"><ClipboardList size={18} /></div><div><span>অধ্যায়</span><strong>{questionCount(new Set(questions.map((question) => question.chapter).filter(Boolean)).size)}</strong></div><small>প্রশ্ন রয়েছে</small></div>
-                <div className="stat-card"><div className="stat-icon peach"><FileText size={18} /></div><div><span>প্রশ্নের ধরন</span><strong>{questionCount(new Set(questions.map((question) => question.type)).size)}</strong></div><small>ধরন সক্রিয়</small></div>
+                <div className="stat-card"><div className="stat-icon mint"><BookOpen size={18} /></div><div><span>মোট প্রশ্ন</span><strong>{questionCount(totalQuestionCount)}</strong></div><small>প্রশ্ন ব্যাংকে</small></div>
+                <div className="stat-card"><div className="stat-icon sky"><ClipboardList size={18} /></div><div><span>অধ্যায়</span><strong>{questionCount(availableChapters.length)}</strong></div><small>প্রশ্ন রয়েছে</small></div>
+                <div className="stat-card"><div className="stat-icon peach"><FileText size={18} /></div><div><span>প্রশ্নের ধরন</span><strong>{questionCount(questionTypeCount)}</strong></div><small>ধরন সক্রিয়</small></div>
                 <button className="stat-card stat-action" onClick={() => setPage('builder')}><div className="stat-icon lavender"><FilePlus2 size={18} /></div><div><span>নির্বাচিত প্রশ্ন</span><strong>{bengaliNumber(selected.length)}</strong></div><small>প্রশ্নপত্র তৈরি <ChevronRight size={13} /></small></button>
               </section>
 
@@ -690,11 +839,11 @@ function QuestionPaperBuilder({ user, role }) {
                 <div className="filter-toolbar">
                   <label className="search-box"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন বা অধ্যায় খুঁজুন" /></label>
                   <ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} />
-                  <button className="sort-button" onClick={() => setQuestions((current) => [...current].reverse())}><ArrowDownUp size={15} /> সাজান</button>
+                  <button className="sort-button" onClick={() => setSortOrder((current) => current === 'desc' ? 'asc' : 'desc')}><ArrowDownUp size={15} /> {sortOrder === 'desc' ? 'সর্বশেষ আগে' : 'পুরোনো আগে'}</button>
                 </div>
                 <div className="type-tabs" role="tablist" aria-label="প্রশ্নের ধরন">
-                  <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন <span>{questionCount(questions.length)}</span></button>
-                  {questionTypes.map((type) => <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{type.label}<span>{questionCount(questions.filter((question) => question.type === type.id).length)}</span></button>)}
+                  <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন <span>{questionCount(totalQuestionCount)}</span></button>
+                  {questionTypes.map((type) => <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{type.label}<span>{questionCount((questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length)}</span></button>)}
                 </div>
                 <div className="question-table-wrap">
                   <table className="question-table">
@@ -716,10 +865,10 @@ function QuestionPaperBuilder({ user, role }) {
                   <div className="table-footer-actions">
                     {isLoadingQuestions
                       ? <span className="question-count-loading-label"><span className="loading-spinner question-count-spinner" aria-hidden="true" /> প্রশ্ন লোড হচ্ছে…</span>
-                      : <span>মোট {bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হচ্ছে</span>}
+                      : <span>{bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হয়েছে{hasMoreQuestions ? ' · আরও আছে' : ''}</span>}
                     {selectedQuestions.some((question) => isAdmin || question.isLocal) && <button type="button" className="danger-button" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('নির্বাচিত প্রশ্ন মুছে ফেলা হচ্ছে…', deleteSelectedQuestions)}><Trash2 size={14} /> নির্বাচিত মুছুন</button>}
                   </div>
-                  <div className="table-pagination"><button aria-label="আগের পৃষ্ঠা" disabled><ChevronLeft size={16} /></button><span>১ / ১</span><button aria-label="পরের পৃষ্ঠা" disabled><ChevronRight size={16} /></button></div>
+                  {hasMoreQuestions && <button type="button" className="quiet-button load-more-button" onClick={loadMoreQuestions} disabled={isLoadingMoreQuestions}>{isLoadingMoreQuestions ? 'প্রশ্ন লোড হচ্ছে…' : 'আরও প্রশ্ন দেখুন'} <ChevronDown size={16} /></button>}
                 </footer>
               </section>
             </>
@@ -728,7 +877,7 @@ function QuestionPaperBuilder({ user, role }) {
               <section className="page-heading builder-heading"><div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্নপত্র তৈরি</h1><p>প্রশ্ন বাছাই করুন, বিন্যাস ঠিক করুন, তারপর প্রিভিউ বা PDF নিন।</p></div><button className="quiet-button" onClick={() => setPage('bank')}><ChevronLeft size={16} /> প্রশ্ন ব্যাংকে ফিরুন</button></section>
               <div className="builder-layout">
                 <section className="builder-main panel">
-                  <div className="builder-section-title"><div><h2>প্রশ্ন নির্বাচন</h2><p>প্রশ্ন ব্যাংক থেকে প্রশ্ন যোগ বা বাদ দিন</p></div><button className="text-button" onClick={() => setSelected(questions.map((question) => question.id))}><Check size={15} /> সব যোগ করুন</button></div>
+                  <div className="builder-section-title"><div><h2>প্রশ্ন নির্বাচন</h2><p>প্রশ্ন ব্যাংক থেকে প্রশ্ন যোগ বা বাদ দিন</p></div><button className="text-button" onClick={() => setSelected((current) => [...new Set([...current, ...filteredQuestions.map((question) => question.id)])])}><Check size={15} /> দেখানো সব যোগ করুন</button></div>
                   <div className="builder-filters"><ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} /><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন খুঁজুন" /></label></div>
                   <div className="builder-question-list">{filteredQuestions.map((question) => (
                     <label className={`builder-question ${selected.includes(question.id) ? 'checked' : ''}`} key={question.id}>
@@ -736,7 +885,9 @@ function QuestionPaperBuilder({ user, role }) {
                       <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
                       <span className="builder-mark">{bengaliNumber(question.marks)} নম্বর</span>
                     </label>
-                  ))}{filteredQuestions.length === 0 && <div className="empty-state"><strong>মিল পাওয়া যায়নি</strong></div>}</div>
+                  ))}{filteredQuestions.length === 0 && <div className="empty-state"><strong>মিল পাওয়া যায়নি</strong></div>}
+                    {hasMoreQuestions && <button type="button" className="quiet-button load-more-button" onClick={loadMoreQuestions} disabled={isLoadingMoreQuestions}>{isLoadingMoreQuestions ? 'প্রশ্ন লোড হচ্ছে…' : 'আরও প্রশ্ন দেখুন'} <ChevronDown size={16} /></button>}
+                  </div>
                 </section>
                 <aside className="paper-settings panel">
                   <div className="builder-section-title"><div><h2>প্রশ্নপত্রের বিন্যাস</h2><p>শিরোনাম ও পরীক্ষার সময় নির্ধারণ করুন</p></div></div>
@@ -786,6 +937,11 @@ function QuestionPaperBuilder({ user, role }) {
         onImported={(savedQuestions) => {
           if (!isAdmin && !saveLocalQuestions([...savedQuestions, ...localQuestions])) return false
           setQuestions((current) => [...savedQuestions, ...current])
+          const importedServerIds = savedQuestions
+            .filter((question) => !question.isLocal && questionMatchesFilters(question, grade, subject, activeType, selectedChapters, debouncedSearch))
+            .map((question) => question.id)
+          setVisibleQuestionIds((current) => [...new Set(sortOrder === 'desc' ? [...importedServerIds, ...current] : [...current, ...importedServerIds])])
+          if (isAdmin) void refreshQuestionMeta()
           return true
         }}
         onNotice={setNotice}

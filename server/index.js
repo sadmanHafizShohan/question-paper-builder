@@ -1,6 +1,7 @@
 import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
+import { Buffer } from 'node:buffer'
 import mongoose from 'mongoose'
 import process from 'node:process'
 import { firebaseAdminAuth } from './firebaseAdmin.js'
@@ -164,8 +165,84 @@ app.get('/api/questions', async (request, response, next) => {
     const subject = request.query.subject || 'math'
     const grade = Number(request.query.grade || 7)
     const grades = grade === 9 || grade === 10 ? [9, 10] : [grade]
-    const questions = await Question.find({ subject, grade: { $in: grades } }).sort({ createdAt: -1 }).lean()
-    response.json(questions)
+    const limit = 50
+    const sortDirection = request.query.sort === 'asc' ? 1 : -1
+    const filter = { subject, grade: { $in: grades } }
+    const types = request.query.type
+    if (types && types !== 'all') filter.type = types
+
+    const chapters = (Array.isArray(request.query.chapter) ? request.query.chapter : [request.query.chapter])
+      .filter((chapter) => typeof chapter === 'string' && chapter.length <= 120)
+    if (chapters.length > 0) filter.chapter = { $in: chapters.slice(0, 20) }
+
+    const search = typeof request.query.search === 'string' ? request.query.search.trim() : ''
+    if (search.length > 100) return response.status(400).json({ error: 'Search text must be 100 characters or fewer' })
+    if (search) {
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const searchPattern = new RegExp(escapedSearch, 'i')
+      filter.$or = ['prompt', 'equation', 'inlineEquations', 'chapter', 'statements', 'statementQuestion', 'options']
+        .map((field) => ({ [field]: searchPattern }))
+    }
+
+    if (request.query.cursor) {
+      try {
+        const decodedCursor = JSON.parse(Buffer.from(String(request.query.cursor), 'base64url').toString())
+        const cursorDate = new Date(decodedCursor.createdAt)
+        if (!Number.isFinite(cursorDate.getTime()) || !/^[a-f\d]{24}$/i.test(decodedCursor.id)) throw new Error('Invalid cursor')
+        filter.$and = [
+          ...(filter.$or ? [{ $or: filter.$or }] : []),
+          {
+            $or: sortDirection === -1
+              ? [{ createdAt: { $lt: cursorDate } }, { createdAt: cursorDate, _id: { $lt: decodedCursor.id } }]
+              : [{ createdAt: { $gt: cursorDate } }, { createdAt: cursorDate, _id: { $gt: decodedCursor.id } }],
+          },
+        ]
+        delete filter.$or
+      } catch {
+        return response.status(400).json({ error: 'Invalid question cursor' })
+      }
+    }
+
+    const questions = await Question.find(filter)
+      .sort({ createdAt: sortDirection, _id: sortDirection })
+      .limit(limit + 1)
+      .lean()
+    const hasMore = questions.length > limit
+    if (hasMore) questions.pop()
+    const lastQuestion = questions.at(-1)
+    const nextCursor = hasMore && lastQuestion
+      ? Buffer.from(JSON.stringify({ createdAt: lastQuestion.createdAt, id: String(lastQuestion._id) })).toString('base64url')
+      : null
+    response.json({ questions, nextCursor, hasMore })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/questions/meta', async (request, response, next) => {
+  try {
+    const subject = request.query.subject || 'math'
+    const grade = Number(request.query.grade || 7)
+    const grades = grade === 9 || grade === 10 ? [9, 10] : [grade]
+    const [metadata = { summary: [], chapters: [], types: [] }] = await Question.aggregate([
+      { $match: { subject, grade: { $in: grades } } },
+      {
+        $facet: {
+          summary: [{ $count: 'total' }],
+          chapters: [
+            { $match: { chapter: { $ne: '' } } },
+            { $group: { _id: '$chapter' } },
+            { $sort: { _id: 1 } },
+          ],
+          types: [{ $group: { _id: '$type', count: { $sum: 1 } } }],
+        },
+      },
+    ])
+    response.json({
+      total: metadata.summary[0]?.total ?? 0,
+      chapters: metadata.chapters.map(({ _id }) => _id),
+      typeCounts: Object.fromEntries(metadata.types.map(({ _id, count }) => [_id, count])),
+    })
   } catch (error) {
     next(error)
   }
