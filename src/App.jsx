@@ -178,7 +178,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [nextQuestionCursor, setNextQuestionCursor] = useState(null)
   const [hasMoreQuestions, setHasMoreQuestions] = useState(false)
   const [isLoadingMoreQuestions, setIsLoadingMoreQuestions] = useState(false)
-  const [questionMeta, setQuestionMeta] = useState({ total: 0, chapters: [], typeCounts: {} })
+  const [questionMeta, setQuestionMeta] = useState({ total: 0, chapters: [], typeCounts: {}, chapterCounts: [] })
   const [localQuestions, setLocalQuestions] = useState(() => getLocalQuestions(user.uid))
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
   const [activeType, setActiveType] = useState(() => questionTypes.some((type) => type.id === workspaceState.activeType) ? workspaceState.activeType : 'all')
@@ -350,7 +350,7 @@ function QuestionPaperBuilder({ user, role }) {
         setDataMode('mongo')
       } catch {
         if (active) {
-          setQuestionMeta({ total: 0, chapters: [], typeCounts: {} })
+          setQuestionMeta({ total: 0, chapters: [], typeCounts: {}, chapterCounts: [] })
           setShowPreview(false)
           const localSettings = getLocalPaperSettings(grade, subject, user.uid, isAdmin)
           applyPaperSettings({ ...localSettings, paperTitle: localSettings.paperTitle ?? 'অর্ধবার্ষিক মূল্যায়ন' })
@@ -428,8 +428,25 @@ function QuestionPaperBuilder({ user, role }) {
   }, [questions, visibleQuestionIds, questionsById, grade, subject, activeType, selectedChapters, debouncedSearch])
   const localForContext = questions.filter((question) => question.isLocal && question.grade === grade && question.subject === subject)
   const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
+  const chapterQuestionCounts = useMemo(() => {
+    const counts = new Map((questionMeta.chapterCounts ?? []).map(({ chapter, total, typeCounts = {} }) => [
+      chapter,
+      { total, typeCounts: { ...typeCounts } },
+    ]))
+    localForContext.forEach((question) => {
+      if (!question.chapter) return
+      const chapterCounts = counts.get(question.chapter) ?? { total: 0, typeCounts: {} }
+      chapterCounts.total += 1
+      chapterCounts.typeCounts[question.type] = (chapterCounts.typeCounts[question.type] ?? 0) + 1
+      counts.set(question.chapter, chapterCounts)
+    })
+    return counts
+  }, [questionMeta.chapterCounts, localForContext])
   const totalQuestionCount = questionMeta.total + localForContext.length
   const questionTypeCount = new Set([...Object.keys(questionMeta.typeCounts), ...localForContext.map((question) => question.type)]).size
+  const singleSelectedChapterCounts = selectedChapters.length === 1
+    ? chapterQuestionCounts.get(selectedChapters[0]) ?? { total: 0, typeCounts: {} }
+    : null
   const selectedQuestions = questions.filter((question) => selected.includes(question.id))
   const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
 
@@ -841,9 +858,29 @@ function QuestionPaperBuilder({ user, role }) {
                   <ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} />
                   <button className="sort-button" onClick={() => setSortOrder((current) => current === 'desc' ? 'asc' : 'desc')}><ArrowDownUp size={15} /> {sortOrder === 'desc' ? 'সর্বশেষ আগে' : 'পুরোনো আগে'}</button>
                 </div>
+                {selectedChapters.length > 0 && <div className="chapter-count-breakdown" aria-label="নির্বাচিত অধ্যায়ের প্রশ্নসংখ্যা">
+                  {selectedChapters.map((chapter) => {
+                    const counts = chapterQuestionCounts.get(chapter) ?? { total: 0, typeCounts: {} }
+                    return <section className="chapter-count-card" key={chapter}>
+                      <strong>{chapter}</strong>
+                      <div className="chapter-count-metrics">
+                        <span><small>মোট</small><b>{bengaliNumber(counts.total)}</b></span>
+                        <span><small>MCQ</small><b>{bengaliNumber(counts.typeCounts.mcq ?? 0)}</b></span>
+                        <span><small>CQ</small><b>{bengaliNumber(counts.typeCounts.cq ?? 0)}</b></span>
+                        <span><small>SQ</small><b>{bengaliNumber(counts.typeCounts.short ?? 0)}</b></span>
+                        <span><small>বর্ণনামূলক</small><b>{bengaliNumber(counts.typeCounts.long ?? 0)}</b></span>
+                      </div>
+                    </section>
+                  })}
+                </div>}
                 <div className="type-tabs" role="tablist" aria-label="প্রশ্নের ধরন">
-                  <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন <span>{questionCount(totalQuestionCount)}</span></button>
-                  {questionTypes.map((type) => <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{type.label}<span>{questionCount((questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length)}</span></button>)}
+                  <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন{selectedChapters.length < 2 && <span>{questionCount(singleSelectedChapterCounts?.total ?? totalQuestionCount)}</span>}</button>
+                  {questionTypes.map((type) => {
+                    const typeCount = singleSelectedChapterCounts
+                      ? singleSelectedChapterCounts.typeCounts[type.id] ?? 0
+                      : (questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length
+                    return <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{type.label}{selectedChapters.length < 2 && <span>{questionCount(typeCount)}</span>}</button>
+                  })}
                 </div>
                 <div className="question-table-wrap">
                   <table className="question-table">

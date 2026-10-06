@@ -224,24 +224,36 @@ app.get('/api/questions/meta', async (request, response, next) => {
     const subject = request.query.subject || 'math'
     const grade = Number(request.query.grade || 7)
     const grades = grade === 9 || grade === 10 ? [9, 10] : [grade]
-    const [metadata = { summary: [], chapters: [], types: [] }] = await Question.aggregate([
+    const [metadata = { summary: [], chapters: [], types: [], chapterTypes: [] }] = await Question.aggregate([
       { $match: { subject, grade: { $in: grades } } },
       {
         $facet: {
           summary: [{ $count: 'total' }],
           chapters: [
-            { $match: { chapter: { $ne: '' } } },
+            { $match: { chapter: { $type: 'string', $ne: '' } } },
             { $group: { _id: '$chapter' } },
             { $sort: { _id: 1 } },
           ],
           types: [{ $group: { _id: '$type', count: { $sum: 1 } } }],
+          chapterTypes: [
+            { $match: { chapter: { $type: 'string', $ne: '' } } },
+            { $group: { _id: { chapter: '$chapter', type: '$type' }, count: { $sum: 1 } } },
+          ],
         },
       },
     ])
+    const chapterCounts = new Map()
+    metadata.chapterTypes.forEach(({ _id: { chapter, type }, count }) => {
+      const chapterCount = chapterCounts.get(chapter) ?? { chapter, total: 0, typeCounts: {} }
+      chapterCount.total += count
+      chapterCount.typeCounts[type] = count
+      chapterCounts.set(chapter, chapterCount)
+    })
     response.json({
       total: metadata.summary[0]?.total ?? 0,
       chapters: metadata.chapters.map(({ _id }) => _id),
       typeCounts: Object.fromEntries(metadata.types.map(({ _id, count }) => [_id, count])),
+      chapterCounts: [...chapterCounts.values()],
     })
   } catch (error) {
     next(error)

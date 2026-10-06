@@ -132,6 +132,13 @@ textarea:focus-visible {
 .chapter-filter-option { display: flex; min-height: 32px; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; color: #526058; cursor: pointer; font-size: 10px; }
 .chapter-filter-option:hover { background: #f5f8f5; }
 .chapter-filter-empty { display: block; padding: 10px 6px; color: #929d96; font-size: 10px; }
+.chapter-count-breakdown { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 8px; padding: 0 20px 14px; }
+.chapter-count-card { display: grid; gap: 8px; padding: 10px; border: 1px solid #e8ede9; border-radius: 6px; background: #fbfcfb; }
+.chapter-count-card > strong { overflow: hidden; color: #425149; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-count-metrics { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.chapter-count-metrics > span { display: grid; gap: 2px; }
+.chapter-count-metrics small { color: #89958d; font-size: 8px; }
+.chapter-count-metrics b { color: #27352e; font-size: 11px; font-variant-numeric: tabular-nums; }
 .sort-button { min-height: 36px; padding: 0 11px; border-color: #e6ebe7; background: white; color: #657169; font-size: 10px; }
 .sort-button:hover { background: #f8faf8; }
 .type-tabs { display: flex; gap: 18px; padding: 0 20px; border-bottom: 1px solid #edf0ed; overflow-x: auto; }
@@ -671,6 +678,10 @@ html[data-theme='dark'] .chapter-filter-heading { border-color: #35463b; color: 
 html[data-theme='dark'] .chapter-filter-heading button { color: #8bd0a7; }
 html[data-theme='dark'] .chapter-filter-option { color: #b3c0b7; }
 html[data-theme='dark'] .chapter-filter-option:hover { background: #2a3a30; }
+html[data-theme='dark'] .chapter-count-card { border-color: #35463b; background: #202c24; }
+html[data-theme='dark'] .chapter-count-card > strong,
+html[data-theme='dark'] .chapter-count-metrics b { color: #e0e9e3; }
+html[data-theme='dark'] .chapter-count-metrics small { color: #98a99d; }
 html[data-theme='dark'] .search-box input::placeholder,
 html[data-theme='dark'] .field-label input::placeholder,
 html[data-theme='dark'] .field-label textarea::placeholder { color: #819388; }
