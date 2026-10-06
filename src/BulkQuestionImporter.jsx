@@ -155,7 +155,7 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
         </header>
         <div className="bulk-import-content">
           <div className="bulk-import-help">
-            <p>টেমপ্লেট ডাউনলোড করে প্রশ্ন পূরণ করুন। Excel .xlsx ফাইলের প্রথম worksheet পড়া হবে; সর্বোচ্চ ৫০০টি প্রশ্ন ও ১০ MB পর্যন্ত ফাইল সমর্থিত।</p>
+            <p>টেমপ্লেট ডাউনলোড করে প্রশ্ন পূরণ করুন। Excel .xlsx ফাইলের প্রথম worksheet পড়া হবে; সর্বোচ্চ ১০০০টি প্রশ্ন ও ১০ MB পর্যন্ত ফাইল সমর্থিত।</p>
             <button type="button" className="quiet-button" disabled={isDownloadingTemplate || isImporting} onClick={saveTemplate}>
               {isDownloadingTemplate ? <span className="loading-spinner loading-spinner-button" aria-hidden="true" /> : <Download size={15} />}
               {isDownloadingTemplate ? 'টেমপ্লেট তৈরি হচ্ছে…' : 'টেমপ্লেট ডাউনলোড'}
