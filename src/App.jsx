@@ -193,6 +193,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [dataReloadKey, setDataReloadKey] = useState(0)
   const [notice, setNotice] = useState('')
   const [busyMessage, setBusyMessage] = useState('')
+  const [busyProgress, setBusyProgress] = useState(null)
   const hasRestoredScroll = useRef(false)
 
   const applyPaperSettings = useCallback((settings) => {
@@ -356,10 +357,12 @@ function QuestionPaperBuilder({ user, role }) {
 
   async function runWithActivity(message, action) {
     setBusyMessage(message)
+    setBusyProgress(null)
     try {
       return await action()
     } finally {
       setBusyMessage('')
+      setBusyProgress(null)
     }
   }
 
@@ -502,29 +505,45 @@ function QuestionPaperBuilder({ user, role }) {
       : `${removableQuestions.length}টি local প্রশ্ন এই ডিভাইস থেকে মুছবেন?`
     if (!window.confirm(deleteDescription)) return
 
-    let deletedServerIds = []
+    const deletedServerIds = []
+    const missingServerIds = []
+    const failedServerIds = []
     if (serverQuestions.length > 0) {
+      setBusyMessage(`মুছে ফেলা হচ্ছে: ০ / ${bengaliNumber(serverQuestions.length)}টি`)
+      setBusyProgress(0)
+    }
+    for (const [index, question] of serverQuestions.entries()) {
       try {
-        const response = await authenticatedFetch(`${apiUrl}/questions`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: serverQuestions.map((question) => question.id) }),
-        })
-        const result = await response.json()
-        if (!response.ok) throw new Error(result?.error || `HTTP ${response.status}`)
-        deletedServerIds = Array.isArray(result.deletedIds) ? result.deletedIds : []
+        const response = await authenticatedFetch(`${apiUrl}/questions/${question.id}`, { method: 'DELETE' })
+        if (response.status === 404) {
+          missingServerIds.push(question.id)
+        } else if (response.ok) {
+          deletedServerIds.push(question.id)
+        } else {
+          throw new Error(`HTTP ${response.status}`)
+        }
       } catch (error) {
-        console.error('Could not bulk delete questions from MongoDB', error)
-        setNotice('Main database থেকে নির্বাচিত প্রশ্নগুলো মুছতে পারিনি; কোনো local প্রশ্নও মুছিনি।')
-        return
+        console.error(`Could not delete question ${question.id} from MongoDB`, error)
+        failedServerIds.push(question.id)
       }
+      const completedCount = index + 1
+      setBusyMessage(`মুছে ফেলা হচ্ছে: ${bengaliNumber(completedCount)} / ${bengaliNumber(serverQuestions.length)}টি`)
+      setBusyProgress((completedCount / serverQuestions.length) * 100)
+    }
+
+    const processedServerIds = [...deletedServerIds, ...missingServerIds]
+    if (failedServerIds.length > 0) {
+      setQuestions((current) => current.filter((question) => !processedServerIds.includes(question.id)))
+      setSelected((current) => current.filter((id) => !processedServerIds.includes(id)))
+      setNotice(`${bengaliNumber(deletedServerIds.length)}টি main প্রশ্ন মুছে গেছে; ${bengaliNumber(failedServerIds.length)}টি মুছতে পারিনি। কোনো local প্রশ্ন মুছিনি। আবার চেষ্টা করুন।`)
+      return
     }
 
     if (localIds.length > 0) {
       const remainingLocalQuestions = localQuestions.filter((question) => !localIds.includes(question.id))
       if (!saveLocalQuestions(remainingLocalQuestions)) {
-        setQuestions((current) => current.filter((question) => !deletedServerIds.includes(question.id)))
-        setSelected((current) => current.filter((id) => !deletedServerIds.includes(id)))
+        setQuestions((current) => current.filter((question) => !processedServerIds.includes(question.id)))
+        setSelected((current) => current.filter((id) => !processedServerIds.includes(id)))
         if (deletedServerIds.length > 0) {
           setNotice(`${deletedServerIds.length}টি main প্রশ্ন মুছে গেছে, কিন্তু local প্রশ্নগুলো এই ডিভাইসে সংরক্ষণ সমস্যার কারণে মুছতে পারিনি।`)
         }
@@ -532,11 +551,11 @@ function QuestionPaperBuilder({ user, role }) {
       }
     }
 
-    const removedIds = [...localIds, ...serverQuestions.map((question) => question.id)]
+    const removedIds = [...localIds, ...processedServerIds]
     const deletedCount = localIds.length + deletedServerIds.length
     setQuestions((current) => current.filter((question) => !removedIds.includes(question.id)))
     setSelected((current) => current.filter((id) => !removedIds.includes(id)))
-    setNotice(`${bengaliNumber(deletedCount)}টি নির্বাচিত প্রশ্ন মুছে ফেলা হয়েছে${deletedServerIds.length < serverQuestions.length ? `; ${bengaliNumber(serverQuestions.length - deletedServerIds.length)}টি আগে থেকেই নেই` : ''}`)
+    setNotice(`${bengaliNumber(deletedCount)}টি নির্বাচিত প্রশ্ন মুছে ফেলা হয়েছে${missingServerIds.length ? `; ${bengaliNumber(missingServerIds.length)}টি আগে থেকেই নেই` : ''}`)
   }
 
   async function savePaperSettings() {
@@ -644,7 +663,7 @@ function QuestionPaperBuilder({ user, role }) {
             <label className="context-subject"><span>বিষয়</span><select value={subject} onChange={(event) => changeContext(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <span className="context-hint">{isLoadingQuestions ? 'প্রশ্ন লোড হচ্ছে…' : `${gradeLabel(grade)} · ${subjectLabel(subject)}${grade >= 9 ? ' · শ্রেণি ৯–১০-এর অভিন্ন প্রশ্ন ব্যাংক' : ''}`}</span>
           </div>}
-          {busyMessage && <div className="app-activity" aria-busy="true"><LoadingStatus compact label={busyMessage} /></div>}
+          {busyMessage && <div className="app-activity" aria-busy="true"><LoadingStatus compact label={busyMessage} detail={busyProgress !== null ? 'প্রশ্নগুলো main database থেকে একে একে মুছে ফেলা হচ্ছে' : undefined} progress={busyProgress ?? undefined} /></div>}
           {isLoadingQuestions && page !== 'bank' && <div className="data-loading-banner" aria-busy="true"><LoadingStatus compact className="question-loading-status" label="প্রশ্নগুলো লোড হচ্ছে—একটু অপেক্ষা করুন" detail={`${gradeLabel(grade)} · ${subjectLabel(subject)}-এর প্রশ্ন ও ফরম্যাট আনা হচ্ছে`} /></div>}
           {!isLoadingQuestions && dataMode === 'unavailable' && page !== 'users' && <div className="data-unavailable-banner" role="status"><strong>Server-এর সঙ্গে সংযোগ পাওয়া যায়নি</strong><span>এই account-এর local প্রশ্ন দেখানো হচ্ছে। Main database-এর প্রশ্ন ও settings লোড হয়নি।</span><button type="button" onClick={() => setDataReloadKey((current) => current + 1)}>আবার চেষ্টা করুন</button></div>}
           {page === 'users' && isAdmin
@@ -698,7 +717,7 @@ function QuestionPaperBuilder({ user, role }) {
                     {isLoadingQuestions
                       ? <span className="question-count-loading-label"><span className="loading-spinner question-count-spinner" aria-hidden="true" /> প্রশ্ন লোড হচ্ছে…</span>
                       : <span>মোট {bengaliNumber(filteredQuestions.length)}টি প্রশ্ন দেখানো হচ্ছে</span>}
-                    {selectedQuestions.some((question) => isAdmin || question.isLocal) && <button type="button" className="danger-button" onClick={deleteSelectedQuestions}><Trash2 size={14} /> নির্বাচিত মুছুন</button>}
+                    {selectedQuestions.some((question) => isAdmin || question.isLocal) && <button type="button" className="danger-button" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('নির্বাচিত প্রশ্ন মুছে ফেলা হচ্ছে…', deleteSelectedQuestions)}><Trash2 size={14} /> নির্বাচিত মুছুন</button>}
                   </div>
                   <div className="table-pagination"><button aria-label="আগের পৃষ্ঠা" disabled><ChevronLeft size={16} /></button><span>১ / ১</span><button aria-label="পরের পৃষ্ঠা" disabled><ChevronRight size={16} /></button></div>
                 </footer>
