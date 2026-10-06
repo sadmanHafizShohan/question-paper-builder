@@ -1,5 +1,5 @@
 const maximumFileSize = 10 * 1024 * 1024
-const maximumQuestionRows = 1000
+const maximumQuestionRows = 2000
 const builtInFigures = new Set(['triangle', 'circle', 'rectangle'])
 const optionAliases = [
   ['optiona', 'option1', 'optionক', 'অপশনক', 'বিকল্পক', 'কঅপশন', 'কবিকল্প', 'ক'],
@@ -187,7 +187,7 @@ export async function parseQuestionWorkbook(file) {
   const worksheet = workbook.Sheets[firstSheetName]
   const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : null
   if (!range) throw new Error('Excel worksheet-এ কোনো তথ্য পাওয়া যায়নি।')
-  if (range.e.r > 1000 || range.e.c > 100) throw new Error('Excel worksheet-এ অতিরিক্ত সারি বা কলাম রয়েছে।')
+  if (range.e.r > maximumQuestionRows || range.e.c > 100) throw new Error('Excel worksheet-এ অতিরিক্ত সারি বা কলাম রয়েছে।')
 
   const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false })
   const columns = getColumnMap(sheetRows[0] ?? [])
@@ -200,7 +200,7 @@ export async function parseQuestionWorkbook(file) {
   sheetRows.slice(1).forEach((row, index) => {
     const hasValues = [...columns.values()].some((column) => cellText(row[column]))
     if (!hasValues) return
-    if (rows.length >= maximumQuestionRows) throw new Error('একবারে সর্বোচ্চ ১০০০টি প্রশ্ন ইমপোর্ট করা যাবে।')
+    if (rows.length >= maximumQuestionRows) throw new Error('একবারে সর্বোচ্চ ২০০০টি প্রশ্ন ইমপোর্ট করা যাবে।')
     rows.push({ rowNumber: index + 2, ...parseQuestionRow(row, columns) })
   })
   if (rows.length === 0) throw new Error('টেমপ্লেটের শিরোনাম সারির পরে কোনো প্রশ্ন পাওয়া যায়নি।')
@@ -228,7 +228,7 @@ export async function downloadQuestionTemplate() {
     ['সাধারণ MCQ-তে option_a থেকে option_d পূরণ করুন। answer-এ A/B/C/D, ক/খ/গ/ঘ অথবা অপশনের সম্পূর্ণ লেখা দিন।'],
     ['বিবৃতিভিত্তিক MCQ-তে statement_i, statement_ii, statement_iii ও statement_question পূরণ করুন; answer A/B/C/D হতে পারে।'],
     ['chapter, answer, figure, equation ও answer_equation ঐচ্ছিক। figure-এ triangle/circle/rectangle অথবা HTTP(S) ছবির URL দিন।'],
-    ['একবারে সর্বোচ্চ ১০০০টি প্রশ্ন (.xlsx, সর্বোচ্চ ১০ MB) ইমপোর্ট করা যাবে।'],
+    ['একবারে সর্বোচ্চ ২০০০টি প্রশ্ন (.xlsx, সর্বোচ্চ ১০ MB) ইমপোর্ট করা যাবে।'],
   ])
   XLSX.utils.book_append_sheet(workbook, instructions, 'নির্দেশনা')
 
