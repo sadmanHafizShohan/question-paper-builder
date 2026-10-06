@@ -1207,6 +1207,20 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
       return {}
     }
   })
+  const shuffledOptionIndexes = useMemo(() => {
+    const map = new Map()
+    for (const question of questions) {
+      if (question.type !== 'mcq' || !question.options?.length) continue
+      const indexes = question.options.map((_, i) => i)
+      for (let i = indexes.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indexes[i], indexes[j]] = [indexes[j], indexes[i]]
+      }
+      map.set(question.id, indexes)
+    }
+    return map
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(`paper-preview-layout-${customizationKey}`, JSON.stringify(customLayout))
@@ -1480,6 +1494,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
             setSelectedText('')
           }}><Trash2 size={14} /> মুছুন</button>
           <button type="button" className="quiet-button" disabled={!editingEnabled} onClick={() => { setCustomLayout({}); setSelectedElements([]); setSelectedText('') }}><RotateCcw size={14} /> রিসেট</button>
+
         </div>
         <article className="paper-preview" style={{ '--paper-text-color': /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d' }}>
           {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${watermark.size}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}
@@ -1509,9 +1524,10 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                         ? <QuestionFigure figure={question.figure} />
                         : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
                       {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
-                      {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{question.options.map((option, optionIndex) => {
+                      {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{(shuffledOptionIndexes.get(question.id) ?? question.options.map((_, i) => i)).map((sourceIndex, optionIndex) => {
+                        const option = question.options[sourceIndex]
                         const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
-                        return <div className="paper-option" key={`${question.id}-${optionIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) && !option.includes('$') && !option.includes('\\') ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[optionIndex]} inlineEquations={question.optionInlineEquations?.[optionIndex]} />)}</div>
+                        return <div className="paper-option" key={`${question.id}-${sourceIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) && !option.includes('$') && !option.includes('\\') ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[sourceIndex]} inlineEquations={question.optionInlineEquations?.[sourceIndex]} />)}</div>
                       })}</div>}
                     </>, `paper-question paper-question-${question.type}`)}</Fragment>
                   ))}
