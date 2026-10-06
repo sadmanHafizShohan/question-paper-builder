@@ -773,3 +773,87 @@ html[data-theme='dark'] .paper-rule { background: #333; }
 		color: #222 !important;
 	}
 }
+
+/* ── Duplicate Detector Modal ── */
+.duplicate-detector-modal { display: flex; width: min(760px, 100%); max-height: min(88vh, 820px); flex-direction: column; }
+.duplicate-detector-modal .modal-heading,
+.duplicate-detector-modal .modal-footer { flex: 0 0 auto; }
+.dup-detector-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0; }
+
+/* Summary / action bar */
+.dup-summary-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 20px; border-bottom: 1px solid #edf0ed; background: #fbfcfb; }
+.dup-stats { display: flex; gap: 16px; }
+.dup-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; }
+.dup-stat strong { color: #29372f; font-size: 17px; font-weight: 750; line-height: 1; }
+.dup-stat small { color: #8a9690; font-size: 9px; white-space: nowrap; }
+.dup-stat.dup-marked strong { color: #b05030; }
+.dup-summary-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.dup-action-btn { min-height: 30px !important; font-size: 10px !important; padding: 0 10px !important; }
+
+/* Progress / errors */
+.dup-delete-progress { padding: 10px 20px; }
+.dup-inline-error { margin: 8px 20px 0; padding: 8px 10px; border-radius: 5px; background: #fdf1f0; color: #ac4d43; font-size: 10px; }
+
+/* Clean / error states */
+.dup-clean-state,
+.dup-error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 48px 24px; color: #7c8981; font-size: 11px; text-align: center; }
+.dup-clean-icon { display: grid; width: 50px; height: 50px; place-items: center; border-radius: 50%; background: #e8f4ed; color: #287554; }
+.dup-clean-state strong { color: #2b3831; font-size: 13px; }
+.dup-error-state { color: #a05040; }
+.dup-error-state strong { font-size: 13px; }
+
+/* Groups list */
+.dup-groups-list { display: flex; flex-direction: column; }
+.dup-group { border-bottom: 1px solid #edf0ed; }
+.dup-group:last-child { border-bottom: 0; }
+.dup-group-header { display: flex; width: 100%; align-items: center; gap: 10px; padding: 11px 20px; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; transition: background .13s ease; }
+.dup-group-header:hover { background: #f8faf8; }
+.dup-group-prompt { flex: 1; overflow: hidden; color: #3a4842; font-size: 10px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.dup-group-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; color: #8a9690; font-size: 9px; white-space: nowrap; }
+.dup-group-marked-badge { padding: 2px 6px; border-radius: 9px; background: #fdf1ee; color: #b05030; font-size: 9px; }
+
+/* Per-question rows */
+.dup-group-questions { border-top: 1px solid #eef1ee; }
+.dup-question-row { display: flex; align-items: center; gap: 10px; padding: 9px 20px 9px 32px; border-bottom: 1px solid #f2f4f2; transition: background .12s ease; }
+.dup-question-row:last-child { border-bottom: 0; }
+.dup-question-row:hover { background: #fbfcfb; }
+.dup-question-marked { background: #fff9f7; }
+.dup-question-info { display: flex; flex: 1; align-items: center; gap: 10px; cursor: pointer; min-width: 0; }
+.dup-question-index { flex: 0 0 auto; }
+.dup-original-badge { display: inline-block; padding: 2px 7px; border-radius: 9px; background: #eaf4ee; color: #287554; font-size: 9px; font-weight: 650; }
+.dup-copy-badge { display: inline-block; padding: 2px 7px; border-radius: 9px; background: #fdf1ee; color: #b05030; font-size: 9px; font-weight: 650; }
+.dup-question-detail { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.dup-question-detail strong { overflow: hidden; color: #3a4842; font-size: 10px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.dup-question-detail small { color: #8a9690; font-size: 9px; }
+.dup-delete-badge { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 9px; background: #fdecea; color: #b74040; font-size: 9px; }
+
+/* Footer danger button */
+.danger-action-button { display: inline-flex; min-height: 37px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid #e4b8b2; border-radius: 6px; background: #fff2f0; color: #a53f35; cursor: pointer; font-size: 11px; font-weight: 650; transition: background .15s ease; }
+.danger-action-button:hover:not(:disabled) { background: #fce6e3; border-color: #d9a09a; }
+.danger-action-button:disabled { cursor: not-allowed; opacity: .45; }
+
+/* Dark mode overrides */
+html[data-theme='dark'] .dup-summary-bar { border-color: #293b31; background: #1a2620; }
+html[data-theme='dark'] .dup-stat strong { color: #c8ddd3; }
+html[data-theme='dark'] .dup-stat.dup-marked strong { color: #e0a080; }
+html[data-theme='dark'] .dup-stat small { color: #6a8078; }
+html[data-theme='dark'] .dup-group { border-color: #293b31; }
+html[data-theme='dark'] .dup-group-header:hover { background: #1e2e26; }
+html[data-theme='dark'] .dup-group-prompt { color: #b8cdc3; }
+html[data-theme='dark'] .dup-group-meta { color: #6a8078; }
+html[data-theme='dark'] .dup-group-marked-badge { background: #3c2820; color: #e0a080; }
+html[data-theme='dark'] .dup-group-questions { border-color: #283830; }
+html[data-theme='dark'] .dup-question-row { border-color: #1f302a; }
+html[data-theme='dark'] .dup-question-row:hover { background: #1c2d24; }
+html[data-theme='dark'] .dup-question-marked { background: #2a2018; }
+html[data-theme='dark'] .dup-original-badge { background: #1e3428; color: #6abf90; }
+html[data-theme='dark'] .dup-copy-badge { background: #3c2820; color: #e0a080; }
+html[data-theme='dark'] .dup-question-detail strong { color: #b8cdc3; }
+html[data-theme='dark'] .dup-question-detail small { color: #6a8078; }
+html[data-theme='dark'] .dup-delete-badge { background: #3a1f1f; color: #e08080; }
+html[data-theme='dark'] .dup-clean-state strong,
+html[data-theme='dark'] .dup-clean-state span { color: #a0c8b0; }
+html[data-theme='dark'] .dup-clean-icon { background: #1e3428; color: #6abf90; }
+html[data-theme='dark'] .dup-inline-error { background: #3a1f1f; color: #f2aaa2; }
+html[data-theme='dark'] .danger-action-button { border-color: #69413d; background: #2d1a1a; color: #f2aaa2; }
+html[data-theme='dark'] .danger-action-button:hover:not(:disabled) { background: #3c2020; }

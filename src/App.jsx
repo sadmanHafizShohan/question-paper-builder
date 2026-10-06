@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleHelp,
   ClipboardList,
+  CopyX,
   FileSpreadsheet,
   FilePlus2,
   FileText,
@@ -32,6 +33,7 @@ import 'mathlive/fonts.css'
 import 'mathlive/static.css'
 import './App.css'
 import BulkQuestionImporter from './BulkQuestionImporter.jsx'
+import DuplicateDetector from './DuplicateDetector.jsx'
 import FirebaseAuthGate from './FirebaseAuthGate.jsx'
 import authenticatedFetch from './authenticatedFetch.js'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
@@ -192,6 +194,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [showEditor, setShowEditor] = useState(false)
   const [showImporter, setShowImporter] = useState(false)
+  const [showDuplicateDetector, setShowDuplicateDetector] = useState(false)
   const [editorResetKey, setEditorResetKey] = useState(0)
   const [showPreview, setShowPreview] = useState(() => Boolean(workspaceState.showPreview && workspaceState.selected?.length))
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
@@ -839,6 +842,7 @@ function QuestionPaperBuilder({ user, role }) {
               <section className="page-heading">
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>
                 <div className="page-heading-actions">
+                  {isAdmin && <button className="quiet-button" onClick={() => setShowDuplicateDetector(true)}><CopyX size={16} /> ডুপ্লিকেট খুঁজুন</button>}
                   <button className="quiet-button" onClick={() => setShowImporter(true)}><FileSpreadsheet size={16} /> Excel ইমপোর্ট {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
                   <button className="primary-button" onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
                 </div>
@@ -983,6 +987,19 @@ function QuestionPaperBuilder({ user, role }) {
         }}
         onNotice={setNotice}
         onClose={() => setShowImporter(false)}
+      />}
+      {showDuplicateDetector && <DuplicateDetector
+        apiUrl={apiUrl}
+        grade={questionBankGrade(grade)}
+        subject={subject}
+        onDeleted={(deletedIds) => {
+          setQuestions((current) => current.filter((q) => !deletedIds.includes(q.id)))
+          setVisibleQuestionIds((current) => current.filter((id) => !deletedIds.includes(id)))
+          setSelected((current) => current.filter((id) => !deletedIds.includes(id)))
+          void refreshQuestionMeta()
+          setNotice(`${bengaliNumber(deletedIds.length)}টি ডুপ্লিকেট প্রশ্ন মুছে ফেলা হয়েছে`)
+        }}
+        onClose={() => setShowDuplicateDetector(false)}
       />}
       {showEditor && <QuestionModal key={editorResetKey} question={editingQuestion} grade={grade} subject={subject} chapters={availableChapters} loading={isLoadingQuestions} onContextChange={changeContext} onClose={() => { setShowEditor(false); setEditingQuestion(null) }} onSave={(question) => runWithActivity(isAdmin ? 'প্রশ্ন main database-এ সংরক্ষণ হচ্ছে…' : 'প্রশ্ন এই device-এ সংরক্ষণ হচ্ছে…', () => saveQuestion(question))} />}
       {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} paperSetCode={paperSetCode} questionTextColor={questionTextColor} showChapters={showChapters} onShowChaptersChange={setShowChapters} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}

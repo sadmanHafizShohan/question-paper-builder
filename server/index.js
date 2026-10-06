@@ -260,6 +260,63 @@ app.get('/api/questions/meta', async (request, response, next) => {
   }
 })
 
+app.get('/api/questions/duplicates', requireAdmin, async (request, response, next) => {
+  try {
+    const subject = request.query.subject || 'math'
+    const grade = Number(request.query.grade || 7)
+    const grades = grade === 9 || grade === 10 ? [9, 10] : [grade]
+
+    // Fetch all questions for this subject/grade (only fields needed for comparison)
+    const questions = await Question.find({ subject, grade: { $in: grades } })
+      .select('_id type prompt chapter marks createdAt')
+      .lean()
+
+    // Normalize prompt: lowercase, collapse whitespace, strip trailing question numbers and basic punctuation
+    const normalize = (text) => {
+      let t = (text ?? '').toLowerCase()
+      // Remove trailing question numbers like "- (প্রশ্ন 17)", "(নং 5)"
+      t = t.replace(/\s*[-–—(]*\s*(প্রশ্ন|নং|q|question)\s*[0-9০-৯]+\s*[)]*\s*$/gi, '')
+      // Remove punctuation that might differ (like dashes, quotes, question marks)
+      t = t.replace(/['"‘’'""?।!,:;_-]/g, ' ')
+      return t.replace(/[\s\u00a0]+/g, ' ').trim()
+    }
+
+    // Group by (type, normalizedPrompt)
+    const groups = new Map()
+    for (const question of questions) {
+      const key = `${question.type}::${normalize(question.prompt)}`
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(question)
+    }
+
+    // Keep only groups with 2+ questions
+    const duplicateGroups = [...groups.values()]
+      .filter((group) => group.length >= 2)
+      .map((group) => ({
+        type: group[0].type,
+        prompt: group[0].prompt,
+        count: group.length,
+        questions: group.map((question) => ({
+          id: String(question._id),
+          type: question.type,
+          prompt: question.prompt,
+          chapter: question.chapter,
+          marks: question.marks,
+          createdAt: question.createdAt,
+        })),
+      }))
+      .sort((a, b) => b.count - a.count)
+
+    response.json({
+      totalGroups: duplicateGroups.length,
+      totalDuplicates: duplicateGroups.reduce((sum, group) => sum + group.count - 1, 0),
+      groups: duplicateGroups,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.post('/api/questions', requireAdmin, async (request, response, next) => {
   try {
     const { subject = 'math', grade = 7, type, chapter, prompt, equation = '', inlineEquations = [], options = [], statements = [], statementQuestion = '', optionEquations = [], optionInlineEquations = [], answer = '', answerEquation = '', inlineAnswerEquations = [], marks, figure = '' } = request.body
