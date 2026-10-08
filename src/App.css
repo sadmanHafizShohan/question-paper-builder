@@ -819,6 +819,93 @@ textarea:focus-visible {
 	font-variant-numeric: tabular-nums;
 }
 
+.chapter-random-settings {
+	padding-top: 8px;
+	border-top: 1px solid #edf0ed;
+}
+
+.chapter-random-settings>summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: #28775c;
+	cursor: pointer;
+	list-style: none;
+	font-size: 9px;
+	font-weight: 700;
+}
+
+.chapter-random-settings>summary::-webkit-details-marker {
+	display: none;
+}
+
+.chapter-random-settings>p {
+	margin: 7px 0;
+	color: #89958d;
+	font-size: 8px;
+}
+
+.chapter-random-inputs {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.chapter-random-inputs>label {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 42px;
+	align-items: center;
+	gap: 5px;
+	color: #657169;
+	font-size: 8px;
+}
+
+.chapter-random-inputs>label>span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.chapter-random-inputs>label small {
+	color: #929d96;
+	font-size: 7px;
+	font-weight: 400;
+}
+
+.chapter-random-inputs input {
+	width: 100%;
+	min-width: 0;
+	height: 27px;
+	padding: 3px 5px;
+	border: 1px solid #e1e8e2;
+	border-radius: 4px;
+	background: white;
+	color: #3e4b43;
+	font-size: 9px;
+}
+
+.chapter-random-actions {
+	display: flex;
+	grid-column: 1 / -1;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding-top: 3px;
+	color: #78857d;
+	font-size: 9px;
+}
+
+.chapter-random-actions .primary-button {
+	min-height: 34px;
+	padding: 0 11px;
+	font-size: 9px;
+}
+
+.chapter-random-actions .primary-button:disabled {
+	opacity: .55;
+	cursor: not-allowed;
+}
+
 .sort-button {
 	min-height: 36px;
 	padding: 0 11px;
@@ -3174,6 +3261,21 @@ input[type='checkbox'] {
 		min-width: 66px;
 	}
 
+	.chapter-count-breakdown {
+		grid-template-columns: 1fr;
+		padding-right: 14px;
+		padding-left: 14px;
+	}
+
+	.chapter-random-actions {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.chapter-random-actions .primary-button {
+		justify-content: center;
+	}
+
 	.type-tabs {
 		gap: 14px;
 		padding: 0 14px;
@@ -3692,6 +3794,27 @@ html[data-theme='dark'] .chapter-count-metrics b {
 
 html[data-theme='dark'] .chapter-count-metrics small {
 	color: #98a99d;
+}
+
+html[data-theme='dark'] .chapter-random-settings {
+	border-color: #35463b;
+}
+
+html[data-theme='dark'] .chapter-random-settings>summary {
+	color: #a7d8b4;
+}
+
+html[data-theme='dark'] .chapter-random-settings>p,
+html[data-theme='dark'] .chapter-random-inputs>label,
+html[data-theme='dark'] .chapter-random-inputs>label small,
+html[data-theme='dark'] .chapter-random-actions {
+	color: #98a99d;
+}
+
+html[data-theme='dark'] .chapter-random-inputs input {
+	border-color: #35463b;
+	background: #18221c;
+	color: #e0e9e3;
 }
 
 html[data-theme='dark'] .search-box input::placeholder,

@@ -24,6 +24,7 @@ import {
   Search,
   Shield,
   Sigma,
+  Shuffle,
   Sun,
   Trash2,
   X,
@@ -86,6 +87,16 @@ function readWorkspaceState() {
 }
 const typeLabel = (id) => questionTypes.find((type) => type.id === id)?.label ?? id
 const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
+const randomSample = (items, count) => {
+  const shuffled = [...items]
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(Math.random() * (index + 1))
+    const item = shuffled[index]
+    shuffled[index] = shuffled[swapIndex]
+    shuffled[swapIndex] = item
+  }
+  return shuffled.slice(0, count)
+}
 const gradeLabel = (grade) => grade >= 9 ? 'নবম-দশম শ্রেণি' : `শ্রেণি ${bengaliNumber(grade)}`
 const paperClassLabel = (value) => value === 'নবম' || value === 'দশম' ? 'নবম-দশম শ্রেণি' : value
 const questionBankGrade = (grade) => grade === 10 ? 9 : grade
@@ -195,6 +206,8 @@ function QuestionPaperBuilder({ user, role }) {
   const [selectedChapters, setSelectedChapters] = useState(() => Array.isArray(workspaceState.selectedChapters)
     ? workspaceState.selectedChapters
     : workspaceState.activeChapter && workspaceState.activeChapter !== 'সব অধ্যায়' ? [workspaceState.activeChapter] : [])
+  const [randomQuotas, setRandomQuotas] = useState({})
+  const [isSelectingRandom, setIsSelectingRandom] = useState(false)
   const [search, setSearch] = useState(() => workspaceState.search ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState(() => workspaceState.search ?? '')
   const [sortOrder, setSortOrder] = useState('desc')
@@ -460,6 +473,10 @@ function QuestionPaperBuilder({ user, role }) {
     : null
   const selectedQuestions = questions.filter((question) => selected.includes(question.id))
   const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
+  const configuredRandomTotal = selectedChapters.reduce((sum, chapter) => sum + questionTypes.reduce(
+    (chapterTotal, type) => chapterTotal + (Number(randomQuotas[chapter]?.[type.id]) || 0),
+    0,
+  ), 0)
 
   async function refreshQuestionMeta() {
     const requestedContext = { grade, subject }
@@ -510,6 +527,123 @@ function QuestionPaperBuilder({ user, role }) {
       }
     } finally {
       if (requestVersion === questionRequestVersion.current) setIsLoadingMoreQuestions(false)
+    }
+  }
+
+  function updateRandomQuota(chapter, type, value) {
+    setRandomQuotas((current) => ({
+      ...current,
+      [chapter]: { ...current[chapter], [type]: value },
+    }))
+  }
+
+  async function selectRandomQuestions() {
+    const hasInvalidQuota = selectedChapters.some((chapter) => questionTypes.some((type) => {
+      const value = randomQuotas[chapter]?.[type.id]
+      return value !== undefined && value !== '' && (!Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > 100)
+    }))
+    if (hasInvalidQuota) {
+      setNotice('প্রতি অধ্যায়ে প্রতিটি ধরনের সংখ্যা ০ থেকে ১০০-এর মধ্যে পূর্ণসংখ্যা দিন')
+      return
+    }
+    const plans = selectedChapters.map((chapter) => ({
+      chapter,
+      counts: Object.fromEntries(questionTypes
+        .map((type) => [type.id, Number(randomQuotas[chapter]?.[type.id] || 0)])
+        .filter(([, count]) => count > 0)),
+    })).filter((plan) => Object.keys(plan.counts).length > 0)
+    const requestedTotal = plans.reduce((sum, plan) => sum + Object.values(plan.counts).reduce((typeSum, count) => typeSum + count, 0), 0)
+    if (requestedTotal === 0) {
+      setNotice('Random বাছাইয়ের জন্য অন্তত একটি অধ্যায়ে প্রশ্নসংখ্যা দিন')
+      return
+    }
+    if (requestedTotal > 200) {
+      setNotice('একবারে সর্বোচ্চ ২০০টি random প্রশ্ন বাছাই করা যাবে')
+      return
+    }
+
+    setIsSelectingRandom(true)
+    try {
+      const randomQuestions = []
+      const remainingPlans = plans.map((plan) => {
+        const counts = {}
+        for (const [type, count] of Object.entries(plan.counts)) {
+          const candidates = localForContext.filter((question) => question.chapter === plan.chapter
+            && question.type === type
+            && !selected.includes(question.id))
+          const picked = randomSample(candidates, count)
+          randomQuestions.push(...picked)
+          if (picked.length < count) counts[type] = count - picked.length
+        }
+        return { chapter: plan.chapter, counts }
+      }).filter((plan) => Object.keys(plan.counts).length > 0)
+
+      const remainingTotal = remainingPlans.reduce((sum, plan) => sum + Object.values(plan.counts).reduce((typeSum, count) => typeSum + count, 0), 0)
+      if (remainingTotal > 0 && dataMode === 'mongo') {
+        const excludedIds = selected
+          .filter((id) => /^[a-f\d]{24}$/i.test(id))
+          .slice(0, 25000)
+        const response = await authenticatedFetch(`${apiUrl}/questions/random`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject, grade: questionBankGrade(grade), chapters: remainingPlans, excludeIds: excludedIds }),
+        })
+        if (!response.ok) {
+          const responseBody = await response.text()
+          let apiError = ''
+          try {
+            const result = JSON.parse(responseBody)
+            if (typeof result.error === 'string') apiError = result.error
+          } catch {
+            apiError = ''
+          }
+          if (response.status === 404) {
+            throw new Error('Random প্রশ্নের API পাওয়া যায়নি। Backend server restart করে আবার চেষ্টা করুন।')
+          }
+          throw new Error(apiError || `Random প্রশ্নের API-তে সমস্যা হয়েছে (HTTP ${response.status})`)
+        }
+        const result = await response.json()
+        randomQuestions.push(...result.questions.map((question) => ({
+          ...question,
+          id: question._id ?? question.id,
+          grade,
+          subject,
+          isLocal: false,
+        })))
+      }
+
+      const pickedCounts = new Map()
+      randomQuestions.forEach((question) => {
+        const key = `${question.chapter}\u0000${question.type}`
+        pickedCounts.set(key, (pickedCounts.get(key) ?? 0) + 1)
+      })
+      const shortages = plans.flatMap((plan) => Object.entries(plan.counts).flatMap(([type, count]) => {
+        const pickedCount = pickedCounts.get(`${plan.chapter}\u0000${type}`) ?? 0
+        return pickedCount < count ? [`${plan.chapter} · ${typeLabel(type)} ${bengaliNumber(count - pickedCount)}টি কম`] : []
+      }))
+      if (randomQuestions.length > 0) {
+        setQuestions((current) => {
+          const byId = new Map(current.map((question) => [question.id, question]))
+          randomQuestions.forEach((question) => byId.set(question.id, question))
+          return [...byId.values()]
+        })
+        setSelected((current) => [...new Set([...current, ...randomQuestions.map((question) => question.id)])])
+      }
+      const localOnlyNotice = dataMode === 'unavailable' ? ' MongoDB সংযোগ না থাকায় শুধু local প্রশ্ন থেকে বাছাই হয়েছে।' : ''
+      setNotice(randomQuestions.length === 0
+        ? dataMode === 'unavailable'
+          ? 'MongoDB সংযোগ নেই; local প্রশ্ন থেকেও নতুন প্রশ্ন পাওয়া যায়নি'
+          : 'নির্বাচিত অধ্যায় ও ধরনে আর কোনো নতুন প্রশ্ন পাওয়া যায়নি'
+        : shortages.length > 0
+          ? `${bengaliNumber(randomQuestions.length)}টি random প্রশ্ন যোগ হয়েছে; পর্যাপ্ত প্রশ্ন না থাকায় ${shortages.join(', ')}${localOnlyNotice}`
+          : `${bengaliNumber(randomQuestions.length)}টি random প্রশ্ন প্রশ্নপত্রে যোগ হয়েছে${localOnlyNotice}`)
+    } catch (error) {
+      console.error('Could not select random questions', error)
+      setNotice(error instanceof Error
+        ? `Random প্রশ্ন বাছাই করা যায়নি: ${error.message}`
+        : 'Random প্রশ্ন বাছাই করা যায়নি; অজানা ত্রুটি হয়েছে। আবার চেষ্টা করুন।')
+    } finally {
+      setIsSelectingRandom(false)
     }
   }
 
@@ -778,6 +912,7 @@ function QuestionPaperBuilder({ user, role }) {
     if (grade !== nextGrade || subject !== nextSubject) {
       setSelected([])
       setSelectedChapters([])
+      setRandomQuotas({})
     }
     setGrade(nextGrade)
     setSubject(nextSubject)
@@ -883,8 +1018,36 @@ function QuestionPaperBuilder({ user, role }) {
                         <span><small>SQ</small><b>{bengaliNumber(counts.typeCounts.short ?? 0)}</b></span>
                         <span><small>বর্ণনামূলক</small><b>{bengaliNumber(counts.typeCounts.long ?? 0)}</b></span>
                       </div>
+                      <details className="chapter-random-settings">
+                        <summary><Shuffle size={13} /> এই অধ্যায় থেকে random প্রশ্ন বাছাই</summary>
+                        <p>প্রতিটি ধরন থেকে কতটি নতুন প্রশ্ন নেবেন সেট করুন। সর্বোচ্চ ১০০টি।</p>
+                        <div className="chapter-random-inputs">
+                          {questionTypes.map((type) => (
+                            <label key={type.id}>
+                              <span>{type.label} <small>({bengaliNumber(counts.typeCounts[type.id] ?? 0)}টি)</small></span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="1"
+                                inputMode="numeric"
+                                aria-label={`${chapter} থেকে ${type.label} প্রশ্নের সংখ্যা`}
+                                value={randomQuotas[chapter]?.[type.id] ?? ''}
+                                onChange={(event) => updateRandomQuota(chapter, type.id, event.target.value)}
+                                placeholder="০"
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </details>
                     </section>
                   })}
+                  <div className="chapter-random-actions">
+                    <span>{bengaliNumber(configuredRandomTotal)}টি random প্রশ্ন সেট করা হয়েছে · একবারে সর্বোচ্চ ২০০টি</span>
+                    <button type="button" className="primary-button" disabled={configuredRandomTotal === 0 || isSelectingRandom || dataMode === 'connecting'} onClick={selectRandomQuestions}>
+                      <Shuffle size={15} /> {isSelectingRandom ? 'Random প্রশ্ন বাছাই হচ্ছে…' : dataMode === 'connecting' ? 'প্রশ্ন লোড হচ্ছে…' : 'সেট অনুযায়ী random বাছাই'}
+                    </button>
+                  </div>
                 </div>}
                 <div className="type-tabs" role="tablist" aria-label="প্রশ্নের ধরন">
                   <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন{selectedChapters.length < 2 && <span>{questionCount(singleSelectedChapterCounts?.total ?? totalQuestionCount)}</span>}</button>
