@@ -87,6 +87,18 @@ function normalizeQuestionType(value) {
     descriptive: 'long',
     বর্ণনামূলক: 'long',
     'বর্ণনামূলক প্রশ্ন': 'long',
+    passage: 'passage',
+    'reading text': 'passage',
+    true_false: 'true_false',
+    'true/false': 'true_false',
+    fill_in_the_blanks: 'fill_in_the_blanks',
+    'fill in the blanks': 'fill_in_the_blanks',
+    matching: 'matching',
+    rearrange: 'rearrange',
+    table_completion: 'table_completion',
+    'table completion': 'table_completion',
+    synonym_antonym: 'synonym_antonym',
+    'synonym/antonym': 'synonym_antonym',
   }
   return aliases[type] ?? ''
 }
@@ -128,7 +140,8 @@ function parseQuestionRow(row, columns) {
 
   if (!type) errors.push('ধরন দিন: mcq, short, cq অথবা long।')
   if (!prompt) errors.push('প্রশ্নের বিবরণ ফাঁকা রাখা যাবে না।')
-  if (!Number.isInteger(marks) || marks < 1 || marks > 100) errors.push('নম্বর ১ থেকে ১০০-এর মধ্যে পূর্ণসংখ্যা হতে হবে।')
+  if (type !== 'passage' && (!Number.isInteger(marks) || marks < 1 || marks > 100)) errors.push('নম্বর ১ থেকে ১০০-এর মধ্যে পূর্ণসংখ্যা হতে হবে।')
+  if (type === 'passage' && (!Number.isInteger(marks) || marks < 0 || marks > 100)) errors.push('প্যাসেজের নম্বর ০ থেকে ১০০-এর মধ্যে পূর্ণসংখ্যা হতে হবে।')
   if (!validFigure(figure)) errors.push('চিত্রে triangle/circle/rectangle অথবা সঠিক HTTP(S) ছবির লিংক দিন।')
 
   let resolvedOptions = []
@@ -238,6 +251,44 @@ export async function downloadQuestionTemplate() {
   const link = document.createElement('a')
   link.href = url
   link.download = 'question-ghor-import-template.xlsx'
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export async function downloadEnglishQuestionTemplate() {
+  const { default: XLSX } = await import('./excelWorkbook.js')
+  const workbook = XLSX.utils.book_new()
+  workbook.Props = { Author: 'প্রশ্নঘর', Title: 'English Question Import Template' }
+  const questions = XLSX.utils.aoa_to_sheet([
+    ['type', 'chapter', 'prompt', 'marks', 'answer', 'option_a', 'option_b', 'option_c', 'option_d', 'statement_i', 'statement_ii', 'statement_iii', 'statement_question', 'figure', 'equation', 'answer_equation'],
+    ['passage', 'Unit 1', 'Read the text and answer the questions:\nBulbul collects rubbish from the Sankar area in Dhaka...', 0, ''],
+    ['mcq', 'Unit 1', 'What time does Bulbul wake up every morning?', 1, '5 o\'clock', '4 o\'clock', '5 o\'clock', '6 o\'clock', '7 o\'clock'],
+    ['short', 'Unit 1', 'Why does Bulbul wake up early in the morning?', 2, 'To collect rubbish from the Sankar area.'],
+    ['true_false', 'Unit 1', 'Bulbul was sick for two days.', 1, 'True'],
+    ['fill_in_the_blanks', 'Unit 1', 'Good health means proper functioning of body organs and feeling _____.', 1, 'well'],
+    ['synonym_antonym', 'Unit 1', 'Wealth (Synonym)', 1, 'riches'],
+    ['matching', 'Unit 1', 'Match the parts of sentences from Columns A and B.', 5, 'a+ii, b+iii, c+iv, d+i'],
+    ['rearrange', 'Unit 1', 'Put the following parts of the story in the correct order:\na) He lost his father in his childhood.\nb) Nazrul Islam was born on the 20th May 1899.', 8, 'b, a'],
+    ['long', 'Unit 1', 'Write a paragraph on "Your First Day at School".', 10, ''],
+  ])
+  XLSX.utils.book_append_sheet(workbook, questions, 'Questions')
+
+  const instructions = XLSX.utils.aoa_to_sheet([
+    ['English Question Import Template'],
+    ['Keep the header row unchanged. Delete the example rows and add your own questions.'],
+    ['types: passage, mcq, short, true_false, fill_in_the_blanks, matching, rearrange, table_completion, synonym_antonym, long.'],
+    ['For "passage", the text goes in the "prompt" column. Give it 0 marks.'],
+    ['IMPORTANT: Group questions that belong together under the same "chapter" (e.g. Unit 1). They will be printed together sequentially in the final paper under that chapter.'],
+    ['You can import up to 2000 questions (.xlsx, max 10 MB) at once.'],
+  ])
+  XLSX.utils.book_append_sheet(workbook, instructions, 'Instructions')
+
+  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'english-question-import-template.xlsx'
   link.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

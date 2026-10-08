@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Check, Download, FileSpreadsheet, Upload, X } from 'lucide-react'
-import { downloadQuestionTemplate, parseQuestionWorkbook } from './questionImport.js'
+import { downloadQuestionTemplate, downloadEnglishQuestionTemplate, parseQuestionWorkbook } from './questionImport.js'
 import authenticatedFetch from './authenticatedFetch.js'
 import LoadingStatus from './LoadingStatus.jsx'
 
 const concurrency = 4
-const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক' }
+const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক', passage: 'Reading Text', true_false: 'True/False', fill_in_the_blanks: 'Fill in the blanks', matching: 'Matching', rearrange: 'Rearrange', table_completion: 'Table Completion', synonym_antonym: 'Synonym/Antonym' }
 
 function responseError(result, status) {
   return result && typeof result.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${status} ত্রুটি এসেছে।`
@@ -135,7 +135,11 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
     setIsDownloadingTemplate(true)
     setParseError('')
     try {
-      await downloadQuestionTemplate()
+      if (subject?.startsWith('english')) {
+        await downloadEnglishQuestionTemplate()
+      } else {
+        await downloadQuestionTemplate()
+      }
     } catch (error) {
       setParseError(error instanceof Error ? error.message : 'টেমপ্লেট তৈরি করা যায়নি।')
     } finally {

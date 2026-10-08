@@ -54,10 +54,17 @@ const subjects = [
   { id: 'ict', label: 'তথ্য ও যোগাযোগ প্রযুক্তি' },
 ]
 const questionTypes = [
-  { id: 'mcq', label: 'MCQ', heading: 'বহুনির্বাচনি প্রশ্ন' },
-  { id: 'short', label: 'সংক্ষিপ্ত', heading: 'সংক্ষিপ্ত প্রশ্ন' },
+  { id: 'passage', label: 'Reading Text', heading: 'Reading Text / Passage' },
+  { id: 'mcq', label: 'MCQ', heading: 'বহুনির্বাচনি প্রশ্ন / Multiple Choice Questions' },
+  { id: 'short', label: 'সংক্ষিপ্ত', heading: 'সংক্ষিপ্ত প্রশ্ন / Short Answer Questions' },
+  { id: 'true_false', label: 'True/False', heading: 'True or False' },
+  { id: 'fill_in_the_blanks', label: 'Fill in the blanks', heading: 'Complete the passage' },
+  { id: 'matching', label: 'Matching', heading: 'Matching (Column A & B)' },
+  { id: 'rearrange', label: 'Rearrange', heading: 'Rearrange Sentences' },
+  { id: 'table_completion', label: 'Table Completion', heading: 'Complete the table' },
+  { id: 'synonym_antonym', label: 'Synonym/Antonym', heading: 'Synonyms and Antonyms' },
   { id: 'cq', label: 'সৃজনশীল', heading: 'সৃজনশীল প্রশ্ন' },
-  { id: 'long', label: 'বর্ণনামূলক', heading: 'বর্ণনামূলক প্রশ্ন' },
+  { id: 'long', label: 'বর্ণনামূলক', heading: 'বর্ণনামূলক প্রশ্ন / Writing' },
 ]
 const builtInFigures = ['triangle', 'circle', 'rectangle']
 const createSetCode = () => `SET-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
@@ -823,7 +830,7 @@ function QuestionPaperBuilder({ user, role }) {
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : page === 'users' ? 'ব্যবহারকারী' : 'প্রশ্নপত্র তৈরি'}</strong></div>
-          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'MongoDB সংযুক্ত' : dataMode === 'connecting' ? 'MongoDB যাচাই হচ্ছে' : 'MongoDB সংযোগ নেই'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}>{accountInitial}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
+          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'Data Base Connected' : dataMode === 'connecting' ? 'Data Base Connecting' : 'Data Base Connection Failed'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}>{accountInitial}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
         </header>
 
         <div className="content-area">
@@ -1158,7 +1165,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
             <label className="field-label">বিষয়<select value={subject} onChange={(event) => onContextChange(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
           </div>
           <div className="form-row">
-            <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => { setType(event.target.value); setMarks(event.target.value === 'mcq' ? 1 : event.target.value === 'cq' ? 10 : 2) }}>{questionTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => { setType(event.target.value); setMarks(event.target.value === 'passage' ? 0 : event.target.value === 'mcq' ? 1 : event.target.value === 'cq' ? 10 : 2) }}>{questionTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <label className="field-label">অধ্যায়<input required={!question || Boolean(question.chapter)} list="question-chapter-options" value={chapter} onChange={(event) => setChapter(event.target.value)} placeholder="অধ্যায় নির্বাচন বা লিখুন" /><datalist id="question-chapter-options">{chapterOptions.map((item) => <option key={item} value={item} />)}</datalist></label>
           </div>
           <div className="field-label prompt-field"><label htmlFor="question-prompt">প্রশ্নের বিবরণ</label><textarea id="question-prompt" ref={promptRef} required rows={type === 'cq' ? 4 : 3} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="এখানে প্রশ্ন লিখুন..." />{subject === 'math' && <div className="prompt-field-tools"><button type="button" className="prompt-insert-button" onClick={insertEquationMarker}><Sigma size={14} /> সূত্র এখানে বসান</button><small>LaTeX সূত্র $...$, \( ... \) অথবা \[ ... \] দিয়ে লিখুন</small></div>}{(prompt.trim() || equation.trim()) && <div className="question-live-preview"><span>প্রিভিউ</span><QuestionPrompt prompt={prompt} equation={equation} /></div>}</div>
@@ -1186,7 +1193,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
           {type !== 'mcq' && (answer.trim() || answerEquation.trim()) && <div className="field-label"><span>উত্তরের প্রিভিউ</span><div className="answer-equation-preview"><QuestionPrompt prompt={answer} equation={answerEquation} inlineEquations={inlineAnswerEquations} /></div></div>}
           {formError && <p className="form-error" role="alert">{formError}</p>}
           {subject === 'math' && type !== 'mcq' && <label className="field-label equation-label">উত্তরের গাণিতিক রাশি<MathFormula value={answerEquation} onChange={setAnswerEquation} placeholder="উত্তরের সমীকরণ লিখুন" /></label>}
-          <label className="field-label marks-field">নম্বর<input type="number" min="1" max="100" value={marks} onChange={(event) => setMarks(event.target.value)} /></label>
+          <label className="field-label marks-field">নম্বর<input type="number" min={type === 'passage' ? 0 : 1} max="100" value={marks} onChange={(event) => setMarks(event.target.value)} /></label>
         </div>
         <footer className="modal-footer"><button type="button" className="quiet-button" onClick={onClose}>বাতিল</button><button className="primary-button" type="submit" disabled={loading}><Check size={16} /> {loading ? 'প্রশ্ন লোড হচ্ছে…' : 'প্রশ্ন সংরক্ষণ'}</button></footer>
       </form>
@@ -1470,6 +1477,10 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
     questions: questions.filter((question) => question.type === type.id && (question.answer?.trim() || question.answerEquation)),
   })).filter((type) => type.questions.length > 0)
 
+  const isEnglish = subjectId?.startsWith('english')
+  const localNumber = (value) => isEnglish ? String(value) : bengaliNumber(value)
+  const marksText = (marks) => isEnglish ? `(${marks} ${marks > 1 ? 'marks' : 'mark'})` : `(${bengaliNumber(marks)} নম্বর)`
+
   return (
     <div className="modal-backdrop preview-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
       <section className="preview-modal" aria-label="প্রশ্নপত্র প্রিভিউ">
@@ -1515,51 +1526,161 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         </div>
         <article className="paper-preview" style={{ '--paper-text-color': /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d' }}>
           {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${watermark.size}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}
-          {renderEditable('school-name', <div className="paper-school">{schoolName || 'বিদ্যালয়ের নাম'}</div>, 'paper-school-item')}
+          {renderEditable('school-name', <div className="paper-school">{schoolName || (isEnglish ? 'School / College Name' : 'বিদ্যালয়ের নাম')}</div>, 'paper-school-item')}
           {renderEditable('school-subtitle', <div className="paper-school-subtitle">{schoolSubtitle}</div>, 'paper-subtitle-item')}
           {renderEditable('paper-set-code', <div className="paper-set-code">[{paperSetCode}]</div>, 'paper-set-code-item')}
-          {renderEditable('paper-title', <h2 className="paper-title">{title || 'প্রশ্নপত্র'}</h2>, 'paper-title-item')}
-          {renderEditable('paper-meta', <div className="paper-meta"><span>শ্রেণি: {paperClass}</span><span>বিষয়: {subject}</span><span>সময়: {duration}</span><span>পূর্ণমান: {bengaliNumber(totalMarks)}</span>{showChapters && paperChapters.length > 0 && <span className="paper-meta-chapters">অধ্যায়: {paperChapters.join(' · ')}</span>}</div>, 'paper-meta-item')}
+          {renderEditable('paper-title', <h2 className="paper-title">{title || (isEnglish ? 'Question Paper' : 'প্রশ্নপত্র')}</h2>, 'paper-title-item')}
+          {renderEditable('paper-meta', <div className="paper-meta">
+            <span>{isEnglish ? 'Class' : 'শ্রেণি'}: {paperClass}</span>
+            <span>{isEnglish ? 'Subject' : 'বিষয়'}: {subject}</span>
+            <span>{isEnglish ? 'Time' : 'সময়'}: {duration}</span>
+            <span>{isEnglish ? 'Full Marks' : 'পূর্ণমান'}: {isEnglish ? totalMarks : bengaliNumber(totalMarks)}</span>
+            {showChapters && paperChapters.length > 0 && <span className="paper-meta-chapters">{isEnglish ? 'Units' : 'অধ্যায়'}: {paperChapters.join(' · ')}</span>}
+          </div>, 'paper-meta-item')}
           {renderEditable('paper-rule', <div className="paper-rule" />, 'paper-rule-item')}
-          {questionTypes.map((type) => {
-            const group = questions.filter((question) => question.type === type.id)
-            if (group.length === 0) return null
-            return (
-              <section className="paper-question-group" key={type.id}>
-                {renderEditable(`heading-${type.id}`, <h3>{type.heading}</h3>, 'paper-heading-item')}
-                <div className={`paper-question-list paper-question-list-columns-${previewColumns}`} data-columns={previewColumns}>
-                  {group.map((question, index) => (
-                    <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
-                      {question.type === 'cq'
-                        ? <CreativeQuestionPrompt question={question} number={index + 1} />
-                        : <div>
-                          <span>{bengaliNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
-                          <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>{' '}
-                          <small>({bengaliNumber(question.marks)} নম্বর)</small>
-                        </div>}
-                      {question.figure && (builtInFigures.includes(question.figure)
-                        ? <QuestionFigure figure={question.figure} />
-                        : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
-                      {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
-                      {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{(shuffledOptionIndexes.get(question.id) ?? question.options.map((_, i) => i)).map((sourceIndex, optionIndex) => {
-                        const option = question.options[sourceIndex]
-                        const label = optionLabelsFor(subjectId)[optionIndex] ?? bengaliNumber(optionIndex + 1)
-                        return <div className="paper-option" key={`${question.id}-${sourceIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) && !option.includes('$') && !option.includes('\\') ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[sourceIndex]} inlineEquations={question.optionInlineEquations?.[sourceIndex]} />)}</div>
-                      })}</div>}
-                    </>, `paper-question paper-question-${question.type}`)}</Fragment>
-                  ))}
-                </div>
-              </section>
-            )
-          })}
+          {(() => {
+            const englishHeadings = {
+              mcq: 'Choose the best answer from the alternatives:',
+              short: 'Write short answers to the following questions:',
+              true_false: "Read the statements below. Write 'True' if the statement is correct and 'False' if it is incorrect. If false, write the correct answer.",
+              fill_in_the_blanks: 'Complete the passage with suitable words:',
+              matching: 'Match the parts of sentences from the Columns A and B to make five complete sentences.',
+              rearrange: 'Put the following parts of the story in the correct order to make the whole story.',
+              table_completion: 'Complete the table with information from the passage.',
+              synonym_antonym: 'Read the passage carefully and replace the following words with their suitable synonyms or antonyms.',
+            }
+
+            // ── ENGLISH: chapter-first rendering ──────────────────────────────────
+            if (isEnglish) {
+              // Get unique chapters preserving import order
+              const chapters = [...new Set(questions.map((q) => q.chapter || ''))]
+              let englishGroupNumber = 1
+              const renderedTypeKeys = new Set()
+
+              return chapters.map((chapter) => {
+                const chapterQuestions = questions.filter((q) => (q.chapter || '') === chapter)
+                // For this chapter, get unique question types in the order they appear
+                const chapterTypes = [...new Set(chapterQuestions.map((q) => q.type))]
+
+                return chapterTypes.map((typeId) => {
+                  const group = chapterQuestions.filter((q) => q.type === typeId)
+                  if (group.length === 0) return null
+
+                  const isStandalone = typeId === 'long' || typeId === 'cq'
+                  const isPassage = typeId === 'passage'
+
+                  // Each type within a chapter gets its own group number (not per-chapter)
+                  const typeKey = typeId
+                  const isFirstOccurrence = !renderedTypeKeys.has(typeKey)
+                  if (!isStandalone && !isPassage) renderedTypeKeys.add(typeKey)
+
+                  const groupNum = (!isStandalone && !isPassage) ? englishGroupNumber++ : null
+                  const groupMarks = group.reduce((sum, q) => sum + (q.marks || 0), 0)
+                  const maxMarksPerQuestion = Math.max(0, ...group.map((q) => q.marks || 0))
+                  const marksSummaryText = (maxMarksPerQuestion > 0 && group.length > 1)
+                    ? `${maxMarksPerQuestion}x${group.length}=${groupMarks}`
+                    : String(groupMarks)
+
+                  return (
+                    <section className="paper-question-group" key={`${chapter}-${typeId}`}>
+                      {!isStandalone && !isPassage && renderEditable(
+                        `heading-${chapter}-${typeId}`,
+                        <div className="paper-english-group-header">
+                          <div className="paper-english-group-title">
+                            <strong>{groupNum}.</strong>
+                            <span>{englishHeadings[typeId] ?? typeId}</span>
+                          </div>
+                          <div className="paper-english-group-marks">{marksSummaryText}</div>
+                        </div>,
+                        'paper-heading-item'
+                      )}
+                      <div className={`paper-question-list paper-question-list-columns-${previewColumns}`} data-columns={previewColumns}>
+                        {group.map((question, index) => {
+                          const standaloneNum = isStandalone ? englishGroupNumber++ : null
+                          const questionIndexLabel = isStandalone
+                            ? String(standaloneNum)
+                            : isPassage
+                            ? ''
+                            : String.fromCharCode(97 + index)
+                          const questionSuffix = isPassage ? '' : isStandalone ? '.' : ')'
+
+                          return (
+                            <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
+                              {question.type === 'cq'
+                                ? <CreativeQuestionPrompt question={question} number={standaloneNum ?? index + 1} isEnglish={isEnglish} />
+                                : question.type === 'passage'
+                                ? <div className="paper-passage">
+                                    <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>
+                                  </div>
+                                : <div>
+                                  <span>{questionIndexLabel}{questionSuffix}</span>{' '}
+                                  <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>{' '}
+                                  {question.marks > 0 && isStandalone && <small>{marksText(question.marks)}</small>}
+                                </div>}
+                              {question.figure && (builtInFigures.includes(question.figure)
+                                ? <QuestionFigure figure={question.figure} />
+                                : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
+                              {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? String(statementIndex + 1)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
+                              {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{(shuffledOptionIndexes.get(question.id) ?? question.options.map((_, i) => i)).map((sourceIndex, optionIndex) => {
+                                const option = question.options[sourceIndex]
+                                const label = optionLabelsFor(subjectId)[optionIndex] ?? String(optionIndex + 1)
+                                return <div className="paper-option" key={`${question.id}-${sourceIndex}`}><span className="paper-option-label option-label-period">{`${statementLabels[optionIndex] ?? label}.`}</span>{option && <QuestionPrompt prompt={option} equation={question.optionEquations?.[sourceIndex]} inlineEquations={question.optionInlineEquations?.[sourceIndex]} />}</div>
+                              })}</div>}
+                            </>, `paper-question paper-question-${question.type}`)}</Fragment>
+                          )
+                        })}
+                      </div>
+                    </section>
+                  )
+                })
+              })
+            }
+
+            // ── NON-ENGLISH: original type-based rendering ─────────────────────────
+            return questionTypes.map((type) => {
+              const group = questions.filter((question) => question.type === type.id)
+              if (group.length === 0) return null
+              return (
+                <section className="paper-question-group" key={type.id}>
+                  {renderEditable(`heading-${type.id}`, <h3>{type.heading}</h3>, 'paper-heading-item')}
+                  <div className={`paper-question-list paper-question-list-columns-${previewColumns}`} data-columns={previewColumns}>
+                    {group.map((question, index) => (
+                      <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
+                        {question.type === 'cq'
+                          ? <CreativeQuestionPrompt question={question} number={index + 1} isEnglish={false} />
+                          : question.type === 'passage'
+                          ? <div className="paper-passage">
+                              <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>
+                            </div>
+                          : <div>
+                            <span>{localNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
+                            <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>{' '}
+                            {question.marks > 0 && <small>{marksText(question.marks)}</small>}
+                          </div>}
+                        {question.figure && (builtInFigures.includes(question.figure)
+                          ? <QuestionFigure figure={question.figure} />
+                          : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
+                        {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? localNumber(statementIndex + 1)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
+                        {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{(shuffledOptionIndexes.get(question.id) ?? question.options.map((_, i) => i)).map((sourceIndex, optionIndex) => {
+                          const option = question.options[sourceIndex]
+                          const label = optionLabelsFor(subjectId)[optionIndex] ?? localNumber(optionIndex + 1)
+                          return <div className="paper-option" key={`${question.id}-${sourceIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) && !option.includes('$') && !option.includes('\\') ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[sourceIndex]} inlineEquations={question.optionInlineEquations?.[sourceIndex]} />)}</div>
+                        })}</div>}
+                      </>, `paper-question paper-question-${question.type}`)}</Fragment>
+                    ))}
+                  </div>
+                </section>
+              )
+            })
+          })()}
           {answerGroups.length > 0 && <section className="paper-answer-section">
-            <h2>উত্তরমালা</h2>
+            <h2>{isEnglish ? 'Answer Key' : 'উত্তরমালা'}</h2>
             {answerGroups.map((type) => (
               <section className="paper-answer-group" key={type.id}>
                 <h3>{type.heading}</h3>
                 {type.questions.map((question, index) => (
                   <div className="paper-answer" key={question.id}>
-                    <strong>{bengaliNumber(index + 1)}.</strong>{' '}
+                    <strong>{localNumber(index + 1)}.</strong>{' '}
                     {question.answer && (question.type === 'cq'
                       ? <CreativeQuestionAnswer answer={question.answer} inlineEquations={question.inlineAnswerEquations} />
                       : <QuestionPrompt
@@ -1644,11 +1765,14 @@ function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
   )
 }
 
-function CreativeQuestionPrompt({ question, number }) {
+function CreativeQuestionPrompt({ question, number, isEnglish }) {
   const lines = question.prompt.split(/\r?\n/)
+  const localNumber = (value) => isEnglish ? String(value) : bengaliNumber(value)
+  const marksText = (marks) => isEnglish ? `(${marks} marks)` : `(${bengaliNumber(marks)} নম্বর)`
+
   return (
     <div className="paper-cq-prompt">
-      <span>{bengaliNumber(number)}.</span>
+      <span>{localNumber(number)}.</span>
       <div>
         {lines.map((line, index) => {
           const equationCount = line.split(equationMarker).length - 1
@@ -1657,7 +1781,7 @@ function CreativeQuestionPrompt({ question, number }) {
           return (
             <div className="paper-cq-prompt-line" key={index}>
               <QuestionPrompt prompt={line} equation={index === 0 ? question.equation : ''} inlineEquations={inlineEquations} />
-              {index === 0 && <small>({bengaliNumber(question.marks)} নম্বর)</small>}
+              {index === 0 && <small>{marksText(question.marks)}</small>}
             </div>
           )
         })}
@@ -1667,7 +1791,7 @@ function CreativeQuestionPrompt({ question, number }) {
 }
 
 function CreativeQuestionAnswer({ answer, inlineEquations = [] }) {
-  const parts = answer.split(/(?=\([কখগঘ]\)\s*)/).filter((part) => part.trim())
+  const parts = answer.split(/(?=\([কখগঘa-d]\)\s*)/).filter((part) => part.trim())
   return (
     <div className="paper-cq-answer">
       {parts.map((part, index) => {

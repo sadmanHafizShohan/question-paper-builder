@@ -14,7 +14,7 @@ const isValidFigure = (value) => {
 const questionSchema = new mongoose.Schema({
   subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'islam', 'ict'], required: true, default: 'math', index: true },
   grade: { type: Number, min: 5, max: 10, required: true, default: 7, index: true },
-  type: { type: String, enum: ['mcq', 'short', 'cq', 'long'], required: true },
+  type: { type: String, enum: ['mcq', 'short', 'cq', 'long', 'passage', 'true_false', 'fill_in_the_blanks', 'matching', 'rearrange', 'table_completion', 'synonym_antonym'], required: true },
   chapter: { type: String, default: '', trim: true },
   prompt: { type: String, required: true, trim: true },
   equation: { type: String, default: '' },

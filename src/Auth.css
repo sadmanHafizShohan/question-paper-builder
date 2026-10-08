@@ -6,13 +6,45 @@
 	background: radial-gradient(ellipse at top, #e8f4ed, #f5f7f5 62%);
 }
 
+.auth-split-container {
+	display: flex;
+	max-width: 900px;
+	width: 100%;
+	background: #fff;
+	border: 1px solid #e4ebe5;
+	border-radius: 14px;
+	box-shadow: 0 20px 65px #203c2b12;
+	overflow: hidden;
+}
+
+.auth-image-panel {
+	flex: 1;
+	display: none;
+}
+
+.auth-image-panel img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+@media (min-width: 768px) {
+	.auth-image-panel {
+		display: block;
+	}
+}
+
+.auth-form-panel {
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
 .auth-card {
 	width: min(100%, 440px);
 	padding: 34px;
-	border: 1px solid #e4ebe5;
-	border-radius: 14px;
-	background: #fff;
-	box-shadow: 0 20px 65px #203c2b12;
+	/* Removed border and background from here since the parent container has it now */
 }
 
 .auth-brand { display: flex; align-items: center; gap: 11px; margin-bottom: 32px; }

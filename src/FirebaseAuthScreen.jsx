@@ -70,80 +70,87 @@ export default function FirebaseAuthScreen({ setupRequired = false, fatalError =
 
   return (
     <main className="auth-shell">
-      <section className="auth-card" aria-labelledby="auth-title">
-        <div className="auth-brand"><span className="auth-brand-mark"><BookOpen size={22} /></span><span><strong>প্রশ্নঘর</strong><small>Developed By Md. Shohanoor Rahman Shohan</small></span></div>
+      <div className="auth-split-container">
+        <div className="auth-image-panel">
+          <img src="/login_Image2.jpg" alt="Login Banner" />
+        </div>
+        <div className="auth-form-panel">
+          <section className="auth-card" aria-labelledby="auth-title">
+            <div className="auth-brand"><span className="auth-brand-mark"><BookOpen size={22} /></span><span><strong>প্রশ্নঘর</strong><small>Developed By Md. Shohanoor Rahman Shohan</small></span></div>
 
-        {setupRequired ? (
-          <div className="auth-setup" role="alert">
-            <h1 id="auth-title">Firebase সেটআপ প্রয়োজন</h1>
-            <p>লগইন চালু করতে Firebase project-এর Web App configuration যোগ করুন।</p>
-            <ol>
-              <li>Firebase Console-এ একটি project এবং Web App তৈরি করুন।</li>
-              <li><strong>Authentication → Sign-in method</strong> থেকে Email/Password চালু করুন।</li>
-              <li>project root-এ `.env` ফাইল তৈরি করে নিচের মানগুলো দিন।</li>
-            </ol>
-            <pre>{`VITE_FIREBASE_API_KEY=আপনার-web-api-key
+            {setupRequired ? (
+              <div className="auth-setup" role="alert">
+                <h1 id="auth-title">Firebase সেটআপ প্রয়োজন</h1>
+                <p>লগইন চালু করতে Firebase project-এর Web App configuration যোগ করুন।</p>
+                <ol>
+                  <li>Firebase Console-এ একটি project এবং Web App তৈরি করুন।</li>
+                  <li><strong>Authentication → Sign-in method</strong> থেকে Email/Password চালু করুন।</li>
+                  <li>project root-এ `.env` ফাইল তৈরি করে নিচের মানগুলো দিন।</li>
+                </ol>
+                <pre>{`VITE_FIREBASE_API_KEY=আপনার-web-api-key
 VITE_FIREBASE_AUTH_DOMAIN=আপনার-project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=আপনার-project-id
 VITE_FIREBASE_STORAGE_BUCKET=আপনার-project.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=আপনার-sender-id
 VITE_FIREBASE_APP_ID=আপনার-app-id`}</pre>
-            <p className="auth-help">মানগুলো Firebase Console → Project settings → Your apps থেকে পাবেন। `.env` সংরক্ষণ করে Vite server পুনরায় চালু করুন।</p>
-          </div>
-        ) : fatalError ? (
-          <div className="auth-setup" role="alert">
-            <h1 id="auth-title">সেশন যাচাই করা যায়নি</h1>
-            <p className="auth-error">{fatalError}</p>
-            <button type="button" className="auth-submit" onClick={() => window.location.reload()}>আবার চেষ্টা করুন</button>
-          </div>
-        ) : (
-          <>
-            <div className="auth-heading">
-              <span className="auth-lock"><LockKeyhole size={19} /></span>
-              <h1 id="auth-title">{mode === 'signup' ? 'নতুন অ্যাকাউন্ট তৈরি করুন' : mode === 'reset' ? 'পাসওয়ার্ড রিসেট' : 'আপনার অ্যাকাউন্টে লগইন করুন'}</h1>
-              <p>{mode === 'reset' ? 'রিসেট লিংক পেতে আপনার অ্যাকাউন্টের ইমেইল লিখুন।' : 'প্রশ্নঘরের প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করতে লগইন করুন।'}</p>
-            </div>
-            <form className="auth-form" onSubmit={handleSubmit}>
-              <label>
-                ইমেইল
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@example.com"
-                  required
-                />
-              </label>
-              {mode !== 'reset' && <label>
-                পাসওয়ার্ড
-                <input
-                  type="password"
-                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  minLength={6}
-                  placeholder="অন্তত ৬ অক্ষর"
-                  required
-                />
-              </label>}
-              {error && <p className="auth-error" role="alert">{error}</p>}
-              {message && <p className="auth-success" role="status">{message}</p>}
-              {busy && <LoadingStatus compact label={mode === 'reset' ? 'রিসেট ইমেইল পাঠানো হচ্ছে…' : mode === 'signup' ? 'অ্যাকাউন্ট তৈরি হচ্ছে…' : 'লগইন যাচাই হচ্ছে…'} />}
-              <button type="submit" className="auth-submit" disabled={busy}>
-                {busy ? 'প্রক্রিয়াধীন…' : mode === 'signup' ? 'অ্যাকাউন্ট তৈরি করুন' : mode === 'reset' ? 'রিসেট লিংক পাঠান' : 'লগইন'}
-              </button>
-            </form>
-            <div className="auth-links">
-              {mode === 'signin' && <>
-                <button type="button" onClick={() => changeMode('reset')}>পাসওয়ার্ড ভুলে গেছেন?</button>
-                <span>নতুন ব্যবহারকারী? <button type="button" onClick={() => changeMode('signup')}>অ্যাকাউন্ট তৈরি করুন</button></span>
-              </>}
-              {mode !== 'signin' && <button type="button" onClick={() => changeMode('signin')}>লগইন-এ ফিরে যান</button>}
-            </div>
-          </>
-        )}
-      </section>
+                <p className="auth-help">মানগুলো Firebase Console → Project settings → Your apps থেকে পাবেন। `.env` সংরক্ষণ করে Vite server পুনরায় চালু করুন।</p>
+              </div>
+            ) : fatalError ? (
+              <div className="auth-setup" role="alert">
+                <h1 id="auth-title">সেশন যাচাই করা যায়নি</h1>
+                <p className="auth-error">{fatalError}</p>
+                <button type="button" className="auth-submit" onClick={() => window.location.reload()}>আবার চেষ্টা করুন</button>
+              </div>
+            ) : (
+              <>
+                <div className="auth-heading">
+                  <span className="auth-lock"><LockKeyhole size={19} /></span>
+                  <h1 id="auth-title">{mode === 'signup' ? 'নতুন অ্যাকাউন্ট তৈরি করুন' : mode === 'reset' ? 'পাসওয়ার্ড রিসেট' : 'আপনার অ্যাকাউন্টে লগইন করুন'}</h1>
+                  <p>{mode === 'reset' ? 'রিসেট লিংক পেতে আপনার অ্যাকাউন্টের ইমেইল লিখুন।' : 'প্রশ্নঘরের প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করতে লগইন করুন।'}</p>
+                </div>
+                <form className="auth-form" onSubmit={handleSubmit}>
+                  <label>
+                    ইমেইল
+                    <input
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@example.com"
+                      required
+                    />
+                  </label>
+                  {mode !== 'reset' && <label>
+                    পাসওয়ার্ড
+                    <input
+                      type="password"
+                      autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      minLength={6}
+                      placeholder="অন্তত ৬ অক্ষর"
+                      required
+                    />
+                  </label>}
+                  {error && <p className="auth-error" role="alert">{error}</p>}
+                  {message && <p className="auth-success" role="status">{message}</p>}
+                  {busy && <LoadingStatus compact label={mode === 'reset' ? 'রিসেট ইমেইল পাঠানো হচ্ছে…' : mode === 'signup' ? 'অ্যাকাউন্ট তৈরি হচ্ছে…' : 'লগইন যাচাই হচ্ছে…'} />}
+                  <button type="submit" className="auth-submit" disabled={busy}>
+                    {busy ? 'প্রক্রিয়াধীন…' : mode === 'signup' ? 'অ্যাকাউন্ট তৈরি করুন' : mode === 'reset' ? 'রিসেট লিংক পাঠান' : 'লগইন'}
+                  </button>
+                </form>
+                <div className="auth-links">
+                  {mode === 'signin' && <>
+                    <button type="button" onClick={() => changeMode('reset')}>পাসওয়ার্ড ভুলে গেছেন?</button>
+                    <span>নতুন ব্যবহারকারী? <button type="button" onClick={() => changeMode('signup')}>অ্যাকাউন্ট তৈরি করুন</button></span>
+                  </>}
+                  {mode !== 'signin' && <button type="button" onClick={() => changeMode('signin')}>লগইন-এ ফিরে যান</button>}
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      </div>
     </main>
   )
 }

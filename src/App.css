@@ -386,10 +386,10 @@ input[type='checkbox'] { width: 14px; height: 14px; accent-color: #20775f; curso
 .paper-cq-prompt-line:first-child { margin-bottom: 0; }
 .paper-cq-prompt-line small { margin-left: 5px; font-size: 9px; white-space: nowrap; }
 .paper-question small { font-size: 9px; white-space: nowrap; }
-.paper-options { display: flex; flex-wrap: nowrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 5px 0 0 8px; }
+.paper-options { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 5px 0 0 8px; }
 .paper-options-statements { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); justify-content: initial; gap: 3px 10px; margin-left: 0; }
-.paper-option { display: inline-flex; min-width: 0; align-items: baseline; gap: 3px; white-space: nowrap; }
-.paper-options-statements .paper-option { white-space: nowrap; }
+.paper-option { display: inline-flex; min-width: 0; align-items: baseline; gap: 3px; }
+.paper-options-statements .paper-option { white-space: normal; }
 .paper-option-label { font-weight: 650; }
 .option-label-circle { display: inline-grid; width: 1.55em; height: 1.55em; flex: 0 0 1.55em; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: .9em; line-height: 1; }
 .option-label-bullet::before { display: inline-block; width: .5em; height: .5em; margin-right: .35em; border-radius: 50%; background: currentColor; content: ''; vertical-align: .08em; }
@@ -857,3 +857,14 @@ html[data-theme='dark'] .dup-clean-icon { background: #1e3428; color: #6abf90; }
 html[data-theme='dark'] .dup-inline-error { background: #3a1f1f; color: #f2aaa2; }
 html[data-theme='dark'] .danger-action-button { border-color: #69413d; background: #2d1a1a; color: #f2aaa2; }
 html[data-theme='dark'] .danger-action-button:hover:not(:disabled) { background: #3c2020; }
+.paper-passage { margin-bottom: 8px; white-space: pre-wrap; text-align: justify; }
+.paper-passage .paper-question-prompt { font-weight: normal; }
+
+
+.paper-english-group-header { display: flex; flex-direction: row; justify-content: space-between; align-items: center; width: 100%; margin: 8px 0 6px; gap: 12px; }
+.paper-english-group-title { display: flex; align-items: baseline; gap: 6px; flex: 1; min-width: 0; font-size: 11px; font-weight: 600; }
+.paper-english-group-title strong { flex: 0 0 auto; font-weight: 700; }
+.paper-english-group-title > span { min-width: 0; }
+.paper-english-group-marks { flex: 0 0 auto; font-size: 11px; font-weight: 700; text-align: right; white-space: nowrap; }
+.paper-heading-item:has(.paper-english-group-header) { width: 100%; max-width: 100%; margin-right: 0; margin-left: 0; }
+
