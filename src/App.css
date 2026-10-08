@@ -2390,6 +2390,11 @@ input[type='checkbox'] {
 	color: inherit !important;
 }
 
+.paper-preview sub,
+.paper-preview sup {
+	font-size: 12px;
+}
+
 .paper-watermark {
 	position: absolute;
 	z-index: 0;
@@ -2460,7 +2465,7 @@ input[type='checkbox'] {
 	border: 2px solid #000;
 	position: absolute;
 	font-family: 'Noto Sans Bengali', sans-serif;
-	font-size: 10px;
+	font-size: 12px;
 	font-weight: 650;
 }
 
@@ -2508,18 +2513,18 @@ input[type='checkbox'] {
 
 .paper-meta-item>.paper-text-override {
 	display: block;
-	font-size: 10px;
+	font-size: 12px;
 }
 
 .paper-heading-item>.paper-text-override {
 	display: block;
-	font-size: 12px;
+	font-size: 14px;
 	font-weight: 700;
 }
 
 .paper-question>.paper-text-override {
 	display: block;
-	font-size: 11px;
+	font-size: 12px;
 	line-height: 1.8;
 }
 
@@ -2626,7 +2631,7 @@ input[type='checkbox'] {
 	flex-wrap: wrap;
 	justify-content: space-between;
 	gap: 7px 15px;
-	font-size: 10px;
+	font-size: 12px;
 }
 
 .paper-meta-chapters {
@@ -2646,7 +2651,7 @@ input[type='checkbox'] {
 
 .paper-question-group h3 {
 	margin: 0 0 10px;
-	font-size: 12px;
+	font-size: 14px;
 }
 
 .paper-question-list {
@@ -2667,7 +2672,7 @@ input[type='checkbox'] {
 
 .paper-question {
 	margin: 0 0 13px;
-	font-size: 11px;
+	font-size: 12px;
 	line-height: 1.8;
 }
 
@@ -2695,12 +2700,12 @@ input[type='checkbox'] {
 
 .paper-cq-prompt-line small {
 	margin-left: 5px;
-	font-size: 9px;
+	font-size: 12px;
 	white-space: nowrap;
 }
 
 .paper-question small {
-	font-size: 9px;
+	font-size: 12px;
 	white-space: nowrap;
 }
 
@@ -2743,7 +2748,7 @@ input[type='checkbox'] {
 	place-items: center;
 	border: 1px solid currentColor;
 	border-radius: 50%;
-	font-size: .9em;
+	font-size: max(12px, .9em);
 	line-height: 1;
 }
 
@@ -2921,12 +2926,12 @@ input[type='checkbox'] {
 
 .paper-answer-group h3 {
 	margin: 0 0 8px;
-	font-size: 12px;
+	font-size: 14px;
 }
 
 .paper-answer {
 	margin: 0 0 8px 10px;
-	font-size: 11px;
+	font-size: 12px;
 	line-height: 1.8;
 	white-space: pre-line;
 	break-inside: avoid;
@@ -2960,7 +2965,7 @@ input[type='checkbox'] {
 .question-figure svg text {
 	fill: currentColor;
 	font-family: 'Noto Sans Bengali', sans-serif;
-	font-size: 9px;
+	font-size: 12px;
 }
 
 .question-figure.figure-circle {
@@ -2989,7 +2994,7 @@ input[type='checkbox'] {
 .question-figure-image figcaption {
 	color: #a34d42;
 	font-family: 'Noto Sans Bengali', sans-serif;
-	font-size: 10px;
+	font-size: 12px;
 	line-height: 1.6;
 	overflow-wrap: anywhere;
 }
@@ -3421,7 +3426,7 @@ input[type='checkbox'] {
 	}
 
 	.paper-meta {
-		font-size: 9px;
+		font-size: 12px;
 	}
 
 	.question-figure {
@@ -4564,7 +4569,7 @@ html[data-theme='dark'] .danger-action-button:hover:not(:disabled) {
 	gap: 6px;
 	flex: 1;
 	min-width: 0;
-	font-size: 11px;
+	font-size: 14px;
 	font-weight: 600;
 }
 
@@ -4579,7 +4584,7 @@ html[data-theme='dark'] .danger-action-button:hover:not(:disabled) {
 
 .paper-english-group-marks {
 	flex: 0 0 auto;
-	font-size: 11px;
+	font-size: 14px;
 	font-weight: 700;
 	text-align: right;
 	white-space: nowrap;

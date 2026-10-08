@@ -105,8 +105,24 @@ const randomSample = (items, count) => {
   }
   return shuffled.slice(0, count)
 }
-const gradeLabel = (grade) => grade >= 9 ? 'নবম-দশম শ্রেণি' : `শ্রেণি ${bengaliNumber(grade)}`
-const paperClassLabel = (value) => value === 'নবম' || value === 'দশম' ? 'নবম-দশম শ্রেণি' : value
+const gradeLabel = (grade) => ({
+  5: 'পঞ্চম',
+  6: 'ষষ্ঠ',
+  7: 'সপ্তম',
+  8: 'অষ্টম',
+}[grade] ?? (grade >= 9 ? 'নবম-দশম শ্রেণি' : `শ্রেণি ${bengaliNumber(grade)}`))
+const paperClassLabel = (value) => ({
+  'শ্রেণি ৫': 'পঞ্চম',
+  'শ্রেণি ৬': 'ষষ্ঠ',
+  'শ্রেণি ৭': 'সপ্তম',
+  'শ্রেণি ৮': 'অষ্টম',
+  'শ্রেণি 5': 'পঞ্চম',
+  'শ্রেণি 6': 'ষষ্ঠ',
+  'শ্রেণি 7': 'সপ্তম',
+  'শ্রেণি 8': 'অষ্টম',
+  নবম: 'নবম-দশম শ্রেণি',
+  দশম: 'নবম-দশম শ্রেণি',
+}[value] ?? value)
 const questionBankGrade = (grade) => grade === 10 ? 9 : grade
 const subjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
 const optionLabelsFor = (subject) => subject.startsWith('english-')
@@ -1706,9 +1722,9 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         style={{
           '--paper-offset-x': `${elementLayout.x ?? 0}px`,
           '--paper-offset-y': `${elementLayout.y ?? 0}px`,
-          '--paper-scale': elementLayout.scale ?? 1,
-          '--paper-scale-x': elementLayout.scaleX ?? 1,
-          '--paper-scale-y': elementLayout.scaleY ?? 1,
+          '--paper-scale': Math.max(1, elementLayout.scale ?? 1),
+          '--paper-scale-x': Math.max(1, elementLayout.scaleX ?? 1),
+          '--paper-scale-y': Math.max(1, elementLayout.scaleY ?? 1),
           '--paper-transform-origin': elementLayout.transformOrigin ?? 'center center',
           ...(id.startsWith('figure-') ? { width: `${elementLayout.width ?? 360}px` } : {}),
           ...extraStyle,
@@ -1777,7 +1793,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
       return
     }
     const baseSize = Number.parseFloat(window.getComputedStyle(textElement).fontSize)
-    const effectiveSize = baseSize * (selectedElementLayout.scale ?? 1) * (selectedElementLayout.scaleY ?? 1)
+    const effectiveSize = baseSize * Math.max(1, selectedElementLayout.scale ?? 1) * Math.max(1, selectedElementLayout.scaleY ?? 1)
     setSelectedFontSize(Number.isFinite(effectiveSize) ? effectiveSize : null)
   }, [selectedElement, selectedElementLayout.scale, selectedElementLayout.scaleY])
 
@@ -1849,7 +1865,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
           <label className="preview-option-style">অপশন<select aria-label="MCQ অপশন নম্বরের ধরন" value={optionStyle} onChange={(event) => setOptionStyle(event.target.value)}>{optionStyles.map((style) => <option value={style.id} key={style.id}>{style.label}</option>)}</select></label>
           {selectedImage
             ? <label className="preview-image-size">ছবির প্রস্থ<input aria-label="ছবির প্রস্থ" type="range" min="80" max="600" step="10" value={selectedElementLayout.width ?? 360} disabled={!editingEnabled} onChange={(event) => updateElement(selectedElement, { width: Number(event.target.value) })} /><output aria-live="polite">{bengaliNumber(selectedElementLayout.width ?? 360)} px</output></label>
-            : <label>আকার<input type="range" min="0.6" max="2" step="0.1" value={selectedElementLayout.scale ?? 1} disabled={!selectedElements.length || !editingEnabled} onChange={(event) => {
+            : <label>আকার<input type="range" min="1" max="2" step="0.1" value={Math.max(1, selectedElementLayout.scale ?? 1)} disabled={!selectedElements.length || !editingEnabled} onChange={(event) => {
               const scale = Number(event.target.value)
               setCustomLayout((current) => ({
                 ...current,
@@ -1868,7 +1884,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
 
         </div>
         <article className="paper-preview" style={{ '--paper-text-color': /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d' }}>
-          {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${watermark.size}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}
+          {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${Math.max(12, watermark.size)}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}
           {renderEditable('school-name', <div className="paper-school">{schoolName || (isEnglish ? 'School / College Name' : 'বিদ্যালয়ের নাম')}</div>, 'paper-school-item')}
           {renderEditable('school-subtitle', <div className="paper-school-subtitle">{schoolSubtitle}</div>, 'paper-subtitle-item')}
           {renderEditable('paper-set-code', <div className="paper-set-code">[{paperSetCode}]</div>, 'paper-set-code-item')}
