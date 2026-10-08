@@ -55,17 +55,17 @@ const subjects = [
   { id: 'ict', label: 'তথ্য ও যোগাযোগ প্রযুক্তি' },
 ]
 const questionTypes = [
-  { id: 'passage', label: 'Reading Text', heading: 'Reading Text / Passage' },
-  { id: 'mcq', label: 'MCQ', heading: 'বহুনির্বাচনি প্রশ্ন / Multiple Choice Questions' },
-  { id: 'short', label: 'সংক্ষিপ্ত', heading: 'সংক্ষিপ্ত প্রশ্ন / Short Answer Questions' },
-  { id: 'true_false', label: 'True/False', heading: 'True or False' },
-  { id: 'fill_in_the_blanks', label: 'Fill in the blanks', heading: 'Complete the passage' },
-  { id: 'matching', label: 'Matching', heading: 'Matching (Column A & B)' },
-  { id: 'rearrange', label: 'Rearrange', heading: 'Rearrange Sentences' },
-  { id: 'table_completion', label: 'Table Completion', heading: 'Complete the table' },
-  { id: 'synonym_antonym', label: 'Synonym/Antonym', heading: 'Synonyms and Antonyms' },
-  { id: 'cq', label: 'সৃজনশীল', heading: 'সৃজনশীল প্রশ্ন' },
-  { id: 'long', label: 'বর্ণনামূলক', heading: 'বর্ণনামূলক প্রশ্ন / Writing' },
+  { id: 'passage', label: 'Reading Text', labelBn: 'প্যাসেজ', labelEn: 'Reading Text', headingBn: 'প্যাসেজ', headingEn: 'Reading Text / Passage' },
+  { id: 'mcq', label: 'MCQ', labelBn: 'বহুনির্বাচনি প্রশ্ন', labelEn: 'Multiple Choice Questions', headingBn: 'বহুনির্বাচনি প্রশ্ন', headingEn: 'Multiple Choice Questions' },
+  { id: 'short', label: 'সংক্ষিপ্ত', labelBn: 'সংক্ষিপ্ত প্রশ্ন', labelEn: 'Short Answer Questions', headingBn: 'সংক্ষিপ্ত প্রশ্ন', headingEn: 'Short Answer Questions' },
+  { id: 'true_false', label: 'True/False', labelBn: 'সত্য/মিথ্যা', labelEn: 'True/False', headingBn: 'সত্য/মিথ্যা', headingEn: 'True or False' },
+  { id: 'fill_in_the_blanks', label: 'Fill in the blanks', labelBn: 'শূন্যস্থান পূরণ', labelEn: 'Fill in the blanks', headingBn: 'শূন্যস্থান পূরণ', headingEn: 'Complete the passage' },
+  { id: 'matching', label: 'Matching', labelBn: 'মেলাও', labelEn: 'Matching', headingBn: 'মেলাও', headingEn: 'Matching (Column A & B)' },
+  { id: 'rearrange', label: 'Rearrange', labelBn: 'পুনর্বিন্যাস', labelEn: 'Rearrange', headingBn: 'পুনর্বিন্যাস', headingEn: 'Rearrange Sentences' },
+  { id: 'table_completion', label: 'Table Completion', labelBn: 'টেবিল পূরণ', labelEn: 'Table Completion', headingBn: 'টেবিল পূরণ', headingEn: 'Complete the table' },
+  { id: 'synonym_antonym', label: 'Synonym/Antonym', labelBn: 'সমার্থক/বিপরীতার্থক', labelEn: 'Synonym/Antonym', headingBn: 'সমার্থক/বিপরীতার্থক', headingEn: 'Synonyms and Antonyms' },
+  { id: 'cq', label: 'সৃজনশীল', labelBn: 'সৃজনশীল প্রশ্ন', labelEn: 'Creative Questions', headingBn: 'সৃজনশীল প্রশ্ন', headingEn: 'Creative Questions' },
+  { id: 'long', label: 'বর্ণনামূলক', labelBn: 'বর্ণনামূলক প্রশ্ন', labelEn: 'Writing', headingBn: 'বর্ণনামূলক প্রশ্ন', headingEn: 'Writing' },
 ]
 const builtInFigures = ['triangle', 'circle', 'rectangle']
 const createSetCode = () => `SET-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
@@ -85,7 +85,14 @@ function readWorkspaceState() {
     return {}
   }
 }
-const typeLabel = (id) => questionTypes.find((type) => type.id === id)?.label ?? id
+const typeLabel = (id, subject) => {
+  const type = questionTypes.find((item) => item.id === id)
+  return type ? (subject?.startsWith('english-') ? type.labelEn : type.labelBn) : id
+}
+const typeHeading = (id, subject) => {
+  const type = questionTypes.find((item) => item.id === id)
+  return type ? (subject?.startsWith('english-') ? type.headingEn : type.headingBn) : id
+}
 const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
 const randomSample = (items, count) => {
   const shuffled = [...items]
@@ -619,7 +626,7 @@ function QuestionPaperBuilder({ user, role }) {
       })
       const shortages = plans.flatMap((plan) => Object.entries(plan.counts).flatMap(([type, count]) => {
         const pickedCount = pickedCounts.get(`${plan.chapter}\u0000${type}`) ?? 0
-        return pickedCount < count ? [`${plan.chapter} · ${typeLabel(type)} ${bengaliNumber(count - pickedCount)}টি কম`] : []
+        return pickedCount < count ? [`${plan.chapter} · ${typeLabel(type, subject)} ${bengaliNumber(count - pickedCount)}টি কম`] : []
       }))
       if (randomQuestions.length > 0) {
         setQuestions((current) => {
@@ -1005,7 +1012,7 @@ function QuestionPaperBuilder({ user, role }) {
                   <ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} />
                   <button className="sort-button" onClick={() => setSortOrder((current) => current === 'desc' ? 'asc' : 'desc')}><ArrowDownUp size={15} /> {sortOrder === 'desc' ? 'সর্বশেষ আগে' : 'পুরোনো আগে'}</button>
                 </div>
-                {selectedQuestions.length > 0 && <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} />}
+                {selectedQuestions.length > 0 && <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} subject={subject} />}
                 {selectedChapters.length > 0 && <div className="chapter-count-breakdown" aria-label="নির্বাচিত অধ্যায়ের প্রশ্নসংখ্যা">
                   {selectedChapters.map((chapter) => {
                     const counts = chapterQuestionCounts.get(chapter) ?? { total: 0, typeCounts: {} }
@@ -1024,14 +1031,14 @@ function QuestionPaperBuilder({ user, role }) {
                         <div className="chapter-random-inputs">
                           {questionTypes.map((type) => (
                             <label key={type.id}>
-                              <span>{type.label} <small>({bengaliNumber(counts.typeCounts[type.id] ?? 0)}টি)</small></span>
+                              <span>{typeLabel(type.id, subject)} <small>({bengaliNumber(counts.typeCounts[type.id] ?? 0)}টি)</small></span>
                               <input
                                 type="number"
                                 min="0"
                                 max="100"
                                 step="1"
                                 inputMode="numeric"
-                                aria-label={`${chapter} থেকে ${type.label} প্রশ্নের সংখ্যা`}
+                                aria-label={`${chapter} থেকে ${typeLabel(type.id, subject)} প্রশ্নের সংখ্যা`}
                                 value={randomQuotas[chapter]?.[type.id] ?? ''}
                                 onChange={(event) => updateRandomQuota(chapter, type.id, event.target.value)}
                                 placeholder="০"
@@ -1055,7 +1062,7 @@ function QuestionPaperBuilder({ user, role }) {
                     const typeCount = singleSelectedChapterCounts
                       ? singleSelectedChapterCounts.typeCounts[type.id] ?? 0
                       : (questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length
-                    return <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{type.label}{selectedChapters.length < 2 && <span>{questionCount(typeCount)}</span>}</button>
+                    return <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{typeLabel(type.id, subject)}{selectedChapters.length < 2 && <span>{questionCount(typeCount)}</span>}</button>
                   })}
                 </div>
                 <div className="question-table-wrap">
@@ -1066,7 +1073,7 @@ function QuestionPaperBuilder({ user, role }) {
                         <td className="check-column"><input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} aria-label="প্রশ্ন নির্বাচন" /></td>
                         <td><div className="question-cell"><span className="row-number">{bengaliNumber(index + 1).padStart(2, '০')}</span><span className="question-copy"><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong>{question.type === 'mcq' && <small>{question.statements?.length ? `${question.statements.map((statement, statementIndex) => `${statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}. ${statement}`).join(' · ')} ${question.statementQuestion ?? ''} ${question.options.join(' · ')}` : question.options.join(' · ')}</small>}</span></div></td>
                         <td><span className="chapter-pill">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></td>
-                        <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span></td>
+                        <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type, subject)}</span></td>
                         <td className="marks-cell">{bengaliNumber(question.marks)}</td>
                         <td>{(isAdmin || question.isLocal) && <div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => runWithActivity('প্রশ্ন মুছে ফেলা হচ্ছে…', () => deleteQuestion(question))}><Trash2 size={15} /></button></div>}</td>
                       </tr>
@@ -1100,13 +1107,13 @@ function QuestionPaperBuilder({ user, role }) {
                     <div className="builder-question-list">{filteredQuestions.map((question) => (
                       <label className={`builder-question ${selected.includes(question.id) ? 'checked' : ''}`} key={question.id}>
                         <input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} /><span className="custom-check"><Check size={13} /></span>
-                        <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
+                        <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type, subject)}</span><span className="chapter-inline">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
                         <span className="builder-mark">{bengaliNumber(question.marks)} নম্বর</span>
                       </label>
                     ))}{filteredQuestions.length === 0 && <div className="empty-state"><strong>মিল পাওয়া যায়নি</strong></div>}
                       {hasMoreQuestions && <button type="button" className="quiet-button load-more-button" onClick={loadMoreQuestions} disabled={isLoadingMoreQuestions}>{isLoadingMoreQuestions ? 'প্রশ্ন লোড হচ্ছে…' : 'আরও প্রশ্ন দেখুন'} <ChevronDown size={16} /></button>}
                     </div>
-                  </> : <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} />}
+                  </> : <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} subject={subject} />}
                 </section>
                 <aside className="paper-settings panel">
                   <div className="builder-section-title"><div><h2>প্রশ্নপত্রের বিন্যাস</h2><p>শিরোনাম ও পরীক্ষার সময় নির্ধারণ করুন</p></div></div>
@@ -1132,7 +1139,7 @@ function QuestionPaperBuilder({ user, role }) {
                     </>}
                   </div>
                   <div className="settings-divider" />
-                  <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} compact />
+                  <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} subject={subject} compact />
                   <button className="primary-button full-button" disabled={selected.length === 0} onClick={() => setShowPreview(true)}><FileText size={17} /> প্রিভিউ দেখুন</button>
                   <button className="quiet-button full-button settings-save-button" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('প্রশ্নপত্রের ফরম্যাট সংরক্ষণ হচ্ছে…', savePaperSettings)}><Check size={15} /> ফরম্যাট সংরক্ষণ</button>
                   <p className="paper-hint"><CircleHelp size={14} /> PDF তৈরি করতে প্রিভিউ থেকে প্রিন্ট করুন</p>
@@ -1217,7 +1224,7 @@ function ChapterFilter({ chapters, selectedChapters, onChange }) {
   )
 }
 
-function SelectedQuestionSummary({ selectedQuestions, totalMarks, compact = false }) {
+function SelectedQuestionSummary({ selectedQuestions, totalMarks, subject, compact = false }) {
   const chapters = [...new Set(selectedQuestions.map((question) => question.chapter || 'অধ্যায় নির্ধারিত নয়'))]
 
   return (
@@ -1244,7 +1251,7 @@ function SelectedQuestionSummary({ selectedQuestions, totalMarks, compact = fals
                   const typeMarks = typeQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
                   return (
                     <div className="selection-type-row" key={type.id}>
-                      <span className={`type-pill type-${type.id}`}>{type.label}</span>
+                      <span className={`type-pill type-${type.id}`}>{typeLabel(type.id, subject)}</span>
                       <span className="selection-type-count">{bengaliNumber(typeQuestions.length)}টি</span>
                       <span className="selection-type-marks">{bengaliNumber(typeMarks)} নম্বর</span>
                     </div>
@@ -1375,7 +1382,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
             <label className="field-label">বিষয়<select value={subject} onChange={(event) => onContextChange(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
           </div>
           <div className="form-row">
-            <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => { setType(event.target.value); setMarks(event.target.value === 'passage' ? 0 : event.target.value === 'mcq' ? 1 : event.target.value === 'cq' ? 10 : 2) }}>{questionTypes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => { setType(event.target.value); setMarks(event.target.value === 'passage' ? 0 : event.target.value === 'mcq' ? 1 : event.target.value === 'cq' ? 10 : 2) }}>{questionTypes.map((item) => <option key={item.id} value={item.id}>{typeLabel(item.id, subject)}</option>)}</select></label>
             <label className="field-label">অধ্যায়<input required={!question || Boolean(question.chapter)} list="question-chapter-options" value={chapter} onChange={(event) => setChapter(event.target.value)} placeholder="অধ্যায় নির্বাচন বা লিখুন" /><datalist id="question-chapter-options">{chapterOptions.map((item) => <option key={item} value={item} />)}</datalist></label>
           </div>
           <div className="field-label prompt-field"><label htmlFor="question-prompt">প্রশ্নের বিবরণ</label><textarea id="question-prompt" ref={promptRef} required rows={type === 'cq' ? 4 : 3} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="এখানে প্রশ্ন লিখুন..." />{subject === 'math' && <div className="prompt-field-tools"><button type="button" className="prompt-insert-button" onClick={insertEquationMarker}><Sigma size={14} /> সূত্র এখানে বসান</button><small>LaTeX সূত্র $...$, \( ... \) অথবা \[ ... \] দিয়ে লিখুন</small></div>}{(prompt.trim() || equation.trim()) && <div className="question-live-preview"><span>প্রিভিউ</span><QuestionPrompt prompt={prompt} equation={equation} /></div>}</div>
@@ -1684,6 +1691,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   const paperChapters = [...new Set(questions.map((question) => question.chapter).filter(Boolean))]
   const answerGroups = questionTypes.map((type) => ({
     ...type,
+    heading: typeHeading(type.id, subjectId),
     questions: questions.filter((question) => question.type === type.id && (question.answer?.trim() || question.answerEquation)),
   })).filter((type) => type.questions.length > 0)
 
@@ -1852,7 +1860,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
               if (group.length === 0) return null
               return (
                 <section className="paper-question-group" key={type.id}>
-                  {renderEditable(`heading-${type.id}`, <h3>{type.heading}</h3>, 'paper-heading-item')}
+                  {renderEditable(`heading-${type.id}`, <h3>{typeHeading(type.id, subjectId)}</h3>, 'paper-heading-item')}
                   <div className={`paper-question-list paper-question-list-columns-${previewColumns}`} data-columns={previewColumns}>
                     {group.map((question, index) => (
                       <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <>
