@@ -190,6 +190,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [questionMeta, setQuestionMeta] = useState({ total: 0, chapters: [], typeCounts: {}, chapterCounts: [] })
   const [localQuestions, setLocalQuestions] = useState(() => getLocalQuestions(user.uid))
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
+  const [builderTab, setBuilderTab] = useState('questions')
   const [activeType, setActiveType] = useState(() => questionTypes.some((type) => type.id === workspaceState.activeType) ? workspaceState.activeType : 'all')
   const [selectedChapters, setSelectedChapters] = useState(() => Array.isArray(workspaceState.selectedChapters)
     ? workspaceState.selectedChapters
@@ -869,6 +870,7 @@ function QuestionPaperBuilder({ user, role }) {
                   <ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} />
                   <button className="sort-button" onClick={() => setSortOrder((current) => current === 'desc' ? 'asc' : 'desc')}><ArrowDownUp size={15} /> {sortOrder === 'desc' ? 'সর্বশেষ আগে' : 'পুরোনো আগে'}</button>
                 </div>
+                {selectedQuestions.length > 0 && <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} />}
                 {selectedChapters.length > 0 && <div className="chapter-count-breakdown" aria-label="নির্বাচিত অধ্যায়ের প্রশ্নসংখ্যা">
                   {selectedChapters.map((chapter) => {
                     const counts = chapterQuestionCounts.get(chapter) ?? { total: 0, typeCounts: {} }
@@ -925,17 +927,23 @@ function QuestionPaperBuilder({ user, role }) {
               <section className="page-heading builder-heading"><div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্নপত্র তৈরি</h1><p>প্রশ্ন বাছাই করুন, বিন্যাস ঠিক করুন, তারপর প্রিভিউ বা PDF নিন।</p></div><button className="quiet-button" onClick={() => setPage('bank')}><ChevronLeft size={16} /> প্রশ্ন ব্যাংকে ফিরুন</button></section>
               <div className="builder-layout">
                 <section className="builder-main panel">
-                  <div className="builder-section-title"><div><h2>প্রশ্ন নির্বাচন</h2><p>প্রশ্ন ব্যাংক থেকে প্রশ্ন যোগ বা বাদ দিন</p></div><button className="text-button" onClick={() => setSelected((current) => [...new Set([...current, ...filteredQuestions.map((question) => question.id)])])}><Check size={15} /> দেখানো সব যোগ করুন</button></div>
-                  <div className="builder-filters"><ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} /><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন খুঁজুন" /></label></div>
-                  <div className="builder-question-list">{filteredQuestions.map((question) => (
-                    <label className={`builder-question ${selected.includes(question.id) ? 'checked' : ''}`} key={question.id}>
-                      <input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} /><span className="custom-check"><Check size={13} /></span>
-                      <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
-                      <span className="builder-mark">{bengaliNumber(question.marks)} নম্বর</span>
-                    </label>
-                  ))}{filteredQuestions.length === 0 && <div className="empty-state"><strong>মিল পাওয়া যায়নি</strong></div>}
-                    {hasMoreQuestions && <button type="button" className="quiet-button load-more-button" onClick={loadMoreQuestions} disabled={isLoadingMoreQuestions}>{isLoadingMoreQuestions ? 'প্রশ্ন লোড হচ্ছে…' : 'আরও প্রশ্ন দেখুন'} <ChevronDown size={16} /></button>}
+                  <div className="builder-section-title"><div><h2>{builderTab === 'questions' ? 'প্রশ্ন নির্বাচন' : 'নির্বাচিত সারাংশ'}</h2><p>{builderTab === 'questions' ? 'প্রশ্ন ব্যাংক থেকে প্রশ্ন যোগ বা বাদ দিন' : 'অধ্যায় ও প্রশ্নের ধরন অনুযায়ী আপনার বাছাই'}</p></div>{builderTab === 'questions' && <button className="text-button" onClick={() => setSelected((current) => [...new Set([...current, ...filteredQuestions.map((question) => question.id)])])}><Check size={15} /> দেখানো সব যোগ করুন</button>}</div>
+                  <div className="type-tabs builder-tabs" role="tablist" aria-label="প্রশ্ন নির্বাচন ও সারাংশ">
+                    <button type="button" role="tab" aria-selected={builderTab === 'questions'} className={builderTab === 'questions' ? 'active' : ''} onClick={() => setBuilderTab('questions')}>প্রশ্ন বাছাই</button>
+                    <button type="button" role="tab" aria-selected={builderTab === 'summary'} className={builderTab === 'summary' ? 'active' : ''} onClick={() => setBuilderTab('summary')}>নির্বাচিত সারাংশ<span>{bengaliNumber(selected.length)}</span></button>
                   </div>
+                  {builderTab === 'questions' ? <>
+                    <div className="builder-filters"><ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} /><label className="search-box"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন খুঁজুন" /></label></div>
+                    <div className="builder-question-list">{filteredQuestions.map((question) => (
+                      <label className={`builder-question ${selected.includes(question.id) ? 'checked' : ''}`} key={question.id}>
+                        <input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} /><span className="custom-check"><Check size={13} /></span>
+                        <span className="builder-question-copy"><span><span className={`type-pill type-${question.type}`}>{typeLabel(question.type)}</span><span className="chapter-inline">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></span><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span>
+                        <span className="builder-mark">{bengaliNumber(question.marks)} নম্বর</span>
+                      </label>
+                    ))}{filteredQuestions.length === 0 && <div className="empty-state"><strong>মিল পাওয়া যায়নি</strong></div>}
+                      {hasMoreQuestions && <button type="button" className="quiet-button load-more-button" onClick={loadMoreQuestions} disabled={isLoadingMoreQuestions}>{isLoadingMoreQuestions ? 'প্রশ্ন লোড হচ্ছে…' : 'আরও প্রশ্ন দেখুন'} <ChevronDown size={16} /></button>}
+                    </div>
+                  </> : <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} />}
                 </section>
                 <aside className="paper-settings panel">
                   <div className="builder-section-title"><div><h2>প্রশ্নপত্রের বিন্যাস</h2><p>শিরোনাম ও পরীক্ষার সময় নির্ধারণ করুন</p></div></div>
@@ -961,9 +969,7 @@ function QuestionPaperBuilder({ user, role }) {
                     </>}
                   </div>
                   <div className="settings-divider" />
-                  <div className="marks-summary"><span>নির্বাচিত প্রশ্ন</span><strong>{bengaliNumber(selected.length)}টি</strong></div>
-                  <div className="marks-summary"><span>মোট নম্বর</span><strong>{bengaliNumber(totalMarks)}</strong></div>
-                  <div className="paper-types"><span>প্রশ্নের ধরন</span><div>{questionTypes.filter((type) => selectedQuestions.some((question) => question.type === type.id)).map((type) => <span className={`type-pill type-${type.id}`} key={type.id}>{type.label}</span>)}</div></div>
+                  <SelectedQuestionSummary selectedQuestions={selectedQuestions} totalMarks={totalMarks} compact />
                   <button className="primary-button full-button" disabled={selected.length === 0} onClick={() => setShowPreview(true)}><FileText size={17} /> প্রিভিউ দেখুন</button>
                   <button className="quiet-button full-button settings-save-button" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('প্রশ্নপত্রের ফরম্যাট সংরক্ষণ হচ্ছে…', savePaperSettings)}><Check size={15} /> ফরম্যাট সংরক্ষণ</button>
                   <p className="paper-hint"><CircleHelp size={14} /> PDF তৈরি করতে প্রিভিউ থেকে প্রিন্ট করুন</p>
@@ -1045,6 +1051,47 @@ function ChapterFilter({ chapters, selectedChapters, onChange }) {
           : <span className="chapter-filter-empty">কোনো অধ্যায় পাওয়া যায়নি</span>}
       </div>
     </details>
+  )
+}
+
+function SelectedQuestionSummary({ selectedQuestions, totalMarks, compact = false }) {
+  const chapters = [...new Set(selectedQuestions.map((question) => question.chapter || 'অধ্যায় নির্ধারিত নয়'))]
+
+  return (
+    <div className={`selection-breakdown ${compact ? 'selection-breakdown-compact' : ''}`}>
+      <div className="selection-breakdown-header">
+        <span>নির্বাচিত প্রশ্নের সারসংক্ষেপ</span>
+        <strong>{bengaliNumber(selectedQuestions.length)}টি · {bengaliNumber(totalMarks)} নম্বর</strong>
+      </div>
+      {chapters.length === 0
+        ? <p className="selection-breakdown-empty">কোনো প্রশ্ন নির্বাচিত নয়</p>
+        : chapters.map((chapter) => {
+          const chapterQuestions = selectedQuestions.filter((question) => (question.chapter || 'অধ্যায় নির্ধারিত নয়') === chapter)
+          const typeGroups = questionTypes.filter((type) => chapterQuestions.some((question) => question.type === type.id))
+          const chapterMarks = chapterQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
+          return (
+            <section className="selection-chapter-card" key={chapter}>
+              <div className="selection-chapter-title">
+                <strong>{chapter}</strong>
+                <small>{bengaliNumber(chapterQuestions.length)}টি · {bengaliNumber(chapterMarks)} নম্বর</small>
+              </div>
+              <div className="selection-type-rows">
+                {typeGroups.map((type) => {
+                  const typeQuestions = chapterQuestions.filter((question) => question.type === type.id)
+                  const typeMarks = typeQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
+                  return (
+                    <div className="selection-type-row" key={type.id}>
+                      <span className={`type-pill type-${type.id}`}>{type.label}</span>
+                      <span className="selection-type-count">{bengaliNumber(typeQuestions.length)}টি</span>
+                      <span className="selection-type-marks">{bengaliNumber(typeMarks)} নম্বর</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )
+        })}
+    </div>
   )
 }
 
