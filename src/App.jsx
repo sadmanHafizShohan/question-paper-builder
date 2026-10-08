@@ -14,6 +14,7 @@ import {
   FilePlus2,
   FileText,
   Filter,
+  GitMerge,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -222,6 +223,10 @@ function QuestionPaperBuilder({ user, role }) {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [showEditor, setShowEditor] = useState(false)
   const [showImporter, setShowImporter] = useState(false)
+  const [showChapterMerger, setShowChapterMerger] = useState(false)
+  const [mergeFirstChapter, setMergeFirstChapter] = useState('')
+  const [mergeSecondChapter, setMergeSecondChapter] = useState('')
+  const [mergedChapterName, setMergedChapterName] = useState('')
   const [showDuplicateDetector, setShowDuplicateDetector] = useState(false)
   const [editorResetKey, setEditorResetKey] = useState(0)
   const [showPreview, setShowPreview] = useState(() => Boolean(workspaceState.showPreview && workspaceState.selected?.length))
@@ -459,6 +464,9 @@ function QuestionPaperBuilder({ user, role }) {
   }, [questions, visibleQuestionIds, questionsById, grade, subject, activeType, selectedChapters, debouncedSearch])
   const localForContext = questions.filter((question) => question.isLocal && question.grade === grade && question.subject === subject)
   const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
+  const mergeableChapters = isAdmin
+    ? questionMeta.chapters
+    : [...new Set(localForContext.map((question) => question.chapter).filter(Boolean))].sort()
   const chapterQuestionCounts = useMemo(() => {
     const counts = new Map((questionMeta.chapterCounts ?? []).map(({ chapter, total, typeCounts = {} }) => [
       chapter,
@@ -494,9 +502,95 @@ function QuestionPaperBuilder({ user, role }) {
       if (activeContext.current.grade === requestedContext.grade && activeContext.current.subject === requestedContext.subject) {
         setQuestionMeta(metadata)
       }
+      return true
     } catch (error) {
       console.error('Could not refresh question bank metadata', error)
       setNotice('প্রশ্নের তালিকা বদলেছে, কিন্তু সারাংশ হালনাগাদ হয়নি')
+      return false
+    }
+  }
+
+  function openChapterMerger() {
+    setMergeFirstChapter(mergeableChapters[0] ?? '')
+    setMergeSecondChapter(mergeableChapters[1] ?? '')
+    setMergedChapterName('')
+    setShowChapterMerger(true)
+  }
+
+  async function mergeChapters() {
+    const sourceChapters = [mergeFirstChapter, mergeSecondChapter]
+    const targetChapter = mergedChapterName.trim()
+    if (new Set(sourceChapters).size !== 2) {
+      setNotice('মার্জ করার জন্য দুটি আলাদা অধ্যায় নির্বাচন করুন')
+      return
+    }
+    if (!targetChapter || targetChapter.length > 120) {
+      setNotice('নতুন অধ্যায়ের নাম ১ থেকে ১২০ অক্ষরের মধ্যে দিন')
+      return
+    }
+
+    try {
+      await runWithActivity('অধ্যায় মার্জ করা হচ্ছে…', async () => {
+        let updatedCount
+        if (isAdmin) {
+          if (dataMode !== 'mongo') throw new Error('MongoDB সংযোগ ছাড়া main database-এর অধ্যায় মার্জ করা যাবে না')
+          const response = await authenticatedFetch(`${apiUrl}/questions/merge-chapters`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subject,
+              grade: questionBankGrade(grade),
+              chapters: sourceChapters,
+              targetChapter,
+            }),
+          })
+          let result = null
+          try {
+            result = await response.json()
+          } catch {
+            if (response.ok) throw new Error('সার্ভার থেকে মার্জ হওয়া প্রশ্নের তথ্য পাওয়া যায়নি')
+          }
+          if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${response.status} ত্রুটি এসেছে`)
+          updatedCount = result.updatedCount
+        } else {
+          const matchingQuestions = localQuestions.filter((question) => question.grade === grade
+            && question.subject === subject
+            && sourceChapters.includes(question.chapter))
+          if (matchingQuestions.length === 0) throw new Error('নির্বাচিত অধ্যায়ে এই ডিভাইসের কোনো প্রশ্ন পাওয়া যায়নি')
+          const updatedIds = new Set(matchingQuestions.map((question) => question.id))
+          const nextLocalQuestions = localQuestions.map((question) => updatedIds.has(question.id)
+            ? { ...question, chapter: targetChapter }
+            : question)
+          if (!saveLocalQuestions(nextLocalQuestions)) throw new Error('এই ডিভাইসে পরিবর্তন সংরক্ষণ করা যায়নি')
+          updatedCount = matchingQuestions.length
+        }
+
+        setQuestions((current) => current.map((question) => sourceChapters.includes(question.chapter)
+          && (isAdmin ? !question.isLocal : question.isLocal)
+          && question.subject === subject
+          && (isAdmin
+            ? question.grade === questionBankGrade(grade) || (grade >= 9 && question.grade === 10)
+            : question.grade === grade)
+          ? { ...question, chapter: targetChapter }
+          : question))
+        setSelectedChapters((current) => [...new Set(current.map((chapter) => sourceChapters.includes(chapter) ? targetChapter : chapter))])
+        setRandomQuotas((current) => {
+          const next = { ...current, [targetChapter]: { ...(current[targetChapter] ?? {}) } }
+          sourceChapters.forEach((chapter) => {
+            Object.entries(current[chapter] ?? {}).forEach(([type, count]) => {
+              next[targetChapter][type] = (Number(next[targetChapter][type]) || 0) + (Number(count) || 0)
+            })
+            delete next[chapter]
+          })
+          return next
+        })
+        const metadataUpdated = !isAdmin || await refreshQuestionMeta()
+        setShowChapterMerger(false)
+        setNotice(`${bengaliNumber(updatedCount)}টি প্রশ্ন “${sourceChapters.join('” ও “')}” থেকে “${targetChapter}” অধ্যায়ে মার্জ হয়েছে${metadataUpdated ? '' : '; তবে অধ্যায়ের তালিকা হালনাগাদ হয়নি'}`)
+      })
+    } catch (error) {
+      console.error('Could not merge chapters', error)
+      setNotice(error instanceof Error ? `অধ্যায় মার্জ হয়নি: ${error.message}` : 'অধ্যায় মার্জ হয়নি; আবার চেষ্টা করুন')
     }
   }
 
@@ -993,6 +1087,7 @@ function QuestionPaperBuilder({ user, role }) {
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>
                 <div className="page-heading-actions">
                   {isAdmin && <button className="quiet-button" onClick={() => setShowDuplicateDetector(true)}><CopyX size={16} /> ডুপ্লিকেট খুঁজুন</button>}
+                  {mergeableChapters.length > 1 && <button className="quiet-button" disabled={Boolean(busyMessage) || (isAdmin && dataMode !== 'mongo')} onClick={openChapterMerger}><GitMerge size={16} /> অধ্যায় মার্জ</button>}
                   <button className="quiet-button" onClick={() => setShowImporter(true)}><FileSpreadsheet size={16} /> Excel ইমপোর্ট {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
                   <button className="primary-button" onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
                 </div>
@@ -1058,7 +1153,10 @@ function QuestionPaperBuilder({ user, role }) {
                 </div>}
                 <div className="type-tabs" role="tablist" aria-label="প্রশ্নের ধরন">
                   <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন{selectedChapters.length < 2 && <span>{questionCount(singleSelectedChapterCounts?.total ?? totalQuestionCount)}</span>}</button>
-                  {questionTypes.map((type) => {
+                  {[
+                    ...['mcq', 'short', 'cq', 'long'].map((id) => questionTypes.find((type) => type.id === id)).filter(Boolean),
+                    ...questionTypes.filter((type) => !['mcq', 'short', 'cq', 'long'].includes(type.id)),
+                  ].map((type) => {
                     const typeCount = singleSelectedChapterCounts
                       ? singleSelectedChapterCounts.typeCounts[type.id] ?? 0
                       : (questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length
@@ -1171,6 +1269,33 @@ function QuestionPaperBuilder({ user, role }) {
         onNotice={setNotice}
         onClose={() => setShowImporter(false)}
       />}
+      {showChapterMerger && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyMessage) setShowChapterMerger(false) }}>
+        <section className="question-modal chapter-merge-modal" role="dialog" aria-modal="true" aria-labelledby="chapter-merge-title">
+          <div className="modal-heading">
+            <div><span className="modal-icon"><GitMerge size={18} /></span><div><h2 id="chapter-merge-title">দুটি অধ্যায় মার্জ করুন</h2><p>দুই অধ্যায়ের সব প্রশ্ন নতুন নামের অধ্যায়ে যাবে</p></div></div>
+            <button type="button" className="icon-button" aria-label="বন্ধ করুন" disabled={Boolean(busyMessage)} onClick={() => setShowChapterMerger(false)}><X size={17} /></button>
+          </div>
+          <form onSubmit={(event) => { event.preventDefault(); void mergeChapters() }}>
+            <div className="modal-body chapter-merge-fields">
+              <label className="field-label"><span>প্রথম অধ্যায়</span><select value={mergeFirstChapter} onChange={(event) => {
+                const nextChapter = event.target.value
+                setMergeFirstChapter(nextChapter)
+                if (nextChapter === mergeSecondChapter) setMergeSecondChapter(mergeFirstChapter)
+              }} required>
+                {mergeableChapters.map((chapter) => <option key={chapter} value={chapter}>{chapter}</option>)}
+              </select></label>
+              <label className="field-label"><span>দ্বিতীয় অধ্যায়</span><select value={mergeSecondChapter} onChange={(event) => setMergeSecondChapter(event.target.value)} required>
+                {mergeableChapters.filter((chapter) => chapter !== mergeFirstChapter).map((chapter) => <option key={chapter} value={chapter}>{chapter}</option>)}
+              </select></label>
+              <label className="field-label"><span>মার্জের পর নতুন অধ্যায়ের নাম</span><input autoFocus maxLength={120} value={mergedChapterName} onChange={(event) => setMergedChapterName(event.target.value)} placeholder="নতুন অধ্যায়ের নাম লিখুন" required /></label>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="quiet-button" disabled={Boolean(busyMessage)} onClick={() => setShowChapterMerger(false)}>বাতিল</button>
+              <button type="submit" className="primary-button" disabled={Boolean(busyMessage) || mergeableChapters.length < 2 || !mergedChapterName.trim() || mergeFirstChapter === mergeSecondChapter}><GitMerge size={15} /> মার্জ করুন</button>
+            </div>
+          </form>
+        </section>
+      </div>}
       {showDuplicateDetector && <DuplicateDetector
         apiUrl={apiUrl}
         grade={questionBankGrade(grade)}

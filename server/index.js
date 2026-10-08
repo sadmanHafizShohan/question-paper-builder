@@ -398,6 +398,36 @@ app.post('/api/questions', requireAdmin, async (request, response, next) => {
   }
 })
 
+app.put('/api/questions/merge-chapters', requireAdmin, async (request, response, next) => {
+  try {
+    const { subject, grade, chapters, targetChapter } = request.body ?? {}
+    if (typeof subject !== 'string' || subject.trim().length === 0 || subject.length > 80) {
+      return response.status(400).json({ error: 'Provide a valid subject' })
+    }
+    if (!Number.isFinite(Number(grade)) || Number(grade) < 5 || Number(grade) > 10) {
+      return response.status(400).json({ error: 'Provide a valid grade' })
+    }
+    if (!Array.isArray(chapters) || chapters.length !== 2
+      || chapters.some((chapter) => typeof chapter !== 'string' || chapter.trim().length === 0 || chapter.length > 120)
+      || new Set(chapters).size !== 2) {
+      return response.status(400).json({ error: 'Provide two different valid chapters' })
+    }
+    if (typeof targetChapter !== 'string' || targetChapter.trim().length === 0 || targetChapter.trim().length > 120) {
+      return response.status(400).json({ error: 'Provide a valid destination chapter name' })
+    }
+
+    const grades = Number(grade) === 9 || Number(grade) === 10 ? [9, 10] : [questionBankGrade(grade)]
+    const result = await Question.updateMany(
+      { subject: subject.trim(), grade: { $in: grades }, chapter: { $in: chapters } },
+      { $set: { chapter: targetChapter.trim() } },
+      { runValidators: true },
+    )
+    response.json({ updatedCount: result.modifiedCount })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.delete('/api/questions', requireAdmin, async (request, response, next) => {
   try {
     const { ids } = request.body
