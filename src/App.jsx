@@ -51,7 +51,7 @@ const subjects = [
   { id: 'bangla-2', label: 'বাংলা ২য় পত্র' },
   { id: 'english-1', label: 'English 1st Paper' },
   { id: 'english-2', label: 'English 2nd Paper' },
-  { id: 'global-studies', label: 'Global Studies' },
+  { id: 'global-studies', label: 'বাংলাদেশ ও বিশ্বপরিচয়' },
   { id: 'islam', label: 'ইসলাম ও নৈতিক শিক্ষা' },
   { id: 'ict', label: 'তথ্য ও যোগাযোগ প্রযুক্তি' },
 ]
@@ -159,6 +159,7 @@ const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 const defaultPaperSettings = {
   schoolName: 'সৃজনশীল প্রাইভেট সেন্টার',
   schoolSubtitle: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭',
+  schoolLogo: '',
   paperSetCode: '',
   questionTextColor: '#26352d',
   showChapters: true,
@@ -252,6 +253,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [paperClass, setPaperClass] = useState(() => paperClassLabel(getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperClass ?? gradeLabel(grade)))
   const [schoolName, setSchoolName] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).schoolName)
   const [schoolSubtitle, setSchoolSubtitle] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).schoolSubtitle)
+  const [schoolLogo, setSchoolLogo] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).schoolLogo ?? '')
   const [paperSetCode, setPaperSetCode] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperSetCode)
   const [questionTextColor, setQuestionTextColor] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).questionTextColor)
   const [showChapters, setShowChapters] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).showChapters ?? true)
@@ -272,6 +274,7 @@ function QuestionPaperBuilder({ user, role }) {
   const applyPaperSettings = useCallback((settings) => {
     setSchoolName(settings.schoolName ?? defaultPaperSettings.schoolName)
     setSchoolSubtitle(settings.schoolSubtitle ?? defaultPaperSettings.schoolSubtitle)
+    setSchoolLogo(settings.schoolLogo ?? defaultPaperSettings.schoolLogo)
     setPaperSetCode(settings.paperSetCode ?? getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperSetCode)
     setQuestionTextColor(settings.questionTextColor ?? defaultPaperSettings.questionTextColor)
     setShowChapters(settings.showChapters ?? true)
@@ -293,8 +296,8 @@ function QuestionPaperBuilder({ user, role }) {
       setNotice('ওয়াটারমার্কের জন্য একটি image file নির্বাচন করুন')
       return
     }
-    if (file.size > 512 * 1024) {
-      setNotice('ছবির আকার ৫১২ KB-এর মধ্যে রাখুন')
+    if (file.size > 5 * 1024 * 1024) {
+      setNotice('ছবির আকার ৫ MB-এর মধ্যে রাখুন')
       return
     }
     const reader = new FileReader()
@@ -303,6 +306,27 @@ function QuestionPaperBuilder({ user, role }) {
       else setNotice('ছবিটি পড়া যায়নি; অন্য ফাইল নির্বাচন করুন')
     }
     reader.onerror = () => setNotice('ছবিটি পড়া যায়নি; অন্য ফাইল নির্বাচন করুন')
+    reader.readAsDataURL(file)
+  }
+
+  function uploadSchoolLogo(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setNotice('প্রতিষ্ঠানের লোগোর জন্য একটি image file নির্বাচন করুন')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setNotice('লোগোর ছবির আকার ৫ MB-এর মধ্যে রাখুন')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setSchoolLogo(reader.result)
+      else setNotice('লোগোটি পড়া যায়নি; অন্য ফাইল নির্বাচন করুন')
+    }
+    reader.onerror = () => setNotice('লোগোটি পড়া যায়নি; অন্য ফাইল নির্বাচন করুন')
     reader.readAsDataURL(file)
   }
 
@@ -999,7 +1023,7 @@ function QuestionPaperBuilder({ user, role }) {
       setNotice('সেট কোডে ১–৩২টি ইংরেজি অক্ষর, সংখ্যা, - অথবা _ ব্যবহার করুন')
       return
     }
-    const settings = { schoolName, schoolSubtitle, paperSetCode: paperSetCode.trim(), questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark }
+    const settings = { schoolName, schoolSubtitle, schoolLogo, paperSetCode: paperSetCode.trim(), questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark }
     const settingsKey = isAdmin
       ? `paper-settings-${grade}-${subject}`
       : `paper-settings-${user.uid}-${grade}-${subject}`
@@ -1233,6 +1257,7 @@ function QuestionPaperBuilder({ user, role }) {
                   <div className="builder-section-title"><div><h2>প্রশ্নপত্রের বিন্যাস</h2><p>শিরোনাম ও পরীক্ষার সময় নির্ধারণ করুন</p></div></div>
                   <label className="field-label">বিদ্যালয়ের নাম<input value={schoolName} onChange={(event) => setSchoolName(event.target.value)} placeholder="বিদ্যালয়ের নাম" /></label>
                   <label className="field-label">নামের নিচের তথ্য<textarea rows={3} value={schoolSubtitle} onChange={(event) => setSchoolSubtitle(event.target.value)} placeholder="প্রতিষ্ঠানের ঠিকানা, ফোন নম্বর..." /></label>
+                  <div className="field-label school-logo-field"><span>প্রশ্নপত্রের header-এর লোগো <small className="field-hint">সর্বোচ্চ ৫ MB</small></span><input type="file" accept="image/*" onChange={uploadSchoolLogo} />{schoolLogo && <div className="school-logo-preview"><img src={schoolLogo} alt="প্রতিষ্ঠানের লোগোর নমুনা" /><button type="button" className="quiet-button" onClick={() => setSchoolLogo('')}><Trash2 size={14} /> লোগো সরান</button></div>}</div>
                   <label className="field-label">প্রশ্নপত্রের নাম<input value={paperTitle} onChange={(event) => setPaperTitle(event.target.value)} /></label>
                   <label className="field-label">প্রশ্নপত্রের সেট কোড<input required maxLength="32" value={paperSetCode} onChange={(event) => setPaperSetCode(event.target.value)} placeholder="যেমন SET-A" /><small>প্রিভিউ header-এ [SET-A] আকারে দেখাবে।</small></label>
                   <label className="field-label">শ্রেণি<select value={paperClass} onChange={(event) => setPaperClass(event.target.value)}><option>ষষ্ঠ</option><option>সপ্তম</option><option>অষ্টম</option><option>নবম-দশম শ্রেণি</option></select></label>
@@ -1245,7 +1270,7 @@ function QuestionPaperBuilder({ user, role }) {
                       <label className="field-label">ধরন<select value={watermark.type} onChange={(event) => updateWatermark({ type: event.target.value })}><option value="text">লেখা</option><option value="image">ছবি</option></select></label>
                       {watermark.type === 'text'
                         ? <label className="field-label">ওয়াটারমার্কের লেখা<input value={watermark.text} onChange={(event) => updateWatermark({ text: event.target.value })} placeholder="যেমন প্রতিষ্ঠানের নাম" /></label>
-                        : <div className="field-label watermark-image-field"><span>ওয়াটারমার্কের ছবি <small className="field-hint">সর্বোচ্চ ৫১২ KB</small></span><input type="file" accept="image/*" onChange={uploadWatermarkImage} />{watermark.image && <div className="watermark-image-preview"><img src={watermark.image} alt="ওয়াটারমার্কের নমুনা" /><button type="button" className="quiet-button" onClick={() => updateWatermark({ image: '' })}><Trash2 size={14} /> ছবি সরান</button></div>}</div>}
+                        : <div className="field-label watermark-image-field"><span>ওয়াটারমার্কের ছবি <small className="field-hint">সর্বোচ্চ ৫ MB</small></span><input type="file" accept="image/*" onChange={uploadWatermarkImage} />{watermark.image && <div className="watermark-image-preview"><img src={watermark.image} alt="ওয়াটারমার্কের নমুনা" /><button type="button" className="quiet-button" onClick={() => updateWatermark({ image: '' })}><Trash2 size={14} /> ছবি সরান</button></div>}</div>}
                       <label className="field-label">{watermark.type === 'text' ? 'লেখার রং' : 'ছবির রং'}<div className="color-field-row"><input aria-label="ওয়াটারমার্কের রং বাছাই" type="color" value={/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(watermark.color) ? watermark.color : '#76877d'} onChange={(event) => updateWatermark({ color: event.target.value })} /><input aria-label="ওয়াটারমার্কের HEX রঙের কোড" value={watermark.color} onChange={(event) => updateWatermark({ color: event.target.value })} placeholder="#76877D" /></div>{watermark.type === 'image' && <small className="field-hint">ছবির রং এই রঙে টিন্ট করা হবে</small>}</label>
                       <label className="field-label">অবস্থান<select value={watermark.position} onChange={(event) => updateWatermark({ position: event.target.value })}>{watermarkPositions.map((position) => <option value={position.id} key={position.id}>{position.label}</option>)}</select></label>
                       <label className="field-label">আকার<input type="range" min={watermark.type === 'text' ? 12 : 15} max={watermark.type === 'text' ? 64 : 70} value={watermark.size} onChange={(event) => updateWatermark({ size: Number(event.target.value) })} /><output>{watermark.type === 'text' ? `${bengaliNumber(watermark.size)} px` : `${bengaliNumber(watermark.size)}%`}</output></label>
@@ -1326,7 +1351,7 @@ function QuestionPaperBuilder({ user, role }) {
         onClose={() => setShowDuplicateDetector(false)}
       />}
       {showEditor && <QuestionModal key={editorResetKey} question={editingQuestion} grade={grade} subject={subject} chapters={availableChapters} loading={isLoadingQuestions} onContextChange={changeContext} onClose={() => { setShowEditor(false); setEditingQuestion(null) }} onSave={(question) => runWithActivity(isAdmin ? 'প্রশ্ন main database-এ সংরক্ষণ হচ্ছে…' : 'প্রশ্ন এই device-এ সংরক্ষণ হচ্ছে…', () => saveQuestion(question))} />}
-      {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} paperSetCode={paperSetCode} questionTextColor={questionTextColor} showChapters={showChapters} onShowChaptersChange={setShowChapters} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}
+      {showPreview && <PaperPreview questions={selectedQuestions} title={paperTitle} duration={paperDuration} paperClass={paperClass} subjectId={subject} subject={subjectLabel(subject)} totalMarks={totalMarks} schoolName={schoolName} schoolSubtitle={schoolSubtitle} schoolLogo={schoolLogo} paperSetCode={paperSetCode} questionTextColor={questionTextColor} showChapters={showChapters} onShowChaptersChange={setShowChapters} watermark={watermark} customizationKey={`${grade}-${subject}`} onClose={() => setShowPreview(false)} />}
       {notice && <div className={`toast ${/হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice) ? 'toast-error' : ''}`} role={/হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice) ? 'alert' : 'status'}>{/হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice) ? <CircleAlert size={16} /> : <Check size={16} />}{notice}</div>}
     </div>
   )
@@ -1559,7 +1584,7 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
   )
 }
 
-function PaperPreview({ questions, title, duration, paperClass, subjectId, subject, totalMarks, schoolName, schoolSubtitle, paperSetCode, questionTextColor, showChapters, onShowChaptersChange, watermark, customizationKey, onClose }) {
+function PaperPreview({ questions, title, duration, paperClass, subjectId, subject, totalMarks, schoolName, schoolSubtitle, schoolLogo, paperSetCode, questionTextColor, showChapters, onShowChaptersChange, watermark, customizationKey, onClose }) {
   const selectedElementRef = useRef(null)
   const elementRefs = useRef(new Map())
   const dragRef = useRef(null)
@@ -1811,7 +1836,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                 ? `প্রশ্ন ${bengaliNumber(questions.findIndex((question) => `question-${question.id}` === selectedElement) + 1)}`
                 : 'কোনো অংশ নির্বাচিত নয়'
   const watermarkPositionStyle = watermark.position === 'center'
-    ? { top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)' }
+    ? { top: '50%', left: '50%', transform: `translate(-50%, -50%)${watermark.type === 'text' ? ' rotate(-30deg)' : ''}` }
     : watermark.position === 'top-left'
       ? { top: '8%', left: '8%' }
       : watermark.position === 'top-right'
@@ -1885,8 +1910,11 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         </div>
         <article className="paper-preview" style={{ '--paper-text-color': /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d' }}>
           {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${Math.max(12, watermark.size)}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}
-          {renderEditable('school-name', <div className="paper-school">{schoolName || (isEnglish ? 'School / College Name' : 'বিদ্যালয়ের নাম')}</div>, 'paper-school-item')}
-          {renderEditable('school-subtitle', <div className="paper-school-subtitle">{schoolSubtitle}</div>, 'paper-subtitle-item')}
+          <header className="paper-institution-header">
+            {renderEditable('school-name', <div className="paper-school">{schoolName || (isEnglish ? 'School / College Name' : 'বিদ্যালয়ের নাম')}</div>, 'paper-school-item')}
+            {renderEditable('school-subtitle', <div className="paper-school-subtitle">{schoolSubtitle}</div>, 'paper-subtitle-item')}
+            {schoolLogo && <img className="paper-school-logo" src={schoolLogo} alt="" />}
+          </header>
           {renderEditable('paper-set-code', <div className="paper-set-code">[{paperSetCode}]</div>, 'paper-set-code-item')}
           {renderEditable('paper-title', <h2 className="paper-title">{title || (isEnglish ? 'Question Paper' : 'প্রশ্নপত্র')}</h2>, 'paper-title-item')}
           {renderEditable('paper-meta', <div className="paper-meta">

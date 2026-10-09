@@ -16,7 +16,7 @@ const allowedOrigins = process.env.CLIENT_ORIGIN?.split(',').map((origin) => ori
 if (process.env.NODE_ENV !== 'production') allowedOrigins.push(/^http:\/\/localhost:517\d+$/)
 
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : undefined))
-app.use(express.json({ limit: '1mb' }))
+app.use(express.json({ limit: '16mb' }))
 
 app.get('/api/health', (_request, response) => {
   response.json({ api: 'ok', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' })
@@ -492,10 +492,10 @@ app.get('/api/settings/:subject/:grade', async (request, response, next) => {
 
 app.put('/api/settings/:subject/:grade', requireAdmin, async (request, response, next) => {
   try {
-    const { schoolName, schoolSubtitle, paperSetCode, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } = request.body
+    const { schoolName, schoolSubtitle, schoolLogo, paperSetCode, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } = request.body
     const settings = await PaperSettings.findOneAndUpdate(
       { subject: request.params.subject, grade: Number(request.params.grade) },
-      { $set: { schoolName, schoolSubtitle, paperSetCode, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } },
+      { $set: { schoolName, schoolSubtitle, schoolLogo, paperSetCode, questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark } },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
     )
     response.json(settings)

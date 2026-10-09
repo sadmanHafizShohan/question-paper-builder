@@ -45,6 +45,7 @@ const paperSettingsSchema = new mongoose.Schema({
   grade: { type: Number, min: 5, max: 10, required: true },
   schoolName: { type: String, default: 'সৃজনশীল প্রাইভেট সেন্টার' },
   schoolSubtitle: { type: String, default: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭' },
+  schoolLogo: { type: String, default: '' },
   paperSetCode: { type: String, default: 'SET-A', trim: true, maxlength: 32, match: /^[A-Za-z0-9_-]+$/ },
   questionTextColor: { type: String, default: '#26352d', match: /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i },
   showChapters: { type: Boolean, default: true },

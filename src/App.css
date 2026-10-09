@@ -1724,6 +1724,31 @@ input[type='checkbox'] {
 	font-size: 9px;
 }
 
+.school-logo-field input[type='file'] {
+	padding: 6px;
+	font-size: 9px;
+}
+
+.school-logo-preview {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.school-logo-preview img {
+	width: 55px;
+	height: 42px;
+	object-fit: contain;
+	border: 1px solid #e1e8e2;
+	border-radius: 4px;
+	background: #f7f9f7;
+}
+
+.school-logo-preview .quiet-button {
+	min-height: 30px;
+	font-size: 9px;
+}
+
 .watermark-settings input[type='range'] {
 	width: 100%;
 	accent-color: #16715d;
@@ -2390,6 +2415,20 @@ input[type='checkbox'] {
 	color: inherit !important;
 }
 
+.paper-institution-header {
+	position: relative;
+	padding: 0 100px;
+}
+
+.paper-school-logo {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 88px;
+	height: 88px;
+	object-fit: contain;
+}
+
 .paper-preview sub,
 .paper-preview sup {
 	font-size: 12px;
@@ -2420,14 +2459,6 @@ input[type='checkbox'] {
 	width: 100%;
 	height: auto;
 	filter: grayscale(1);
-}
-
-.paper-watermark.watermark-image::after {
-	position: absolute;
-	inset: 0;
-	background: var(--watermark-color);
-	mix-blend-mode: multiply;
-	content: '';
 }
 
 .paper-editable {
@@ -3607,6 +3638,10 @@ input[type='checkbox'] {
 	.paper-question {
 		-webkit-print-color-adjust: exact;
 		print-color-adjust: exact;
+	}
+
+	.paper-preview .paper-watermark {
+		position: fixed;
 	}
 
 	.paper-question-group {
