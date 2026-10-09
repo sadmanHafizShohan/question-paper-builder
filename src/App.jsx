@@ -52,7 +52,9 @@ const subjects = [
   { id: 'english-1', label: 'English 1st Paper' },
   { id: 'english-2', label: 'English 2nd Paper' },
   { id: 'global-studies', label: 'বাংলাদেশ ও বিশ্বপরিচয়' },
+  { id: 'general-science', label: 'বিজ্ঞান' },
   { id: 'islam', label: 'ইসলাম ও নৈতিক শিক্ষা' },
+  { id: 'hindu', label: 'হিন্দু ধর্ম' },
   { id: 'ict', label: 'তথ্য ও যোগাযোগ প্রযুক্তি' },
 ]
 const questionTypes = [
@@ -2065,19 +2067,21 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
             {answerGroups.map((type) => (
               <section className="paper-answer-group" key={type.id}>
                 <h3>{type.heading}</h3>
-                {type.questions.map((question, index) => (
-                  <div className="paper-answer" key={question.id}>
-                    <strong>{localNumber(index + 1)}.</strong>{' '}
-                    {question.answer && (question.type === 'cq'
-                      ? <CreativeQuestionAnswer answer={question.answer} inlineEquations={question.inlineAnswerEquations} />
-                      : <QuestionPrompt
-                        prompt={question.answer}
-                        equation={question.type === 'short' && question.answer.split(equationMarker).length === 2 ? question.answerEquation : ''}
-                        inlineEquations={question.inlineAnswerEquations}
-                      />)}
-                    {question.answerEquation && !(question.type === 'short' && question.answer.split(equationMarker).length === 2) && <MathFormula display value={question.answerEquation} />}
-                  </div>
-                ))}
+                <div className="paper-answer-list" data-columns={previewColumns}>
+                  {type.questions.map((question, index) => (
+                    <div className="paper-answer" key={question.id}>
+                      <strong>{localNumber(index + 1)}.</strong>{' '}
+                      {question.answer && (question.type === 'cq'
+                        ? <CreativeQuestionAnswer answer={question.answer} inlineEquations={question.inlineAnswerEquations} />
+                        : <QuestionPrompt
+                          prompt={question.answer}
+                          equation={question.type === 'short' && question.answer.split(equationMarker).length === 2 ? question.answerEquation : ''}
+                          inlineEquations={question.inlineAnswerEquations}
+                        />)}
+                      {question.answerEquation && !(question.type === 'short' && question.answer.split(equationMarker).length === 2) && <MathFormula display value={question.answerEquation} />}
+                    </div>
+                  ))}
+                </div>
               </section>
             ))}
           </section>}

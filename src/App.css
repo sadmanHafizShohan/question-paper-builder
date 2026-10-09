@@ -2424,8 +2424,8 @@ input[type='checkbox'] {
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: 88px;
-	height: 88px;
+	width: 100px;
+	height: 100px;
 	object-fit: contain;
 }
 
@@ -2958,6 +2958,12 @@ input[type='checkbox'] {
 .paper-answer-group h3 {
 	margin: 0 0 8px;
 	font-size: 14px;
+}
+
+.paper-answer-list[data-columns='2'] {
+	column-count: 2;
+	column-gap: 30px;
+	column-rule: 1px solid rgba(38, 53, 45, 0.22);
 }
 
 .paper-answer {

@@ -263,7 +263,7 @@ app.get('/api/questions/meta', async (request, response, next) => {
 app.post('/api/questions/random', async (request, response, next) => {
   try {
     const { subject, grade, chapters, excludeIds = [] } = request.body ?? {}
-    const validSubjects = ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'islam', 'ict']
+    const validSubjects = ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies','general-science', 'islam','hindu', 'ict']
     const validTypes = ['mcq', 'short', 'cq', 'long', 'passage', 'true_false', 'fill_in_the_blanks', 'matching', 'rearrange', 'table_completion', 'synonym_antonym']
     if (!validSubjects.includes(subject) || !Number.isInteger(grade) || grade < 5 || grade > 10) {
       return response.status(400).json({ error: 'A valid subject and grade are required' })

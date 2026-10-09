@@ -12,7 +12,7 @@ const isValidFigure = (value) => {
 }
 
 const questionSchema = new mongoose.Schema({
-  subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'islam', 'ict'], required: true, default: 'math', index: true },
+  subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies','general-science', 'islam','hindu', 'ict'], required: true, default: 'math', index: true },
   grade: { type: Number, min: 5, max: 10, required: true, default: 7, index: true },
   type: { type: String, enum: ['mcq', 'short', 'cq', 'long', 'passage', 'true_false', 'fill_in_the_blanks', 'matching', 'rearrange', 'table_completion', 'synonym_antonym'], required: true },
   chapter: { type: String, default: '', trim: true },
@@ -41,7 +41,7 @@ questionSchema.index({ grade: 1, subject: 1, chapter: 1, type: 1 })
 questionSchema.index({ subject: 1, grade: 1, createdAt: -1, _id: -1 })
 
 const paperSettingsSchema = new mongoose.Schema({
-  subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'islam', 'ict'], required: true },
+  subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies','general-science', 'islam','hindu', 'ict'], required: true },
   grade: { type: Number, min: 5, max: 10, required: true },
   schoolName: { type: String, default: 'সৃজনশীল প্রাইভেট সেন্টার' },
   schoolSubtitle: { type: String, default: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭' },
