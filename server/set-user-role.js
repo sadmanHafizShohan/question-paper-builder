@@ -3,8 +3,8 @@ import { firebaseAdminAuth } from './firebaseAdmin.js'
 
 const [email, role] = process.argv.slice(2)
 
-if (!email || !['admin', 'user'].includes(role)) {
-  console.error('Usage: npm run user:role -- <email> <admin|user>')
+if (!email || !['admin', 'student', 'user'].includes(role)) {
+  console.error('Usage: npm run user:role -- <email> <admin|student|user>')
   process.exitCode = 1
 } else {
   try {

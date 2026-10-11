@@ -5,13 +5,14 @@ import { Buffer } from 'node:buffer'
 import mongoose from 'mongoose'
 import process from 'node:process'
 import { firebaseAdminAuth } from './firebaseAdmin.js'
-import { PaperSettings, Question } from './models.js'
+import { PaperSettings, Question, StudentExamAttempt } from './models.js'
 
 dotenv.config()
 
 const app = express()
 const port = Number(process.env.PORT || 4000)
 const questionBankGrade = (grade) => Number(grade) === 10 ? 9 : Number(grade)
+const validSubjects = ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies', 'general-science', 'islam', 'hindu', 'ict']
 const allowedOrigins = process.env.CLIENT_ORIGIN?.split(',').map((origin) => origin.trim()) ?? []
 if (process.env.NODE_ENV !== 'production') allowedOrigins.push(/^http:\/\/localhost:517\d+$/)
 
@@ -29,6 +30,9 @@ app.use('/api', async (request, response, next) => {
 
   try {
     request.firebaseUser = await firebaseAdminAuth.verifyIdToken(tokenMatch[1], true)
+    if (request.firebaseUser.role === 'student' && !request.path.startsWith('/student/')) {
+      return response.status(403).json({ error: 'Student accounts can only access student exam features' })
+    }
     next()
   } catch (error) {
     if (error.code?.startsWith('auth/')) return response.status(401).json({ error: 'Invalid or expired authentication token' })
@@ -43,6 +47,262 @@ function requireAdmin(request, response, next) {
   }
   next()
 }
+
+function requireStudent(request, response, next) {
+  if (request.firebaseUser.role !== 'student') {
+    return response.status(403).json({ error: 'Student role required' })
+  }
+  next()
+}
+
+function answerOptionIndex(answer, options, optionEquations = []) {
+  const normalizedAnswer = String(answer ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+  if (!normalizedAnswer) return -1
+  const optionIndex = normalizedAnswer.match(/^option:(\d)$/)
+  if (optionIndex) {
+    const index = Number(optionIndex[1])
+    return index >= 0 && index < 4 ? index : -1
+  }
+  const normalizedOptions = options.map((option) => String(option ?? '')
+    .replace(/\[\[সূত্র\]\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase())
+  const textIndex = normalizedOptions.indexOf(normalizedAnswer)
+  if (textIndex >= 0) return textIndex
+  const equationIndex = optionEquations.findIndex((equation) => String(equation ?? '').trim().toLocaleLowerCase() === normalizedAnswer)
+  if (equationIndex >= 0 && equationIndex < 4) return equationIndex
+  const letterIndex = ['a', 'b', 'c', 'd', 'ক', 'খ', 'গ', 'ঘ'].indexOf(normalizedAnswer)
+  return letterIndex >= 0 ? letterIndex % 4 : -1
+}
+
+function getWeekStart(date = new Date()) {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+  const daysSinceMonday = (start.getUTCDay() + 6) % 7
+  start.setUTCDate(start.getUTCDate() - daysSinceMonday)
+  return start
+}
+
+async function getStudentLeaderboard(grade, subject, userId) {
+  const weekStart = getWeekStart()
+  const weekEnd = new Date(weekStart)
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7)
+  const bestResults = await StudentExamAttempt.aggregate([
+    {
+      $match: {
+        grade,
+        subject,
+        status: 'completed',
+        completedAt: { $gte: weekStart, $lt: weekEnd },
+      },
+    },
+    { $sort: { percentage: -1, completedAt: 1, _id: 1 } },
+    {
+      $group: {
+        _id: '$userId',
+        displayName: { $first: '$displayName' },
+        score: { $first: '$score' },
+        totalQuestions: { $first: '$totalQuestions' },
+        percentage: { $first: '$percentage' },
+        completedAt: { $first: '$completedAt' },
+      },
+    },
+    { $sort: { percentage: -1, completedAt: 1, _id: 1 } },
+  ])
+  let previousPercentage = null
+  let currentRank = 0
+  const ranked = bestResults.map((result, index) => {
+    if (result.percentage !== previousPercentage) currentRank = index + 1
+    previousPercentage = result.percentage
+    return {
+      userId: result._id,
+      displayName: result.displayName,
+      score: result.score,
+      totalQuestions: result.totalQuestions,
+      percentage: result.percentage,
+      rank: currentRank,
+    }
+  })
+  const myResult = ranked.find((entry) => entry.userId === userId)
+  return {
+    weekStart: weekStart.toISOString(),
+    weekEnd: weekEnd.toISOString(),
+    myRank: myResult
+      ? { score: myResult.score, totalQuestions: myResult.totalQuestions, percentage: myResult.percentage, rank: myResult.rank }
+      : null,
+    leaderboard: ranked.slice(0, 50).map((entry) => {
+      const { userId: rankedUserId, ...publicEntry } = entry
+      return { ...publicEntry, isCurrentUser: rankedUserId === userId }
+    }),
+  }
+}
+
+app.get('/api/student/chapters', requireStudent, async (request, response, next) => {
+  try {
+    const grade = Number(request.query.grade)
+    const subject = request.query.subject
+    if (!Number.isInteger(grade) || grade < 5 || grade > 10 || !validSubjects.includes(subject)) {
+      return response.status(400).json({ error: 'Choose a valid class and subject' })
+    }
+    const grades = grade >= 9 ? [9, 10] : [grade]
+    const chapters = await Question.distinct('chapter', {
+      subject,
+      grade: { $in: grades },
+      type: 'mcq',
+      answer: { $nin: ['', null] },
+      options: { $size: 4 },
+      chapter: { $type: 'string', $ne: '' },
+    })
+    response.json({ chapters: chapters.sort((left, right) => left.localeCompare(right)) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/student/exams', requireStudent, async (request, response, next) => {
+  try {
+    const { grade, subject, chapter = null, durationMinutes = 20 } = request.body ?? {}
+    if (!Number.isInteger(grade) || grade < 5 || grade > 10 || !validSubjects.includes(subject)) {
+      return response.status(400).json({ error: 'Choose a valid class and subject' })
+    }
+    if (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 20) {
+      return response.status(400).json({ error: 'Exam duration must be a whole number from 1 to 20 minutes' })
+    }
+    if (chapter !== null && (typeof chapter !== 'string' || !chapter.trim() || chapter.length > 120)) {
+      return response.status(400).json({ error: 'Choose a valid chapter' })
+    }
+
+    const grades = grade >= 9 ? [9, 10] : [grade]
+    const candidates = await Question.aggregate([
+      { $match: { subject, grade: { $in: grades }, type: 'mcq', answer: { $nin: ['', null] }, options: { $size: 4 }, ...(chapter ? { chapter } : {}) } },
+      { $sample: { size: 20 } },
+    ])
+    const questions = candidates
+      .map((question) => ({
+        question,
+        correctOptionIndex: answerOptionIndex(question.answer, question.options, question.optionEquations),
+      }))
+      .filter(({ correctOptionIndex }) => correctOptionIndex >= 0)
+    if (questions.length === 0) {
+      return response.status(404).json({ error: chapter ? 'এই অধ্যায়ে পরীক্ষার উপযোগী MCQ পাওয়া যায়নি।' : 'এই শ্রেণি ও বিষয়ে পরীক্ষার উপযোগী MCQ পাওয়া যায়নি।' })
+    }
+
+    const account = await firebaseAdminAuth.getUser(request.firebaseUser.uid)
+    const displayName = account.displayName?.trim() || `শিক্ষার্থী ${request.firebaseUser.uid.slice(0, 6)}`
+    const serverNow = new Date()
+    const expiresAt = new Date(serverNow.getTime() + durationMinutes * 60 * 1000)
+    const attempt = await StudentExamAttempt.create({
+      userId: request.firebaseUser.uid,
+      displayName,
+      grade,
+      subject,
+      chapter: chapter ?? '',
+      durationMinutes,
+      expiresAt,
+      items: questions.map(({ question, correctOptionIndex }) => ({
+        prompt: question.prompt,
+        equation: question.equation,
+        inlineEquations: question.inlineEquations,
+        statements: question.statements,
+        statementQuestion: question.statementQuestion,
+        options: question.options,
+        optionEquations: question.optionEquations,
+        optionInlineEquations: question.optionInlineEquations,
+        correctOptionIndex,
+      })),
+    })
+    response.status(201).json({
+      attemptId: String(attempt._id),
+      grade,
+      subject,
+      chapter: attempt.chapter,
+      durationMinutes: attempt.durationMinutes,
+      expiresAt: attempt.expiresAt.toISOString(),
+      serverNow: new Date().toISOString(),
+      questions: attempt.items.map((item, index) => ({
+        id: String(index),
+        prompt: item.prompt,
+        equation: item.equation,
+        inlineEquations: item.inlineEquations,
+        statements: item.statements,
+        statementQuestion: item.statementQuestion,
+        options: item.options,
+        optionEquations: item.optionEquations,
+        optionInlineEquations: item.optionInlineEquations,
+      })),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/student/exams/:attemptId/submit', requireStudent, async (request, response, next) => {
+  try {
+    if (!mongoose.isValidObjectId(request.params.attemptId)) {
+      return response.status(400).json({ error: 'Invalid exam attempt' })
+    }
+    const attempt = await StudentExamAttempt.findOne({
+      _id: request.params.attemptId,
+      userId: request.firebaseUser.uid,
+    })
+    if (!attempt) return response.status(404).json({ error: 'Exam attempt not found' })
+
+    const { answers } = request.body ?? {}
+    if (!Array.isArray(answers) || answers.length !== attempt.items.length
+      || answers.some((answer) => !Number.isInteger(answer) || answer < -1 || answer > 3)) {
+      return response.status(400).json({ error: 'Every answer must be an option number or -1 for unanswered' })
+    }
+    let completed = attempt
+    if (attempt.status === 'completed') {
+      if (attempt.submittedAnswers?.length && !attempt.submittedAnswers.every((answer, index) => answer === answers[index])) {
+        return response.status(409).json({ error: 'This exam was already submitted with different answers' })
+      }
+    } else {
+      const isExpired = Boolean(attempt.expiresAt && Date.now() >= attempt.expiresAt.getTime())
+      if (!isExpired && answers.some((answer) => answer === -1)) {
+        return response.status(400).json({ error: 'Answer every question before submitting the exam' })
+      }
+      const score = attempt.items.reduce((total, item, index) => total + (item.correctOptionIndex === answers[index] ? 1 : 0), 0)
+      const completedAt = new Date()
+      const percentage = Number(((score / attempt.items.length) * 100).toFixed(1))
+      completed = await StudentExamAttempt.findOneAndUpdate(
+        { _id: attempt._id, userId: request.firebaseUser.uid, status: 'in_progress' },
+        { $set: { status: 'completed', score, totalQuestions: attempt.items.length, percentage, completedAt, submittedAnswers: answers } },
+        { new: true },
+      )
+      if (!completed) {
+        completed = await StudentExamAttempt.findOne({ _id: attempt._id, userId: request.firebaseUser.uid, status: 'completed' })
+        if (!completed) return response.status(409).json({ error: 'Exam submission could not be confirmed. Please retry.' })
+        if (completed.submittedAnswers?.length && !completed.submittedAnswers.every((answer, index) => answer === answers[index])) {
+          return response.status(409).json({ error: 'This exam was already submitted with different answers' })
+        }
+      }
+    }
+    const ranking = await getStudentLeaderboard(completed.grade, completed.subject, request.firebaseUser.uid)
+    response.json({
+      score: completed.score,
+      totalQuestions: completed.totalQuestions,
+      percentage: completed.percentage,
+      rank: ranking.myRank?.rank ?? null,
+      correctAnswers: completed.items.map((item) => item.correctOptionIndex),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/student/rank', requireStudent, async (request, response, next) => {
+  try {
+    const grade = Number(request.query.grade)
+    const subject = request.query.subject
+    if (!Number.isInteger(grade) || grade < 5 || grade > 10 || !validSubjects.includes(subject)) {
+      return response.status(400).json({ error: 'Choose a valid class and subject' })
+    }
+    response.json(await getStudentLeaderboard(grade, subject, request.firebaseUser.uid))
+  } catch (error) {
+    next(error)
+  }
+})
 
 async function countEnabledAdmins() {
   let count = 0
@@ -66,7 +326,7 @@ app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
         email: user.email ?? '',
         displayName: user.displayName ?? '',
         disabled: user.disabled,
-        role: user.customClaims?.role === 'admin' ? 'admin' : 'user',
+        role: ['admin', 'student'].includes(user.customClaims?.role) ? user.customClaims.role : 'user',
         createdAt: user.metadata.creationTime,
         lastSignInAt: user.metadata.lastSignInTime ?? null,
       })))
@@ -83,8 +343,8 @@ app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
 app.put('/api/admin/users/:uid/role', requireAdmin, async (request, response, next) => {
   try {
     const { role } = request.body
-    if (role !== 'admin' && role !== 'user') {
-      return response.status(400).json({ error: 'Role must be admin or user' })
+    if (!['admin', 'student', 'user'].includes(role)) {
+      return response.status(400).json({ error: 'Role must be admin, student, or user' })
     }
     if (request.params.uid === request.firebaseUser.uid) {
       return response.status(400).json({ error: 'You cannot change your own role' })

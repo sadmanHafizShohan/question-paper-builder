@@ -86,7 +86,8 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
       })
       await readResponse(response)
       setUsers((current) => current.map((item) => item.uid === user.uid ? { ...item, role } : item))
-      setNotice(`${user.email || user.displayName || 'ব্যবহারকারী'}-এর role ${role === 'admin' ? 'admin' : 'user'} করা হয়েছে। নতুন role কার্যকর করতে তাঁকে আবার লগইন করতে হবে।`)
+      const roleLabel = role === 'admin' ? 'admin' : role === 'student' ? 'student' : 'user'
+      setNotice(`${user.email || user.displayName || 'ব্যবহারকারী'}-এর role ${roleLabel} করা হয়েছে। নতুন role কার্যকর করতে তাঁকে আবার লগইন করতে হবে।`)
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Role পরিবর্তন করা যায়নি।')
     } finally {
@@ -139,6 +140,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
   }
 
   const adminCount = users.filter((user) => user.role === 'admin').length
+  const studentCount = users.filter((user) => user.role === 'student').length
 
   return (
     <section className="admin-users">
@@ -146,7 +148,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
         <div>
           <div className="eyebrow">অ্যাক্সেস নিয়ন্ত্রণ</div>
           <h1>ব্যবহারকারী ও role</h1>
-          <p>Firebase account-কে admin বা সাধারণ user হিসেবে পরিচালনা করুন।</p>
+          <p>Firebase account-কে admin, student বা সাধারণ user হিসেবে পরিচালনা করুন।</p>
         </div>
         <button type="button" className="quiet-button" onClick={loadUsers} disabled={loading || Boolean(busyUid)}>
           <RefreshCw size={15} className={loading ? 'admin-refreshing' : ''} /> {loading ? 'লোড হচ্ছে…' : 'রিফ্রেশ'}
@@ -156,11 +158,12 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
       <div className="admin-user-summary">
         <div><span className="admin-summary-icon"><UsersRound size={18} /></span><span><small>মোট ব্যবহারকারী</small><strong>{users.length.toLocaleString('bn-BD')}</strong></span></div>
         <div><span className="admin-summary-icon admin-shield"><Shield size={18} /></span><span><small>Admin</small><strong>{adminCount.toLocaleString('bn-BD')}</strong></span></div>
+        <div><span className="admin-summary-icon"><UsersRound size={18} /></span><span><small>শিক্ষার্থী</small><strong>{studentCount.toLocaleString('bn-BD')}</strong></span></div>
       </div>
 
       {error && <p className="admin-message admin-message-error" role="alert">{error}</p>}
       {notice && <p className="admin-message admin-message-success" role="status"><Check size={15} />{notice}</p>}
-      <div className="admin-role-help">সাধারণ user প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করতে পারবেন। Admin-এর অতিরিক্তভাবে সব account-এর role পরিবর্তনের অধিকার আছে।</div>
+      <div className="admin-role-help">Student শুধু শ্রেণি ও বিষয় বেছে MCQ পরীক্ষা দিতে এবং সাপ্তাহিক র‍্যাঙ্ক দেখতে পারবেন। User প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করবেন; Admin সব account পরিচালনা করবেন।</div>
 
       <section className="admin-user-table panel" aria-label="ব্যবহারকারীর তালিকা">
         {loading ? <div className="admin-table-state"><LoadingStatus label="ব্যবহারকারীর তালিকা লোড হচ্ছে…" detail="Firebase account-গুলো যাচাই করা হচ্ছে" /></div>
@@ -181,6 +184,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
                       onChange={(event) => updateRole(user, event.target.value)}
                     >
                       <option value="user">User</option>
+                      <option value="student">Student</option>
                       <option value="admin">Admin</option>
                     </select></td>
                     <td>{busyUid === user.uid

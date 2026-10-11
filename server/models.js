@@ -56,5 +56,36 @@ const paperSettingsSchema = new mongoose.Schema({
 }, { timestamps: true })
 paperSettingsSchema.index({ subject: 1, grade: 1 }, { unique: true })
 
+const studentExamAttemptSchema = new mongoose.Schema({
+  userId: { type: String, required: true, index: true },
+  displayName: { type: String, required: true },
+  grade: { type: Number, required: true, min: 5, max: 10, index: true },
+  subject: { type: String, required: true, index: true },
+  chapter: { type: String, default: '' },
+  durationMinutes: { type: Number, required: true, min: 1, max: 20, default: 20 },
+  expiresAt: { type: Date, required: true, index: true },
+  status: { type: String, enum: ['in_progress', 'completed'], default: 'in_progress', index: true },
+  items: [{
+    prompt: { type: String, required: true },
+    equation: { type: String, default: '' },
+    inlineEquations: { type: [String], default: [] },
+    statements: { type: [String], default: [] },
+    statementQuestion: { type: String, default: '' },
+    options: { type: [String], required: true },
+    optionEquations: { type: [String], default: [] },
+    optionInlineEquations: { type: [[String]], default: [] },
+    correctOptionIndex: { type: Number, required: true, min: 0, max: 3 },
+  }],
+  score: { type: Number, min: 0 },
+  totalQuestions: { type: Number, min: 1 },
+  percentage: { type: Number, min: 0, max: 100 },
+  submittedAnswers: { type: [Number], default: undefined },
+  completedAt: { type: Date, index: true },
+}, { timestamps: true })
+studentExamAttemptSchema.index({ status: 1, completedAt: 1, grade: 1, subject: 1 })
+studentExamAttemptSchema.index({ userId: 1, status: 1, completedAt: 1, grade: 1, subject: 1 })
+
 export const Question = mongoose.models.Question ?? mongoose.model('Question', questionSchema)
 export const PaperSettings = mongoose.models.PaperSettings ?? mongoose.model('PaperSettings', paperSettingsSchema)
+export const StudentExamAttempt = mongoose.models.StudentExamAttempt
+  ?? mongoose.model('StudentExamAttempt', studentExamAttemptSchema)

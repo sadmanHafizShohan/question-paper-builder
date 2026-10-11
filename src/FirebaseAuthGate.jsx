@@ -22,7 +22,7 @@ export default function FirebaseAuthGate({ children }) {
         const token = currentUser ? await getIdTokenResult(currentUser) : null
         if (!active) return
         setUser(currentUser)
-        setRole(token?.claims.role === 'admin' ? 'admin' : 'user')
+        setRole(['admin', 'student'].includes(token?.claims.role) ? token.claims.role : 'user')
         setStatus('ready')
         setAuthError('')
       } catch (error) {

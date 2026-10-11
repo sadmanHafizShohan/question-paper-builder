@@ -1,4 +1,4 @@
-.admin-user-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.admin-user-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .admin-user-summary > div { display: flex; align-items: center; gap: 11px; padding: 15px; border: 1px solid #e8ede9; border-radius: 8px; background: #fff; }
 .admin-summary-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 8px; background: #e8f4ed; color: #2a8060; }
 .admin-summary-icon.admin-shield { background: #eef0e3; color: #788047; }

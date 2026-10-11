@@ -39,24 +39,13 @@ import DuplicateDetector from './DuplicateDetector.jsx'
 import FirebaseAuthGate from './FirebaseAuthGate.jsx'
 import authenticatedFetch from './authenticatedFetch.js'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
+import StudentExamPortal from './StudentExamPortal.jsx'
+import { grades, subjects } from './academic.js'
 import LoadingStatus from './LoadingStatus.jsx'
 import AnimatedNumber from './AnimatedNumber.jsx'
 import { auth } from './firebase.js'
 
-const grades = [5, 6, 7, 8, 9, 10]
 const selectableGrades = grades.filter((item) => item !== 10)
-const subjects = [
-  { id: 'math', label: 'গণিত' },
-  { id: 'bangla-1', label: 'বাংলা ১ম পত্র' },
-  { id: 'bangla-2', label: 'বাংলা ২য় পত্র' },
-  { id: 'english-1', label: 'English 1st Paper' },
-  { id: 'english-2', label: 'English 2nd Paper' },
-  { id: 'global-studies', label: 'বাংলাদেশ ও বিশ্বপরিচয়' },
-  { id: 'general-science', label: 'বিজ্ঞান' },
-  { id: 'islam', label: 'ইসলাম ও নৈতিক শিক্ষা' },
-  { id: 'hindu', label: 'হিন্দু ধর্ম' },
-  { id: 'ict', label: 'তথ্য ও যোগাযোগ প্রযুক্তি' },
-]
 const questionTypes = [
   { id: 'passage', label: 'Reading Text', labelBn: 'প্যাসেজ', labelEn: 'Reading Text', headingBn: 'প্যাসেজ', headingEn: 'Reading Text / Passage' },
   { id: 'mcq', label: 'MCQ', labelBn: 'বহুনির্বাচনি প্রশ্ন', labelEn: 'Multiple Choice Questions', headingBn: 'বহুনির্বাচনি প্রশ্ন', headingEn: 'Multiple Choice Questions' },
@@ -2301,5 +2290,7 @@ function StaticMathFormula({ value, displayMode = false }) {
 }
 
 export default function App() {
-  return <FirebaseAuthGate>{(user, role) => <QuestionPaperBuilder user={user} role={role} />}</FirebaseAuthGate>
+  return <FirebaseAuthGate>{(user, role) => role === 'student'
+    ? <StudentExamPortal user={user} />
+    : <QuestionPaperBuilder user={user} role={role} />}</FirebaseAuthGate>
 }
