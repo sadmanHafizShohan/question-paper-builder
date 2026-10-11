@@ -62,7 +62,7 @@ const studentExamAttemptSchema = new mongoose.Schema({
   grade: { type: Number, required: true, min: 5, max: 10, index: true },
   subject: { type: String, required: true, index: true },
   chapter: { type: String, default: '' },
-  durationMinutes: { type: Number, required: true, min: 1, max: 20, default: 20 },
+  durationMinutes: { type: Number, required: true, min: 1, max: 20, default: 10 },
   expiresAt: { type: Date, required: true, index: true },
   status: { type: String, enum: ['in_progress', 'completed'], default: 'in_progress', index: true },
   items: [{
@@ -85,7 +85,21 @@ const studentExamAttemptSchema = new mongoose.Schema({
 studentExamAttemptSchema.index({ status: 1, completedAt: 1, grade: 1, subject: 1 })
 studentExamAttemptSchema.index({ userId: 1, status: 1, completedAt: 1, grade: 1, subject: 1 })
 
+const teacherRoleRequestSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  displayName: { type: String, default: '' },
+  email: { type: String, default: '' },
+  status: { type: String, enum: ['pending', 'approved'], default: 'pending', index: true },
+  approvedAt: { type: Date },
+}, { timestamps: true })
+teacherRoleRequestSchema.index(
+  { userId: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: 'pending' } },
+)
+
 export const Question = mongoose.models.Question ?? mongoose.model('Question', questionSchema)
 export const PaperSettings = mongoose.models.PaperSettings ?? mongoose.model('PaperSettings', paperSettingsSchema)
 export const StudentExamAttempt = mongoose.models.StudentExamAttempt
   ?? mongoose.model('StudentExamAttempt', studentExamAttemptSchema)
+export const TeacherRoleRequest = mongoose.models.TeacherRoleRequest
+  ?? mongoose.model('TeacherRoleRequest', teacherRoleRequestSchema)

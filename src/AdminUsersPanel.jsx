@@ -25,7 +25,7 @@ async function readResponse(response) {
         : result.error === 'The last active admin cannot be deleted'
           ? 'শেষ সক্রিয় admin account delete করা যাবে না। আগে অন্য একজনকে admin করুন।'
           : result.error === 'The last admin cannot be demoted'
-            ? 'শেষ admin-কে user করা যাবে না। আগে অন্য একজনকে admin করুন।'
+            ? 'শেষ admin-কে teacher বা student করা যাবে না। আগে অন্য একজনকে admin করুন।'
             : result.error)
     }
     if (response.status === 400 && typeof result?.error === 'string') {
@@ -40,8 +40,11 @@ async function readResponse(response) {
 
 export default function AdminUsersPanel({ apiUrl, currentUserId }) {
   const [users, setUsers] = useState([])
+  const [teacherRequests, setTeacherRequests] = useState([])
   const [loading, setLoading] = useState(true)
+  const [requestsLoading, setRequestsLoading] = useState(true)
   const [busyUid, setBusyUid] = useState('')
+  const [approvingRequestId, setApprovingRequestId] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -61,6 +64,22 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
     return () => { active = false }
   }, [apiUrl])
 
+  useEffect(() => {
+    let active = true
+    authenticatedFetch(`${apiUrl}/admin/teacher-requests`)
+      .then(readResponse)
+      .then((result) => {
+        if (active) setTeacherRequests(result)
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : 'Teacher অনুরোধ লোড করা যায়নি।')
+      })
+      .finally(() => {
+        if (active) setRequestsLoading(false)
+      })
+    return () => { active = false }
+  }, [apiUrl])
+
   async function loadUsers() {
     setLoading(true)
     setError('')
@@ -71,6 +90,38 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
       setError(loadError instanceof Error ? loadError.message : 'ব্যবহারকারীদের তালিকা লোড করা যায়নি।')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadTeacherRequests() {
+    setRequestsLoading(true)
+    setError('')
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/admin/teacher-requests`)
+      setTeacherRequests(await readResponse(response))
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Teacher অনুরোধ লোড করা যায়নি।')
+    } finally {
+      setRequestsLoading(false)
+    }
+  }
+
+  async function approveTeacherRequest(teacherRequest) {
+    setApprovingRequestId(teacherRequest.id)
+    setError('')
+    setNotice('')
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/admin/teacher-requests/${encodeURIComponent(teacherRequest.id)}/approve`, {
+        method: 'POST',
+      })
+      await readResponse(response)
+      setTeacherRequests((current) => current.filter((item) => item.id !== teacherRequest.id))
+      setUsers((current) => current.map((user) => user.uid === teacherRequest.uid ? { ...user, role: 'teacher' } : user))
+      setNotice(`${teacherRequest.email || teacherRequest.displayName || 'শিক্ষার্থী'}-এর teacher অনুরোধ অনুমোদন করা হয়েছে। তাঁকে আবার লগইন করতে হবে।`)
+    } catch (approveError) {
+      setError(approveError instanceof Error ? approveError.message : 'Teacher অনুরোধ অনুমোদন করা যায়নি।')
+    } finally {
+      setApprovingRequestId('')
     }
   }
 
@@ -86,7 +137,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
       })
       await readResponse(response)
       setUsers((current) => current.map((item) => item.uid === user.uid ? { ...item, role } : item))
-      const roleLabel = role === 'admin' ? 'admin' : role === 'student' ? 'student' : 'user'
+      const roleLabel = role === 'admin' ? 'admin' : role === 'student' ? 'student' : 'teacher'
       setNotice(`${user.email || user.displayName || 'ব্যবহারকারী'}-এর role ${roleLabel} করা হয়েছে। নতুন role কার্যকর করতে তাঁকে আবার লগইন করতে হবে।`)
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Role পরিবর্তন করা যায়নি।')
@@ -148,10 +199,10 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
         <div>
           <div className="eyebrow">অ্যাক্সেস নিয়ন্ত্রণ</div>
           <h1>ব্যবহারকারী ও role</h1>
-          <p>Firebase account-কে admin, student বা সাধারণ user হিসেবে পরিচালনা করুন।</p>
+          <p>Firebase account-কে admin, student বা teacher হিসেবে পরিচালনা করুন।</p>
         </div>
-        <button type="button" className="quiet-button" onClick={loadUsers} disabled={loading || Boolean(busyUid)}>
-          <RefreshCw size={15} className={loading ? 'admin-refreshing' : ''} /> {loading ? 'লোড হচ্ছে…' : 'রিফ্রেশ'}
+        <button type="button" className="quiet-button" onClick={() => { void loadUsers(); void loadTeacherRequests() }} disabled={loading || requestsLoading || Boolean(busyUid) || Boolean(approvingRequestId)}>
+          <RefreshCw size={15} className={loading || requestsLoading ? 'admin-refreshing' : ''} /> {loading || requestsLoading ? 'লোড হচ্ছে…' : 'রিফ্রেশ'}
         </button>
       </header>
 
@@ -163,7 +214,21 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
 
       {error && <p className="admin-message admin-message-error" role="alert">{error}</p>}
       {notice && <p className="admin-message admin-message-success" role="status"><Check size={15} />{notice}</p>}
-      <div className="admin-role-help">Student শুধু শ্রেণি ও বিষয় বেছে MCQ পরীক্ষা দিতে এবং সাপ্তাহিক র‍্যাঙ্ক দেখতে পারবেন। User প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করবেন; Admin সব account পরিচালনা করবেন।</div>
+      <div className="admin-role-help">Student শুধু শ্রেণি ও বিষয় বেছে MCQ পরীক্ষা দিতে এবং সাপ্তাহিক র‍্যাঙ্ক দেখতে পারবেন। Teacher প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করবেন; Admin সব account পরিচালনা করবেন।</div>
+
+      <section className="admin-teacher-requests panel" aria-label="Teacher হওয়ার অনুরোধ">
+        <h2>Teacher role-এর অনুরোধ <span>{teacherRequests.length.toLocaleString('bn-BD')}</span></h2>
+        {requestsLoading ? <div className="admin-table-state">অনুরোধ লোড হচ্ছে…</div>
+          : teacherRequests.length === 0 ? <p className="admin-teacher-requests-empty">কোনো অপেক্ষমাণ অনুরোধ নেই।</p>
+            : <div className="admin-teacher-request-list">{teacherRequests.map((teacherRequest) => (
+              <article className="admin-teacher-request" key={teacherRequest.id}>
+                <div><strong>{teacherRequest.displayName || 'নাম দেওয়া হয়নি'}</strong><small>{teacherRequest.email || teacherRequest.uid}</small></div>
+                <button type="button" onClick={() => approveTeacherRequest(teacherRequest)} disabled={Boolean(approvingRequestId) || Boolean(busyUid)}>
+                  {approvingRequestId === teacherRequest.id ? 'অনুমোদন হচ্ছে…' : 'অনুমোদন করুন'}
+                </button>
+              </article>
+            ))}</div>}
+      </section>
 
       <section className="admin-user-table panel" aria-label="ব্যবহারকারীর তালিকা">
         {loading ? <div className="admin-table-state"><LoadingStatus label="ব্যবহারকারীর তালিকা লোড হচ্ছে…" detail="Firebase account-গুলো যাচাই করা হচ্ছে" /></div>
@@ -183,7 +248,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
                       disabled={user.uid === currentUserId || Boolean(busyUid)}
                       onChange={(event) => updateRole(user, event.target.value)}
                     >
-                      <option value="user">User</option>
+                      <option value="teacher">Teacher</option>
                       <option value="student">Student</option>
                       <option value="admin">Admin</option>
                     </select></td>

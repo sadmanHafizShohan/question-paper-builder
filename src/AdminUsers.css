@@ -6,6 +6,17 @@
 .admin-user-summary small { color: #7c8981; font-size: 10px; }
 .admin-user-summary strong { margin-top: 2px; color: #27352e; font-size: 18px; }
 .admin-role-help { margin-bottom: 13px; padding: 11px 13px; border: 1px solid #dcebe0; border-radius: 7px; background: #f4faf5; color: #53685b; font-size: 11px; line-height: 1.65; }
+.admin-teacher-requests { margin-bottom: 18px; padding: 16px; }
+.admin-teacher-requests h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
+.admin-teacher-requests h2 span { display: inline-grid; min-width: 22px; height: 22px; place-items: center; padding: 0 5px; border-radius: 12px; background: #e8f4ed; color: #28734f; font-size: 10px; }
+.admin-teacher-requests-empty { margin: 12px 0 0; color: #7c8981; font-size: 11px; }
+.admin-teacher-request-list { display: grid; gap: 8px; margin-top: 12px; }
+.admin-teacher-request { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid #e8ede9; border-radius: 7px; background: #fff; }
+.admin-teacher-request strong,.admin-teacher-request small { display: block; }
+.admin-teacher-request strong { color: #34453b; font-size: 11px; }
+.admin-teacher-request small { margin-top: 3px; color: #929d96; font-size: 10px; }
+.admin-teacher-request button { min-height: 32px; padding: 0 11px; border: 1px solid #cfe2d4; border-radius: 6px; background: #f4faf5; color: #28734f; cursor: pointer; font-size: 10px; font-weight: 700; }
+.admin-teacher-request button:disabled { cursor: not-allowed; opacity: .55; }
 .admin-message { display: flex; align-items: center; gap: 7px; margin: 0 0 12px; padding: 10px 12px; border-radius: 7px; font-size: 11px; line-height: 1.6; }
 .admin-message-error { border: 1px solid #efd5d1; background: #fff7f5; color: #a53f35; }
 .admin-message-success { border: 1px solid #d6e6da; background: #f5fbf6; color: #357451; }
@@ -39,6 +50,11 @@ html[data-theme='dark'] .admin-summary-icon.admin-shield { background: #3d392b; 
 html[data-theme='dark'] .admin-user-summary small,
 html[data-theme='dark'] .admin-user-summary strong { color: #b3c0b7; }
 html[data-theme='dark'] .admin-role-help { border-color: #365844; background: #1b2a20; color: #b3c0b7; }
+html[data-theme='dark'] .admin-teacher-requests h2 span { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .admin-teacher-requests-empty { color: #9eaea3; }
+html[data-theme='dark'] .admin-teacher-request { border-color: #35463b; background: #202c24; }
+html[data-theme='dark'] .admin-teacher-request strong { color: #e2ebe5; }
+html[data-theme='dark'] .admin-teacher-request button { border-color: #365844; background: #1b2a20; color: #a7d8b4; }
 html[data-theme='dark'] .admin-message-error { border-color: #70443e; background: #352421; color: #f19c91; }
 html[data-theme='dark'] .admin-message-success { border-color: #365844; background: #1b2a20; color: #a7d8b4; }
 html[data-theme='dark'] .admin-user-name strong { color: #e2ebe5; }

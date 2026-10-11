@@ -7,7 +7,7 @@ import './Auth.css'
 
 export default function FirebaseAuthGate({ children }) {
   const [user, setUser] = useState(null)
-  const [role, setRole] = useState('user')
+  const [role, setRole] = useState('teacher')
   const [status, setStatus] = useState(isFirebaseConfigured ? 'loading' : 'unconfigured')
   const [authError, setAuthError] = useState('')
 
@@ -22,7 +22,9 @@ export default function FirebaseAuthGate({ children }) {
         const token = currentUser ? await getIdTokenResult(currentUser) : null
         if (!active) return
         setUser(currentUser)
-        setRole(['admin', 'student'].includes(token?.claims.role) ? token.claims.role : 'user')
+        setRole(['admin', 'student', 'teacher'].includes(token?.claims.role)
+          ? token.claims.role
+          : 'teacher')
         setStatus('ready')
         setAuthError('')
       } catch (error) {

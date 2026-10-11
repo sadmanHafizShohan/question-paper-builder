@@ -5,7 +5,7 @@ import { Buffer } from 'node:buffer'
 import mongoose from 'mongoose'
 import process from 'node:process'
 import { firebaseAdminAuth } from './firebaseAdmin.js'
-import { PaperSettings, Question, StudentExamAttempt } from './models.js'
+import { PaperSettings, Question, StudentExamAttempt, TeacherRoleRequest } from './models.js'
 
 dotenv.config()
 
@@ -29,7 +29,15 @@ app.use('/api', async (request, response, next) => {
   if (!tokenMatch) return response.status(401).json({ error: 'Authentication required' })
 
   try {
-    request.firebaseUser = await firebaseAdminAuth.verifyIdToken(tokenMatch[1], true)
+    const verifiedUser = await firebaseAdminAuth.verifyIdToken(tokenMatch[1], true)
+    const claimRole = verifiedUser.role
+    request.firebaseUser = {
+      ...verifiedUser,
+      claimRole,
+      role: ['admin', 'student', 'teacher'].includes(claimRole)
+        ? claimRole
+        : 'teacher',
+    }
     if (request.firebaseUser.role === 'student' && !request.path.startsWith('/student/')) {
       return response.status(403).json({ error: 'Student accounts can only access student exam features' })
     }
@@ -54,6 +62,25 @@ function requireStudent(request, response, next) {
   }
   next()
 }
+
+app.post('/api/auth/student-account', async (request, response, next) => {
+  try {
+    if (request.firebaseUser.claimRole) {
+      return response.status(409).json({ error: 'This account already has a role' })
+    }
+    const account = await firebaseAdminAuth.getUser(request.firebaseUser.uid)
+    if (account.customClaims?.role) {
+      return response.status(409).json({ error: 'This account already has a role' })
+    }
+    await firebaseAdminAuth.setCustomUserClaims(account.uid, {
+      ...account.customClaims,
+      role: 'student',
+    })
+    response.status(201).json({ uid: account.uid, role: 'student' })
+  } catch (error) {
+    next(error)
+  }
+})
 
 function answerOptionIndex(answer, options, optionEquations = []) {
   const normalizedAnswer = String(answer ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
@@ -105,6 +132,8 @@ async function getStudentLeaderboard(grade, subject, userId) {
         totalQuestions: { $first: '$totalQuestions' },
         percentage: { $first: '$percentage' },
         completedAt: { $first: '$completedAt' },
+        createdAt: { $first: '$createdAt' },
+        durationMinutes: { $first: '$durationMinutes' },
       },
     },
     { $sort: { percentage: -1, completedAt: 1, _id: 1 } },
@@ -120,6 +149,12 @@ async function getStudentLeaderboard(grade, subject, userId) {
       score: result.score,
       totalQuestions: result.totalQuestions,
       percentage: result.percentage,
+      elapsedSeconds: result.completedAt && result.createdAt
+        ? Math.max(0, Math.ceil(Math.min(
+          (result.completedAt.getTime() - result.createdAt.getTime()) / 1000,
+          (result.durationMinutes ?? 20) * 60,
+        )))
+        : null,
       rank: currentRank,
     }
   })
@@ -128,7 +163,7 @@ async function getStudentLeaderboard(grade, subject, userId) {
     weekStart: weekStart.toISOString(),
     weekEnd: weekEnd.toISOString(),
     myRank: myResult
-      ? { score: myResult.score, totalQuestions: myResult.totalQuestions, percentage: myResult.percentage, rank: myResult.rank }
+      ? { score: myResult.score, totalQuestions: myResult.totalQuestions, percentage: myResult.percentage, elapsedSeconds: myResult.elapsedSeconds, rank: myResult.rank }
       : null,
     leaderboard: ranked.slice(0, 50).map((entry) => {
       const { userId: rankedUserId, ...publicEntry } = entry
@@ -161,7 +196,7 @@ app.get('/api/student/chapters', requireStudent, async (request, response, next)
 
 app.post('/api/student/exams', requireStudent, async (request, response, next) => {
   try {
-    const { grade, subject, chapter = null, durationMinutes = 20 } = request.body ?? {}
+    const { grade, subject, chapter = null, durationMinutes = 10 } = request.body ?? {}
     if (!Number.isInteger(grade) || grade < 5 || grade > 10 || !validSubjects.includes(subject)) {
       return response.status(400).json({ error: 'Choose a valid class and subject' })
     }
@@ -279,10 +314,14 @@ app.post('/api/student/exams/:attemptId/submit', requireStudent, async (request,
       }
     }
     const ranking = await getStudentLeaderboard(completed.grade, completed.subject, request.firebaseUser.uid)
+    const elapsedMs = Math.max(0, completed.completedAt.getTime() - completed.createdAt.getTime())
+    const maxDurationMs = (completed.durationMinutes ?? 20) * 60 * 1000
+    const elapsedSeconds = Math.ceil(Math.min(elapsedMs, maxDurationMs) / 1000)
     response.json({
       score: completed.score,
       totalQuestions: completed.totalQuestions,
       percentage: completed.percentage,
+      elapsedSeconds,
       rank: ranking.myRank?.rank ?? null,
       correctAnswers: completed.items.map((item) => item.correctOptionIndex),
     })
@@ -304,6 +343,48 @@ app.get('/api/student/rank', requireStudent, async (request, response, next) => 
   }
 })
 
+app.get('/api/student/teacher-request', requireStudent, async (request, response, next) => {
+  try {
+    const teacherRequest = await TeacherRoleRequest.findOne({
+      userId: request.firebaseUser.uid,
+      status: 'pending',
+    }).select('status createdAt').lean()
+    response.json(teacherRequest
+      ? { status: teacherRequest.status, createdAt: teacherRequest.createdAt }
+      : { status: null, createdAt: null })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/student/teacher-request', requireStudent, async (request, response, next) => {
+  try {
+    const userId = request.firebaseUser.uid
+    const existingRequest = await TeacherRoleRequest.findOne({ userId, status: 'pending' })
+    if (existingRequest) {
+      return response.json({ status: existingRequest.status, createdAt: existingRequest.createdAt })
+    }
+
+    const teacherRequest = await TeacherRoleRequest.create({
+      userId,
+      displayName: request.firebaseUser.name || '',
+      email: request.firebaseUser.email || '',
+    })
+    response.status(201).json({ status: teacherRequest.status, createdAt: teacherRequest.createdAt })
+  } catch (error) {
+    if (error.code === 11000) {
+      const existingRequest = await TeacherRoleRequest.findOne({
+        userId: request.firebaseUser.uid,
+        status: 'pending',
+      }).select('status createdAt').lean()
+      if (existingRequest) {
+        return response.json({ status: existingRequest.status, createdAt: existingRequest.createdAt })
+      }
+    }
+    next(error)
+  }
+})
+
 async function countEnabledAdmins() {
   let count = 0
   let pageToken
@@ -314,6 +395,59 @@ async function countEnabledAdmins() {
   } while (pageToken)
   return count
 }
+
+app.get('/api/admin/teacher-requests', requireAdmin, async (_request, response, next) => {
+  try {
+    const requests = await TeacherRoleRequest.find({ status: 'pending' })
+      .sort({ createdAt: 1 })
+      .select('userId displayName email createdAt')
+      .lean()
+    response.json(requests.map((teacherRequest) => ({
+      id: String(teacherRequest._id),
+      uid: teacherRequest.userId,
+      displayName: teacherRequest.displayName,
+      email: teacherRequest.email,
+      createdAt: teacherRequest.createdAt,
+    })))
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/teacher-requests/:requestId/approve', requireAdmin, async (request, response, next) => {
+  try {
+    if (!mongoose.isValidObjectId(request.params.requestId)) {
+      return response.status(400).json({ error: 'Invalid teacher role request' })
+    }
+    const teacherRequest = await TeacherRoleRequest.findOne({
+      _id: request.params.requestId,
+      status: 'pending',
+    })
+    if (!teacherRequest) return response.status(404).json({ error: 'Pending teacher role request not found' })
+
+    const targetUser = await firebaseAdminAuth.getUser(teacherRequest.userId)
+    if (targetUser.disabled) {
+      return response.status(409).json({ error: 'A blocked account cannot be promoted to teacher' })
+    }
+    const currentRole = targetUser.customClaims?.role
+    if (!['student', 'teacher'].includes(currentRole)) {
+      return response.status(409).json({ error: 'This account is no longer a student' })
+    }
+    if (currentRole !== 'teacher') {
+      await firebaseAdminAuth.setCustomUserClaims(targetUser.uid, {
+        ...targetUser.customClaims,
+        role: 'teacher',
+      })
+    }
+    await firebaseAdminAuth.revokeRefreshTokens(targetUser.uid)
+    teacherRequest.status = 'approved'
+    teacherRequest.approvedAt = new Date()
+    await teacherRequest.save()
+    response.json({ uid: targetUser.uid, email: targetUser.email ?? '', role: 'teacher' })
+  } catch (error) {
+    next(error)
+  }
+})
 
 app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
   try {
@@ -326,7 +460,7 @@ app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
         email: user.email ?? '',
         displayName: user.displayName ?? '',
         disabled: user.disabled,
-        role: ['admin', 'student'].includes(user.customClaims?.role) ? user.customClaims.role : 'user',
+        role: ['admin', 'student', 'teacher'].includes(user.customClaims?.role) ? user.customClaims.role : 'teacher',
         createdAt: user.metadata.creationTime,
         lastSignInAt: user.metadata.lastSignInTime ?? null,
       })))
@@ -343,16 +477,16 @@ app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
 app.put('/api/admin/users/:uid/role', requireAdmin, async (request, response, next) => {
   try {
     const { role } = request.body
-    if (!['admin', 'student', 'user'].includes(role)) {
-      return response.status(400).json({ error: 'Role must be admin, student, or user' })
+    if (!['admin', 'student', 'teacher'].includes(role)) {
+      return response.status(400).json({ error: 'Role must be admin, student, or teacher' })
     }
     if (request.params.uid === request.firebaseUser.uid) {
       return response.status(400).json({ error: 'You cannot change your own role' })
     }
 
     const targetUser = await firebaseAdminAuth.getUser(request.params.uid)
-    const previousRole = targetUser.customClaims?.role === 'admin' ? 'admin' : 'user'
-    if (previousRole === 'admin' && role === 'user') {
+    const previousRole = targetUser.customClaims?.role
+    if (previousRole === 'admin' && role !== 'admin') {
       if (!targetUser.disabled && await countEnabledAdmins() <= 1) {
         return response.status(409).json({ error: 'The last admin cannot be demoted' })
       }

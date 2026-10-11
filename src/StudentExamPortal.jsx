@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, GraduationCap, LogOut, Medal, RotateCcw, Send } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, GraduationCap, LogOut, Medal, Moon, RotateCcw, Send, Sun } from 'lucide-react'
 import { signOut } from '@firebase/auth'
 import authenticatedFetch from './authenticatedFetch.js'
 import LoadingStatus from './LoadingStatus.jsx'
@@ -9,6 +9,13 @@ import './StudentExamPortal.css'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
+const examDurationLabel = (seconds) => {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return [minutes > 0 ? `${bengaliNumber(minutes)} মিনিট` : '', `${bengaliNumber(remainingSeconds)} সেকেন্ড`]
+    .filter(Boolean)
+    .join(' ')
+}
 const subjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
 const gradeLabel = (grade) => ({
   5: 'পঞ্চম',
@@ -115,10 +122,11 @@ async function readResult(response) {
 }
 
 export default function StudentExamPortal({ user }) {
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
   const [grade, setGrade] = useState(7)
   const [subject, setSubject] = useState('math')
   const [chapter, setChapter] = useState('')
-  const [durationMinutes, setDurationMinutes] = useState(20)
+  const [durationMinutes, setDurationMinutes] = useState(10)
   const [chapters, setChapters] = useState([])
   const [chaptersLoading, setChaptersLoading] = useState(true)
   const [attempt, setAttempt] = useState(null)
@@ -128,6 +136,8 @@ export default function StudentExamPortal({ user }) {
   const [answerReview, setAnswerReview] = useState(null)
   const [showAnswerReview, setShowAnswerReview] = useState(false)
   const [leaderboard, setLeaderboard] = useState(null)
+  const [teacherRequestStatus, setTeacherRequestStatus] = useState('loading')
+  const [teacherRequestBusy, setTeacherRequestBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [clockNow, setClockNow] = useState(0)
@@ -141,6 +151,42 @@ export default function StudentExamPortal({ user }) {
     : durationMinutes * 60
   const timeExpired = Boolean(attempt && remainingSeconds === 0)
   const timerLabel = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+    localStorage.setItem('question-builder-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
+
+  useEffect(() => {
+    let active = true
+    authenticatedFetch(`${apiUrl}/student/teacher-request`)
+      .then(readResult)
+      .then((requestStatus) => {
+        if (active) setTeacherRequestStatus(requestStatus.status)
+      })
+      .catch((loadError) => {
+        if (!active) return
+        setTeacherRequestStatus(null)
+        setError(loadError instanceof Error ? loadError.message : 'Teacher অনুরোধের অবস্থা লোড করা যায়নি।')
+      })
+    return () => { active = false }
+  }, [])
+
+  async function requestTeacherRole() {
+    setTeacherRequestBusy(true)
+    setError('')
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/student/teacher-request`, {
+        method: 'POST',
+      })
+      const requestStatus = await readResult(response)
+      setTeacherRequestStatus(requestStatus.status)
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Teacher হওয়ার অনুরোধ পাঠানো যায়নি।')
+    } finally {
+      setTeacherRequestBusy(false)
+    }
+  }
 
   async function loadLeaderboard(selectedGrade = grade, selectedSubject = subject) {
     setError('')
@@ -225,8 +271,10 @@ export default function StudentExamPortal({ user }) {
       const examResult = await readResult(response)
       if (!Array.isArray(examResult.correctAnswers)
         || examResult.correctAnswers.length !== attempt.questions.length
-        || examResult.correctAnswers.some((answer) => !Number.isInteger(answer) || answer < 0 || answer > 3)) {
-        throw new Error('সার্ভারের পুরনো version চলছে, তাই সঠিক উত্তর আসেনি। API server বন্ধ করে `npm run server` দিয়ে আবার চালান।')
+        || examResult.correctAnswers.some((answer) => !Number.isInteger(answer) || answer < 0 || answer > 3)
+        || !Number.isInteger(examResult.elapsedSeconds)
+        || examResult.elapsedSeconds < 0) {
+        throw new Error('সার্ভারের পুরনো version চলছে, তাই সঠিক উত্তর বা সময়ের তথ্য আসেনি। API server বন্ধ করে `npm run server` দিয়ে আবার চালান।')
       }
       setAnswerReview({
         questions: attempt.questions,
@@ -277,13 +325,22 @@ export default function StudentExamPortal({ user }) {
     <main className="student-portal">
       <header className="student-header">
         <div className="student-brand"><span><BookOpen size={21} /></span><div><strong>প্রশ্নঘর</strong><small>শিক্ষার্থী পোর্টাল</small></div></div>
-        <div className="student-account"><span>{accountName}</span><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
+        <div className="student-account"><span>{accountName}</span><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
       </header>
 
       <div className="student-content">
         <section className="student-welcome">
           <span className="student-welcome-icon"><GraduationCap size={25} /></span>
           <div><p className="student-eyebrow">শিক্ষার্থীদের জন্য</p><h1>MCQ পরীক্ষা ও সাপ্তাহিক র‍্যাঙ্ক</h1><p>শ্রেণি ও বিষয় বেছে পরীক্ষা দিন। প্রতি সপ্তাহে সোমবার র‍্যাঙ্ক নতুন করে শুরু হয়।</p></div>
+        </section>
+
+        <section className="student-teacher-request" aria-label="Teacher হওয়ার অনুরোধ">
+          <div><strong>Teacher account-এ কী করতে পারবেন?</strong><p>Shared question bank দেখতে পারবেন; নিজের প্রশ্ন যোগ, সম্পাদনা/মুছুন, Excel import, প্রশ্নপত্র তৈরি ও PDF/প্রিন্ট করতে পারবেন। নিজের পরিবর্তন এই browser-এ সংরক্ষিত থাকবে।</p></div>
+          {teacherRequestStatus === 'pending'
+            ? <span className="student-request-pending">অনুরোধ অপেক্ষমাণ</span>
+            : <button type="button" onClick={requestTeacherRole} disabled={teacherRequestBusy || teacherRequestStatus === 'loading'}>
+              {teacherRequestBusy ? 'পাঠানো হচ্ছে…' : 'Teacher হওয়ার অনুরোধ'}
+            </button>}
         </section>
 
         <section className="student-panel student-exam-panel">
@@ -302,7 +359,14 @@ export default function StudentExamPortal({ user }) {
             </>
           ) : (
             <div className="student-exam-form">
-              <div className="student-exam-progress"><span>{gradeLabel(attempt.grade)} শ্রেণি · {subjectLabel(attempt.subject)}{attempt.chapter ? ` · ${attempt.chapter}` : ''}</span><strong>{bengaliNumber(questionIndex + 1)} / {bengaliNumber(attempt.questions.length)}</strong><span className={`student-timer ${remainingSeconds <= 60 ? 'student-timer-warning' : ''}`} aria-live="off">সময় বাকি {timerLabel}</span><div><span style={{ width: `${((questionIndex + 1) / attempt.questions.length) * 100}%` }} /></div></div>
+              <div className="student-exam-progress">
+                <span className="student-exam-context">{gradeLabel(attempt.grade)} শ্রেণি · {subjectLabel(attempt.subject)}{attempt.chapter ? ` · ${attempt.chapter}` : ''}</span>
+                <div className="student-exam-counter">
+                  <strong>{bengaliNumber(questionIndex + 1)} / {bengaliNumber(attempt.questions.length)}</strong>
+                  <span className={`student-timer ${remainingSeconds <= 60 ? 'student-timer-warning' : ''}`} aria-live="off">সময় বাকি {timerLabel}</span>
+                </div>
+                <div className="student-exam-progress-bar"><span style={{ width: `${((questionIndex + 1) / attempt.questions.length) * 100}%` }} /></div>
+              </div>
               <fieldset className="student-question" key={currentQuestion.id}>
                   <legend><span>{bengaliNumber(questionIndex + 1)}.</span> <ExamText value={currentQuestion.prompt} equation={currentQuestion.equation} equations={currentQuestion.inlineEquations} /></legend>
                   {currentQuestion.statements?.length > 0 && <ol className="student-statements" type="i">{currentQuestion.statements.map((statement, index) => <li key={index}><ExamText value={statement} /></li>)}</ol>}
@@ -325,7 +389,7 @@ export default function StudentExamPortal({ user }) {
           )}
         </section>
 
-        {result && <section className="student-result" role="status"><CheckCircle2 size={24} /><div><h2>পরীক্ষা সম্পন্ন</h2><p>আপনার স্কোর <strong>{bengaliNumber(result.score)} / {bengaliNumber(result.totalQuestions)}</strong> ({bengaliNumber(result.percentage)}%) · এই সপ্তাহে আপনার র‍্যাঙ্ক <strong>{result.rank ? bengaliNumber(result.rank) : '—'}</strong></p></div><button type="button" onClick={() => setShowAnswerReview((visible) => !visible)}>{showAnswerReview ? 'উত্তর লুকান' : 'সঠিক উত্তর দেখুন'}</button><button type="button" onClick={startExam} disabled={busy}><RotateCcw size={15} /> আবার পরীক্ষা দিন</button></section>}
+        {result && <section className="student-result" role="status"><CheckCircle2 size={24} /><div><h2>পরীক্ষা সম্পন্ন</h2><p>আপনার স্কোর <strong>{bengaliNumber(result.score)} / {bengaliNumber(result.totalQuestions)}</strong> ({bengaliNumber(result.percentage)}%) · এই সপ্তাহে আপনার র‍্যাঙ্ক <strong>{result.rank ? bengaliNumber(result.rank) : '—'}</strong></p>{Number.isInteger(result.elapsedSeconds) && <p>পরীক্ষা দিতে সময় লেগেছে <strong>{examDurationLabel(result.elapsedSeconds)}</strong></p>}</div><button type="button" onClick={() => setShowAnswerReview((visible) => !visible)}>{showAnswerReview ? 'উত্তর লুকান' : 'সঠিক উত্তর দেখুন'}</button><button type="button" onClick={startExam} disabled={busy}><RotateCcw size={15} /> আবার পরীক্ষা দিন</button></section>}
 
         {result && showAnswerReview && answerReview && <section className="student-panel student-answer-review" aria-label="পরীক্ষার সঠিক উত্তর">
           <h2>সঠিক উত্তর ও আপনার উত্তর</h2>
@@ -354,8 +418,8 @@ export default function StudentExamPortal({ user }) {
           <div className="student-panel-heading"><div><h2><Medal size={20} /> সাপ্তাহিক র‍্যাঙ্ক</h2><p>{gradeLabel(grade)} শ্রেণি · {subjectLabel(subject)} · প্রতি সোমবার রিসেট</p></div><button type="button" className="student-refresh" onClick={() => loadLeaderboard()} disabled={busy}><RotateCcw size={15} /> রিফ্রেশ</button></div>
           {leaderboard ? (
             <>
-              <div className="student-my-rank"><span>আপনার সেরা স্কোর</span><strong>{leaderboard.myRank ? `#${bengaliNumber(leaderboard.myRank.rank)}` : 'এখনো র‍্যাঙ্ক নেই'}</strong><small>{leaderboard.myRank ? `${bengaliNumber(leaderboard.myRank.score)} / ${bengaliNumber(leaderboard.myRank.totalQuestions)} · ${bengaliNumber(leaderboard.myRank.percentage)}%` : 'এই সপ্তাহে পরীক্ষা দিলে এখানে দেখাবে'}</small></div>
-              {leaderboard.leaderboard.length === 0 ? <p className="student-empty">এই সপ্তাহে এখনো কোনো ফলাফল নেই। প্রথম পরীক্ষা দিয়ে র‍্যাঙ্ক শুরু করুন!</p> : <div className="student-leaderboard-wrap"><table className="student-leaderboard"><thead><tr><th>র‍্যাঙ্ক</th><th>শিক্ষার্থী</th><th>সেরা স্কোর</th><th>শতাংশ</th></tr></thead><tbody>{leaderboard.leaderboard.map((entry, index) => <tr key={`${entry.rank}-${index}`} className={entry.isCurrentUser ? 'student-own-row' : ''}><td>#{bengaliNumber(entry.rank)}</td><td>{entry.displayName}</td><td>{bengaliNumber(entry.score)} / {bengaliNumber(entry.totalQuestions)}</td><td>{bengaliNumber(entry.percentage)}%</td></tr>)}</tbody></table></div>}
+              <div className="student-my-rank"><span>আপনার সেরা স্কোর</span><strong>{leaderboard.myRank ? `#${bengaliNumber(leaderboard.myRank.rank)}` : 'এখনো র‍্যাঙ্ক নেই'}</strong><small>{leaderboard.myRank ? <>{bengaliNumber(leaderboard.myRank.score)} / {bengaliNumber(leaderboard.myRank.totalQuestions)} · {bengaliNumber(leaderboard.myRank.percentage)}%{Number.isInteger(leaderboard.myRank.elapsedSeconds) && <> · সময় {examDurationLabel(leaderboard.myRank.elapsedSeconds)}</>}</> : 'এই সপ্তাহে পরীক্ষা দিলে এখানে দেখাবে'}</small></div>
+              {leaderboard.leaderboard.length === 0 ? <p className="student-empty">এই সপ্তাহে এখনো কোনো ফলাফল নেই। প্রথম পরীক্ষা দিয়ে র‍্যাঙ্ক শুরু করুন!</p> : <div className="student-leaderboard-wrap"><table className="student-leaderboard"><thead><tr><th>র‍্যাঙ্ক</th><th>শিক্ষার্থী</th><th>সেরা স্কোর</th><th>শতাংশ</th></tr></thead><tbody>{leaderboard.leaderboard.map((entry, index) => <tr key={`${entry.rank}-${index}`} className={entry.isCurrentUser ? 'student-own-row' : ''}><td>#{bengaliNumber(entry.rank)}</td><td>{entry.displayName}</td><td><span>{bengaliNumber(entry.score)} / {bengaliNumber(entry.totalQuestions)}</span>{Number.isInteger(entry.elapsedSeconds) && <small className="student-score-time">সময় {examDurationLabel(entry.elapsedSeconds)}</small>}</td><td>{bengaliNumber(entry.percentage)}%</td></tr>)}</tbody></table></div>}
             </>
           ) : <LoadingStatus label="সাপ্তাহিক র‍্যাঙ্ক লোড হচ্ছে…" />}
         </section>

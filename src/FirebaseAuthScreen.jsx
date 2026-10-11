@@ -8,6 +8,8 @@ import { BookOpen, LockKeyhole } from 'lucide-react'
 import { auth } from './firebase.js'
 import LoadingStatus from './LoadingStatus.jsx'
 
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+
 const authErrorMessages = {
   'auth/email-already-in-use': 'এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট আছে। লগইন করুন।',
   'auth/invalid-credential': 'ইমেইল বা পাসওয়ার্ড সঠিক নয়।',
@@ -51,12 +53,26 @@ export default function FirebaseAuthScreen({ setupRequired = false, fatalError =
         await sendPasswordResetEmail(auth, email.trim())
         setMessage('পাসওয়ার্ড রিসেট করার লিংক আপনার ইমেইলে পাঠানো হয়েছে।')
       } else if (mode === 'signup') {
-        await createUserWithEmailAndPassword(auth, email.trim(), password)
+        const credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+        const token = await credential.user.getIdToken()
+        const response = await fetch(`${apiUrl}/auth/student-account`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok) {
+          throw new Error(result?.error || 'অ্যাকাউন্ট তৈরি হয়েছে, কিন্তু student role সেট করা যায়নি। API server চালু করে আবার লগইন করুন।')
+        }
+        await credential.user.getIdToken(true)
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password)
       }
     } catch (requestError) {
-      setError(getAuthErrorMessage(requestError))
+      setError(requestError?.code && authErrorMessages[requestError.code]
+        ? getAuthErrorMessage(requestError)
+        : requestError instanceof Error && requestError.message
+        ? requestError.message
+        : getAuthErrorMessage(requestError))
     } finally {
       setBusy(false)
     }
