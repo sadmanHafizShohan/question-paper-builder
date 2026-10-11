@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Activity,
   ArrowDownUp,
   CircleAlert,
   BookOpen,
@@ -39,6 +40,7 @@ import DuplicateDetector from './DuplicateDetector.jsx'
 import FirebaseAuthGate from './FirebaseAuthGate.jsx'
 import authenticatedFetch from './authenticatedFetch.js'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
+import StudentActivityPanel from './StudentActivityPanel.jsx'
 import StudentExamPortal from './StudentExamPortal.jsx'
 import { grades, subjects } from './academic.js'
 import LoadingStatus from './LoadingStatus.jsx'
@@ -1065,6 +1067,7 @@ function QuestionPaperBuilder({ user, role }) {
 
   const accountName = user.displayName || user.email || 'ব্যবহারকারী'
   const accountInitial = user.displayName?.trim().charAt(0) || user.email?.charAt(0)?.toUpperCase() || 'শা'
+  const roleLabel = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Student'
   const questionCount = (value) => isLoadingQuestions
     ? <span className="loading-spinner question-count-spinner" aria-hidden="true" />
     : bengaliNumber(value)
@@ -1084,6 +1087,9 @@ function QuestionPaperBuilder({ user, role }) {
           <ClipboardList size={18} /><span>প্রশ্নপত্র তৈরি</span>
           {selected.length > 0 && <span className="nav-count selected-count">{bengaliNumber(selected.length)}</span>}
         </button>
+        <button type="button" className={`nav-item ${page === 'activities' ? 'active' : ''}`} onClick={() => setPage('activities')}>
+          <Activity size={18} /><span>শিক্ষার্থী activity</span>
+        </button>
         {isAdmin && <button type="button" className={`nav-item admin-nav-item ${page === 'users' ? 'active' : ''}`} aria-label="ব্যবহারকারী ও role পরিচালনা" title="ব্যবহারকারী" onClick={() => setPage('users')}>
           <Shield size={18} /><span>ব্যবহারকারী</span>
         </button>}
@@ -1091,28 +1097,30 @@ function QuestionPaperBuilder({ user, role }) {
         <button className="subject-switch"><span className="subject-dot">{subjectLabel(subject).slice(0, 1)}</span><span><strong>{subjectLabel(subject)}</strong><small>{gradeLabel(grade)}</small></span><ChevronDown size={16} /></button>
         <div className="sidebar-bottom">
           <div className="help-card"><CircleHelp size={17} /><span>Developed By Md. Shohanoor Rahman Shohan</span><ChevronRight size={15} /></div>
-          <div className="profile-row"><div className="avatar">{accountInitial}</div><span><strong>{accountName}</strong><small>{isAdmin ? 'Admin' : 'User'} · Firebase</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
+          <div className="profile-row"><div className="avatar"><span>{accountInitial}</span>{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</div><span><strong>{accountName}</strong><small>{roleLabel} · Firebase</small></span><button type="button" className="icon-button" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
         </div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
-          <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : page === 'users' ? 'ব্যবহারকারী' : 'প্রশ্নপত্র তৈরি'}</strong></div>
-          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'Data Base Connected' : dataMode === 'connecting' ? 'Data Base Connecting' : 'Data Base Connection Failed'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}>{accountInitial}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
+          <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : page === 'users' ? 'ব্যবহারকারী' : page === 'activities' ? 'শিক্ষার্থী activity' : 'প্রশ্নপত্র তৈরি'}</strong></div>
+          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'Data Base Connected' : dataMode === 'connecting' ? 'Data Base Connecting' : 'Data Base Connection Failed'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}><span>{accountInitial}</span>{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
         </header>
 
         <div className="content-area">
-          {page !== 'users' && <div className="context-bar">
+          {page !== 'users' && page !== 'activities' && <div className="context-bar">
             <label><span>শ্রেণি</span><select value={grade} onChange={(event) => changeContext(Number(event.target.value), subject)}>{selectableGrades.map((item) => <option key={item} value={item}>{gradeLabel(item)}</option>)}</select></label>
             <label className="context-subject"><span>বিষয়</span><select value={subject} onChange={(event) => changeContext(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
             <span className="context-hint">{isLoadingQuestions ? 'প্রশ্ন লোড হচ্ছে…' : `${gradeLabel(grade)} · ${subjectLabel(subject)}${grade >= 9 ? ' · শ্রেণি ৯–১০-এর অভিন্ন প্রশ্ন ব্যাংক' : ''}`}</span>
           </div>}
           {busyMessage && <div className="app-activity" aria-busy="true"><LoadingStatus compact label={busyMessage} detail={busyProgress !== null ? 'নির্বাচিত প্রশ্নগুলো main database থেকে মুছে ফেলা হচ্ছে' : undefined} progress={busyProgress ?? undefined} /></div>}
-          {isLoadingQuestions && page !== 'bank' && <div className="data-loading-banner" aria-busy="true"><LoadingStatus compact className="question-loading-status" label="প্রশ্নগুলো লোড হচ্ছে—একটু অপেক্ষা করুন" detail={`${gradeLabel(grade)} · ${subjectLabel(subject)}-এর প্রশ্ন ও ফরম্যাট আনা হচ্ছে`} /></div>}
-          {!isLoadingQuestions && dataMode === 'unavailable' && page !== 'users' && <div className="data-unavailable-banner" role="status"><strong>Server-এর সঙ্গে সংযোগ পাওয়া যায়নি</strong><span>এই account-এর local প্রশ্ন দেখানো হচ্ছে। Main database-এর প্রশ্ন ও settings লোড হয়নি।</span><button type="button" onClick={() => setDataReloadKey((current) => current + 1)}>আবার চেষ্টা করুন</button></div>}
+          {isLoadingQuestions && page !== 'bank' && page !== 'activities' && page !== 'users' && <div className="data-loading-banner" aria-busy="true"><LoadingStatus compact className="question-loading-status" label="প্রশ্নগুলো লোড হচ্ছে—একটু অপেক্ষা করুন" detail={`${gradeLabel(grade)} · ${subjectLabel(subject)}-এর প্রশ্ন ও ফরম্যাট আনা হচ্ছে`} /></div>}
+          {!isLoadingQuestions && dataMode === 'unavailable' && page !== 'users' && page !== 'activities' && <div className="data-unavailable-banner" role="status"><strong>Server-এর সঙ্গে সংযোগ পাওয়া যায়নি</strong><span>এই account-এর local প্রশ্ন দেখানো হচ্ছে। Main database-এর প্রশ্ন ও settings লোড হয়নি।</span><button type="button" onClick={() => setDataReloadKey((current) => current + 1)}>আবার চেষ্টা করুন</button></div>}
           {page === 'users' && isAdmin
             ? <AdminUsersPanel apiUrl={apiUrl} currentUserId={user.uid} />
-            : page === 'bank' ? (
+            : page === 'activities'
+              ? <StudentActivityPanel apiUrl={apiUrl} />
+              : page === 'bank' ? (
             <>
               <section className="page-heading">
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>

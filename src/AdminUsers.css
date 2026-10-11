@@ -27,7 +27,8 @@
 .admin-user-name strong,.admin-user-name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-user-name strong { color: #34453b; font-size: 11px; }
 .admin-user-name small { max-width: 170px; margin-top: 3px; color: #929d96; font-size: 9px; }
-.admin-user-avatar { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border-radius: 50%; background: #eaf4ef; color: #176b55; font-size: 11px; font-weight: 700; }
+.admin-user-avatar { position: relative; display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; overflow: hidden; border-radius: 50%; background: #eaf4ef; color: #176b55; font-size: 11px; font-weight: 700; }
+.admin-user-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .admin-user-status { display: inline-flex; padding: 4px 8px; border-radius: 20px; background: #eaf4ef; color: #28734f; font-size: 10px; }
 .admin-user-status.is-disabled { background: #fbefe7; color: #a45d37; }
 .admin-user-table .question-table { min-width: 760px; }

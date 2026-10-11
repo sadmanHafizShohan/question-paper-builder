@@ -45,6 +45,8 @@
 .student-brand strong { font-size: 16px; }
 .student-brand small { margin-top: 2px; color: #84918a; font-size: 11px; }
 .student-account { gap: 16px; color: #68756e; font-size: 12px; }
+.student-profile-avatar { position: relative; display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; overflow: hidden; border-radius: 50%; background: #e8f4ee; color: #176b55; font-size: 12px; font-weight: 700; }
+.student-profile-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .student-account button,
 .student-refresh {
 	gap: 7px;
@@ -138,6 +140,12 @@
 .student-empty { padding: 14px 0; color: #85918a; font-size: 12px; text-align: center; }
 .student-week-note { color: #89948d; font-size: 10px; text-align: center; }
 .student-error { margin: 0 0 16px; padding: 11px 13px; border: 1px solid #f0cecc; border-radius: 7px; background: #fff6f5; color: #a8423c; font-size: 12px; }
+.student-feedback-list { display: grid; gap: 10px; }
+.student-feedback-item { padding: 12px 14px; border-left: 3px solid #6caa80; border-radius: 5px; background: #f4f9f5; }
+.student-feedback-item strong,.student-feedback-item small { display: block; }
+.student-feedback-item strong { color: #34453b; font-size: 11px; }
+.student-feedback-item small { margin-top: 4px; color: #85918a; font-size: 9px; }
+.student-feedback-item p { margin: 9px 0 0; color: #526159; font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 html[data-theme='dark'] .student-portal { background: #101713; color: #e0e9e3; }
 html[data-theme='dark'] .student-header { border-color: #2a3930; background: #18221c; }
@@ -155,6 +163,7 @@ html[data-theme='dark'] .student-week-note,
 html[data-theme='dark'] .student-teacher-request p { color: #9eaea3; }
 html[data-theme='dark'] .student-panel { border-color: #2a3930; background: #18221c; box-shadow: 0 4px 16px #0003; }
 html[data-theme='dark'] .student-mcq-badge { background: #203b2e; color: #a7d8b4; }
+html[data-theme='dark'] .student-profile-avatar { background: #203b2e; color: #a7d8b4; }
 html[data-theme='dark'] .student-account button,
 html[data-theme='dark'] .student-refresh,
 html[data-theme='dark'] .student-selectors select,
@@ -183,11 +192,16 @@ html[data-theme='dark'] .student-empty { color: #9eaea3; }
 html[data-theme='dark'] .student-leaderboard th { border-color: #35463b; color: #9eaea3; }
 html[data-theme='dark'] .student-leaderboard td { border-color: #2a3930; }
 html[data-theme='dark'] .student-error { border-color: #70443e; background: #352421; color: #f19c91; }
+html[data-theme='dark'] .student-feedback-item { border-color: #528b6a; background: #1b2a20; }
+html[data-theme='dark'] .student-feedback-item strong { color: #e2ebe5; }
+html[data-theme='dark'] .student-feedback-item small { color: #9eaea3; }
+html[data-theme='dark'] .student-feedback-item p { color: #c0cdc4; }
 
 @media (max-width: 620px) {
 	.student-header { min-height: 64px; padding: 0 14px; }
 	.student-account { gap: 8px; }
 	.student-account>span { display: none; }
+	.student-account .student-profile-avatar { display: grid; }
 	.student-content { width: calc(100% - 24px); margin: 22px auto 38px; }
 	.student-welcome { align-items: flex-start; gap: 11px; }
 	.student-welcome-icon { width: 42px; height: 42px; }

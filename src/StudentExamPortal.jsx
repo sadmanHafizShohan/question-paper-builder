@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, GraduationCap, LogOut, Medal, Moon, RotateCcw, Send, Sun } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, GraduationCap, LogOut, Medal, MessageSquareText, Moon, RotateCcw, Send, Sun } from 'lucide-react'
 import { signOut } from '@firebase/auth'
 import authenticatedFetch from './authenticatedFetch.js'
 import LoadingStatus from './LoadingStatus.jsx'
@@ -136,6 +136,9 @@ export default function StudentExamPortal({ user }) {
   const [answerReview, setAnswerReview] = useState(null)
   const [showAnswerReview, setShowAnswerReview] = useState(false)
   const [leaderboard, setLeaderboard] = useState(null)
+  const [studentFeedback, setStudentFeedback] = useState([])
+  const [feedbackLoading, setFeedbackLoading] = useState(true)
+  const [feedbackError, setFeedbackError] = useState('')
   const [teacherRequestStatus, setTeacherRequestStatus] = useState('loading')
   const [teacherRequestBusy, setTeacherRequestBusy] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -210,6 +213,20 @@ export default function StudentExamPortal({ user }) {
       .catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : 'র‍্যাঙ্ক লোড করা যায়নি।') })
     return () => { active = false }
   }, [grade, subject])
+
+  useEffect(() => {
+    let active = true
+    authenticatedFetch(`${apiUrl}/student/feedback`)
+      .then(readResult)
+      .then((data) => {
+        if (active) setStudentFeedback(data.feedback)
+      })
+      .catch((loadError) => {
+        if (active) setFeedbackError(loadError instanceof Error ? loadError.message : 'Teacher-এর feedback লোড করা যায়নি।')
+      })
+      .finally(() => { if (active) setFeedbackLoading(false) })
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -325,7 +342,7 @@ export default function StudentExamPortal({ user }) {
     <main className="student-portal">
       <header className="student-header">
         <div className="student-brand"><span><BookOpen size={21} /></span><div><strong>প্রশ্নঘর</strong><small>শিক্ষার্থী পোর্টাল</small></div></div>
-        <div className="student-account"><span>{accountName}</span><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
+        <div className="student-account"><span className="student-profile-avatar" title={accountName}>{accountName.trim().charAt(0)}{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
       </header>
 
       <div className="student-content">
@@ -422,6 +439,21 @@ export default function StudentExamPortal({ user }) {
               {leaderboard.leaderboard.length === 0 ? <p className="student-empty">এই সপ্তাহে এখনো কোনো ফলাফল নেই। প্রথম পরীক্ষা দিয়ে র‍্যাঙ্ক শুরু করুন!</p> : <div className="student-leaderboard-wrap"><table className="student-leaderboard"><thead><tr><th>র‍্যাঙ্ক</th><th>শিক্ষার্থী</th><th>সেরা স্কোর</th><th>শতাংশ</th></tr></thead><tbody>{leaderboard.leaderboard.map((entry, index) => <tr key={`${entry.rank}-${index}`} className={entry.isCurrentUser ? 'student-own-row' : ''}><td>#{bengaliNumber(entry.rank)}</td><td>{entry.displayName}</td><td><span>{bengaliNumber(entry.score)} / {bengaliNumber(entry.totalQuestions)}</span>{Number.isInteger(entry.elapsedSeconds) && <small className="student-score-time">সময় {examDurationLabel(entry.elapsedSeconds)}</small>}</td><td>{bengaliNumber(entry.percentage)}%</td></tr>)}</tbody></table></div>}
             </>
           ) : <LoadingStatus label="সাপ্তাহিক র‍্যাঙ্ক লোড হচ্ছে…" />}
+        </section>
+        <section className="student-panel student-feedback-panel">
+          <div className="student-panel-heading"><div><h2><MessageSquareText size={19} /> Teacher-এর feedback</h2><p>আপনার পরীক্ষার ফলাফল নিয়ে Admin বা Teacher-এর পরামর্শ</p></div></div>
+          {feedbackLoading
+            ? <LoadingStatus label="Feedback লোড হচ্ছে…" />
+            : feedbackError
+              ? <p className="student-error" role="alert">{feedbackError}</p>
+              : studentFeedback.length === 0
+                ? <p className="student-empty">এখনো কোনো feedback আসেনি।</p>
+                : <div className="student-feedback-list">{studentFeedback.map((entry) => (
+                  <article className="student-feedback-item" key={entry.id}>
+                    <div><strong>{entry.authorName} · {entry.authorRole === 'admin' ? 'Admin' : 'Teacher'}</strong><small>{gradeLabel(entry.grade)} শ্রেণি · {subjectLabel(entry.subject)} · {bengaliNumber(entry.score)} / {bengaliNumber(entry.totalQuestions)} · {new Date(entry.createdAt).toLocaleString('bn-BD')}</small></div>
+                    <p>{entry.message}</p>
+                  </article>
+                ))}</div>}
         </section>
         <p className="student-week-note">র‍্যাঙ্ক নির্বাচিত শ্রেণি ও বিষয়ের জন্য আলাদা। এক সপ্তাহে একজন শিক্ষার্থীর সর্বোচ্চ স্কোর গণনা করা হয়।</p>
       </div>

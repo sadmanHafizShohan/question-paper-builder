@@ -59,6 +59,7 @@ paperSettingsSchema.index({ subject: 1, grade: 1 }, { unique: true })
 const studentExamAttemptSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
   displayName: { type: String, required: true },
+  photoURL: { type: String, default: '' },
   grade: { type: Number, required: true, min: 5, max: 10, index: true },
   subject: { type: String, required: true, index: true },
   chapter: { type: String, default: '' },
@@ -80,6 +81,13 @@ const studentExamAttemptSchema = new mongoose.Schema({
   totalQuestions: { type: Number, min: 1 },
   percentage: { type: Number, min: 0, max: 100 },
   submittedAnswers: { type: [Number], default: undefined },
+  feedback: [{
+    authorId: { type: String, required: true },
+    authorName: { type: String, required: true },
+    authorRole: { type: String, enum: ['admin', 'teacher'], required: true },
+    message: { type: String, required: true, maxlength: 2000 },
+    createdAt: { type: Date, required: true, default: Date.now },
+  }],
   completedAt: { type: Date, index: true },
 }, { timestamps: true })
 studentExamAttemptSchema.index({ status: 1, completedAt: 1, grade: 1, subject: 1 })

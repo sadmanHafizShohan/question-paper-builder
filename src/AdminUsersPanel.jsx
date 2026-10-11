@@ -239,7 +239,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
                 <thead><tr><th>ব্যবহারকারী</th><th>ইমেইল</th><th>স্ট্যাটাস</th><th>Role</th><th>অ্যাকশন</th></tr></thead>
                 <tbody>{users.map((user) => (
                   <tr key={user.uid}>
-                    <td><div className="admin-user-name"><span className="admin-user-avatar">{(user.displayName || user.email || '?').charAt(0).toUpperCase()}</span><span><strong>{user.displayName || 'নাম দেওয়া হয়নি'}</strong><small>{user.uid}</small></span></div></td>
+                    <td><div className="admin-user-name"><span className="admin-user-avatar">{(user.displayName || user.email || '?').charAt(0).toUpperCase()}{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span><strong>{user.displayName || 'নাম দেওয়া হয়নি'}</strong><small>{user.uid}</small></span></div></td>
                     <td>{user.email || 'ইমেইল নেই'}</td>
                     <td><span className={`admin-user-status ${user.disabled ? 'is-disabled' : ''}`}>{user.disabled ? 'নিষ্ক্রিয়' : 'সক্রিয়'}</span></td>
                     <td><select

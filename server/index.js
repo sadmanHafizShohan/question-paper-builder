@@ -63,6 +63,13 @@ function requireStudent(request, response, next) {
   next()
 }
 
+function requireStaff(request, response, next) {
+  if (!['admin', 'teacher'].includes(request.firebaseUser.role)) {
+    return response.status(403).json({ error: 'Teacher or admin role required' })
+  }
+  next()
+}
+
 app.post('/api/auth/student-account', async (request, response, next) => {
   try {
     if (request.firebaseUser.claimRole) {
@@ -229,6 +236,7 @@ app.post('/api/student/exams', requireStudent, async (request, response, next) =
     const attempt = await StudentExamAttempt.create({
       userId: request.firebaseUser.uid,
       displayName,
+      photoURL: account.photoURL ?? '',
       grade,
       subject,
       chapter: chapter ?? '',
@@ -324,6 +332,118 @@ app.post('/api/student/exams/:attemptId/submit', requireStudent, async (request,
       elapsedSeconds,
       rank: ranking.myRank?.rank ?? null,
       correctAnswers: completed.items.map((item) => item.correctOptionIndex),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/student/feedback', requireStudent, async (request, response, next) => {
+  try {
+    const attempts = await StudentExamAttempt.find({
+      userId: request.firebaseUser.uid,
+      'feedback.0': { $exists: true },
+    })
+      .sort({ completedAt: -1, _id: -1 })
+      .limit(100)
+      .select('grade subject chapter score totalQuestions percentage completedAt feedback')
+      .lean()
+    response.json({
+      feedback: attempts.flatMap((attempt) => (attempt.feedback ?? []).map((entry) => ({
+        id: `${String(attempt._id)}-${String(entry._id)}`,
+        grade: attempt.grade,
+        subject: attempt.subject,
+        chapter: attempt.chapter,
+        score: attempt.score,
+        totalQuestions: attempt.totalQuestions,
+        percentage: attempt.percentage,
+        completedAt: attempt.completedAt,
+        authorName: entry.authorName,
+        authorRole: entry.authorRole,
+        message: entry.message,
+        createdAt: entry.createdAt,
+      }))).sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt)),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/staff/student-activities', requireStaff, async (request, response, next) => {
+  try {
+    const offset = Number(request.query.offset ?? 0)
+    if (!Number.isInteger(offset) || offset < 0 || offset > 10000) {
+      return response.status(400).json({ error: 'Activity offset must be between 0 and 10000' })
+    }
+    const pageSize = 50
+    const attempts = await StudentExamAttempt.find({ status: 'completed' })
+      .sort({ completedAt: -1, _id: -1 })
+      .skip(offset)
+      .limit(pageSize + 1)
+      .select('userId displayName photoURL grade subject chapter score totalQuestions percentage durationMinutes createdAt completedAt feedback')
+      .lean()
+    const hasMore = attempts.length > pageSize
+    response.json({
+      activities: attempts.slice(0, pageSize).map((attempt) => ({
+        id: String(attempt._id),
+        userId: attempt.userId,
+        displayName: attempt.displayName,
+        photoURL: attempt.photoURL ?? '',
+        grade: attempt.grade,
+        subject: attempt.subject,
+        chapter: attempt.chapter,
+        score: attempt.score,
+        totalQuestions: attempt.totalQuestions,
+        percentage: attempt.percentage,
+        durationMinutes: attempt.durationMinutes,
+        createdAt: attempt.createdAt,
+        completedAt: attempt.completedAt,
+        feedback: (attempt.feedback ?? []).map((entry) => ({
+          id: String(entry._id),
+          authorName: entry.authorName,
+          authorRole: entry.authorRole,
+          message: entry.message,
+          createdAt: entry.createdAt,
+        })),
+      })),
+      hasMore,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/staff/student-activities/:attemptId/feedback', requireStaff, async (request, response, next) => {
+  try {
+    if (!mongoose.isValidObjectId(request.params.attemptId)) {
+      return response.status(400).json({ error: 'Invalid exam attempt' })
+    }
+    const message = typeof request.body?.message === 'string' ? request.body.message.trim() : ''
+    if (!message || message.length > 2000) {
+      return response.status(400).json({ error: 'Feedback must be between 1 and 2000 characters' })
+    }
+    const account = await firebaseAdminAuth.getUser(request.firebaseUser.uid)
+    const authorName = account.displayName?.trim() || request.firebaseUser.email || 'Teacher'
+    const feedback = {
+      authorId: request.firebaseUser.uid,
+      authorName,
+      authorRole: request.firebaseUser.role,
+      message,
+      createdAt: new Date(),
+    }
+    const attempt = await StudentExamAttempt.findOneAndUpdate(
+      { _id: request.params.attemptId, status: 'completed' },
+      { $push: { feedback } },
+      { new: true },
+    ).select('feedback')
+    if (!attempt) return response.status(404).json({ error: 'Completed student activity not found' })
+    const savedFeedback = attempt.feedback.at(-1)
+    response.status(201).json({
+      id: String(savedFeedback._id),
+      authorName: savedFeedback.authorName,
+      authorRole: savedFeedback.authorRole,
+      message: savedFeedback.message,
+      createdAt: savedFeedback.createdAt,
     })
   } catch (error) {
     next(error)
@@ -459,6 +579,7 @@ app.get('/api/admin/users', requireAdmin, async (_request, response, next) => {
         uid: user.uid,
         email: user.email ?? '',
         displayName: user.displayName ?? '',
+        photoURL: user.photoURL ?? '',
         disabled: user.disabled,
         role: ['admin', 'student', 'teacher'].includes(user.customClaims?.role) ? user.customClaims.role : 'teacher',
         createdAt: user.metadata.creationTime,
