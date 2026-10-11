@@ -135,6 +135,7 @@ async function getStudentLeaderboard(grade, subject, userId) {
       $group: {
         _id: '$userId',
         displayName: { $first: '$displayName' },
+        photoURL: { $first: '$photoURL' },
         score: { $first: '$score' },
         totalQuestions: { $first: '$totalQuestions' },
         percentage: { $first: '$percentage' },
@@ -166,15 +167,30 @@ async function getStudentLeaderboard(grade, subject, userId) {
     }
   })
   const myResult = ranked.find((entry) => entry.userId === userId)
+  const topRanked = ranked.slice(0, 50)
+  const rankedPhotoURLs = new Map(
+    topRanked.filter((entry) => entry.photoURL).map((entry) => [entry.userId, entry.photoURL]),
+  )
+  const missingPhotoUsers = topRanked.filter((entry) => !entry.photoURL)
+  if (missingPhotoUsers.length > 0) {
+    const { users } = await firebaseAdminAuth.getUsers(missingPhotoUsers.map((entry) => ({ uid: entry.userId })))
+    for (const account of users) {
+      if (account.photoURL) rankedPhotoURLs.set(account.uid, account.photoURL)
+    }
+  }
   return {
     weekStart: weekStart.toISOString(),
     weekEnd: weekEnd.toISOString(),
     myRank: myResult
       ? { score: myResult.score, totalQuestions: myResult.totalQuestions, percentage: myResult.percentage, elapsedSeconds: myResult.elapsedSeconds, rank: myResult.rank }
       : null,
-    leaderboard: ranked.slice(0, 50).map((entry) => {
+    leaderboard: topRanked.map((entry) => {
       const { userId: rankedUserId, ...publicEntry } = entry
-      return { ...publicEntry, isCurrentUser: rankedUserId === userId }
+      return {
+        ...publicEntry,
+        photoURL: rankedPhotoURLs.get(rankedUserId) ?? '',
+        isCurrentUser: rankedUserId === userId,
+      }
     }),
   }
 }

@@ -146,6 +146,9 @@ export default function StudentExamPortal({ user }) {
   const [clockNow, setClockNow] = useState(0)
   const [clockOffsetMs, setClockOffsetMs] = useState(0)
   const autoSubmitAttemptId = useRef('')
+  const googlePhotoURL = user.photoURL
+    || user.providerData?.find((provider) => provider.providerId === 'google.com')?.photoURL
+    || ''
 
   const selectedCount = Object.keys(answers).length
   const currentQuestion = attempt?.questions[questionIndex]
@@ -342,7 +345,7 @@ export default function StudentExamPortal({ user }) {
     <main className="student-portal">
       <header className="student-header">
         <div className="student-brand"><span><BookOpen size={21} /></span><div><strong>প্রশ্নঘর</strong><small>শিক্ষার্থী পোর্টাল</small></div></div>
-        <div className="student-account"><span className="student-profile-avatar" title={accountName}>{accountName.trim().charAt(0)}{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
+        <div className="student-account"><span className="student-profile-avatar" title={accountName}>{accountName.trim().charAt(0)}{googlePhotoURL && <img src={googlePhotoURL} alt={`${accountName} profile`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
       </header>
 
       <div className="student-content">
@@ -436,7 +439,7 @@ export default function StudentExamPortal({ user }) {
           {leaderboard ? (
             <>
               <div className="student-my-rank"><span>আপনার সেরা স্কোর</span><strong>{leaderboard.myRank ? `#${bengaliNumber(leaderboard.myRank.rank)}` : 'এখনো র‍্যাঙ্ক নেই'}</strong><small>{leaderboard.myRank ? <>{bengaliNumber(leaderboard.myRank.score)} / {bengaliNumber(leaderboard.myRank.totalQuestions)} · {bengaliNumber(leaderboard.myRank.percentage)}%{Number.isInteger(leaderboard.myRank.elapsedSeconds) && <> · সময় {examDurationLabel(leaderboard.myRank.elapsedSeconds)}</>}</> : 'এই সপ্তাহে পরীক্ষা দিলে এখানে দেখাবে'}</small></div>
-              {leaderboard.leaderboard.length === 0 ? <p className="student-empty">এই সপ্তাহে এখনো কোনো ফলাফল নেই। প্রথম পরীক্ষা দিয়ে র‍্যাঙ্ক শুরু করুন!</p> : <div className="student-leaderboard-wrap"><table className="student-leaderboard"><thead><tr><th>র‍্যাঙ্ক</th><th>শিক্ষার্থী</th><th>সেরা স্কোর</th><th>শতাংশ</th></tr></thead><tbody>{leaderboard.leaderboard.map((entry, index) => <tr key={`${entry.rank}-${index}`} className={entry.isCurrentUser ? 'student-own-row' : ''}><td>#{bengaliNumber(entry.rank)}</td><td>{entry.displayName}</td><td><span>{bengaliNumber(entry.score)} / {bengaliNumber(entry.totalQuestions)}</span>{Number.isInteger(entry.elapsedSeconds) && <small className="student-score-time">সময় {examDurationLabel(entry.elapsedSeconds)}</small>}</td><td>{bengaliNumber(entry.percentage)}%</td></tr>)}</tbody></table></div>}
+              {leaderboard.leaderboard.length === 0 ? <p className="student-empty">এই সপ্তাহে এখনো কোনো ফলাফল নেই। প্রথম পরীক্ষা দিয়ে র‍্যাঙ্ক শুরু করুন!</p> : <div className="student-leaderboard-wrap"><table className="student-leaderboard"><thead><tr><th>র‍্যাঙ্ক</th><th>শিক্ষার্থী</th><th>সেরা স্কোর</th><th>শতাংশ</th></tr></thead><tbody>{leaderboard.leaderboard.map((entry, index) => <tr key={`${entry.rank}-${index}`} className={entry.isCurrentUser ? 'student-own-row' : ''}><td>#{bengaliNumber(entry.rank)}</td><td><span className="student-rank-person"><span className="student-rank-avatar">{(entry.displayName || '?').trim().charAt(0)}{entry.photoURL && <img src={entry.photoURL} alt={`${entry.displayName} profile`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{entry.displayName}</span></span></td><td><span>{bengaliNumber(entry.score)} / {bengaliNumber(entry.totalQuestions)}</span>{Number.isInteger(entry.elapsedSeconds) && <small className="student-score-time">সময় {examDurationLabel(entry.elapsedSeconds)}</small>}</td><td>{bengaliNumber(entry.percentage)}%</td></tr>)}</tbody></table></div>}
             </>
           ) : <LoadingStatus label="সাপ্তাহিক র‍্যাঙ্ক লোড হচ্ছে…" />}
         </section>

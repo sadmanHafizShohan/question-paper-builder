@@ -134,6 +134,9 @@
 .student-leaderboard { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
 .student-leaderboard th { padding: 10px; border-bottom: 1px solid #e6ece7; color: #87928b; font-size: 10px; }
 .student-leaderboard td { padding: 12px 10px; border-bottom: 1px solid #f0f3f0; }
+.student-rank-person { display: inline-flex; align-items: center; gap: 9px; }
+.student-rank-avatar { position: relative; display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; overflow: hidden; border-radius: 50%; background: #e8f4ee; color: #176b55; font-size: 11px; font-weight: 700; }
+.student-rank-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .student-leaderboard td .student-score-time { display: block; margin-top: 3px; color: #85918a; font-size: 10px; font-weight: 400; }
 .student-leaderboard td:first-child { color: #16715d; font-weight: 700; }
 .student-own-row { background: #f1f7f3; font-weight: 700; }
@@ -191,6 +194,7 @@ html[data-theme='dark'] .student-leaderboard td .student-score-time,
 html[data-theme='dark'] .student-empty { color: #9eaea3; }
 html[data-theme='dark'] .student-leaderboard th { border-color: #35463b; color: #9eaea3; }
 html[data-theme='dark'] .student-leaderboard td { border-color: #2a3930; }
+html[data-theme='dark'] .student-rank-avatar { background: #203b2e; color: #a7d8b4; }
 html[data-theme='dark'] .student-error { border-color: #70443e; background: #352421; color: #f19c91; }
 html[data-theme='dark'] .student-feedback-item { border-color: #528b6a; background: #1b2a20; }
 html[data-theme='dark'] .student-feedback-item strong { color: #e2ebe5; }
