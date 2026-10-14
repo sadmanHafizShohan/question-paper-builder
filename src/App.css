@@ -760,6 +760,11 @@ textarea:focus-visible {
 	font-size: 9px;
 }
 
+.chapter-filter-heading>div {
+	display: flex;
+	gap: 3px;
+}
+
 .chapter-filter-option {
 	display: flex;
 	min-height: 32px;
@@ -830,29 +835,41 @@ textarea:focus-visible {
 }
 
 .chapter-random-settings {
-	padding-top: 8px;
-	border-top: 1px solid #edf0ed;
+	display: grid;
+	grid-column: 1 / -1;
+	gap: 8px;
+	padding: 12px;
+	border: 1px solid #e8ede9;
+	border-radius: 6px;
+	background: #fbfcfb;
 }
 
-.chapter-random-settings>summary {
+.chapter-random-heading {
 	display: flex;
 	align-items: center;
+	justify-content: space-between;
 	gap: 6px;
 	color: #28775c;
-	cursor: pointer;
-	list-style: none;
-	font-size: 9px;
+	font-size: 10px;
 	font-weight: 700;
 }
 
-.chapter-random-settings>summary::-webkit-details-marker {
-	display: none;
+.chapter-random-heading strong {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.chapter-random-heading>span {
+	color: #89958d;
+	font-size: 9px;
+	font-weight: 500;
 }
 
 .chapter-random-settings>p {
-	margin: 7px 0;
+	margin: 0;
 	color: #89958d;
-	font-size: 8px;
+	font-size: 9px;
 }
 
 .chapter-random-inputs {
@@ -3871,16 +3888,18 @@ html[data-theme='dark'] .chapter-count-metrics small {
 
 html[data-theme='dark'] .chapter-random-settings {
 	border-color: #35463b;
+	background: #202c24;
 }
 
-html[data-theme='dark'] .chapter-random-settings>summary {
+html[data-theme='dark'] .chapter-random-heading {
 	color: #a7d8b4;
 }
 
 html[data-theme='dark'] .chapter-random-settings>p,
 html[data-theme='dark'] .chapter-random-inputs>label,
 html[data-theme='dark'] .chapter-random-inputs>label small,
-html[data-theme='dark'] .chapter-random-actions {
+html[data-theme='dark'] .chapter-random-actions,
+html[data-theme='dark'] .chapter-random-heading>span {
 	color: #98a99d;
 }
 

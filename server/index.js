@@ -793,42 +793,37 @@ app.get('/api/questions/meta', async (request, response, next) => {
 
 app.post('/api/questions/random', async (request, response, next) => {
   try {
-    const { subject, grade, chapters, excludeIds = [] } = request.body ?? {}
+    const { subject, grade, chapters, counts: requestedCounts, excludeIds = [] } = request.body ?? {}
     const validSubjects = ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies','general-science', 'islam','hindu', 'ict']
     const validTypes = ['mcq', 'short', 'cq', 'long', 'passage', 'true_false', 'fill_in_the_blanks', 'matching', 'rearrange', 'table_completion', 'synonym_antonym']
     if (!validSubjects.includes(subject) || !Number.isInteger(grade) || grade < 5 || grade > 10) {
       return response.status(400).json({ error: 'A valid subject and grade are required' })
     }
-    if (!Array.isArray(chapters) || chapters.length === 0 || chapters.length > 20) {
-      return response.status(400).json({ error: 'Provide between 1 and 20 chapter selections' })
+    if (!Array.isArray(chapters) || chapters.length === 0 || chapters.length > 200
+      || chapters.some((chapter) => typeof chapter !== 'string' || chapter.trim().length === 0 || chapter.length > 120)) {
+      return response.status(400).json({ error: 'Provide between 1 and 200 valid chapter selections' })
+    }
+    const normalizedChapters = [...new Set(chapters.map((chapter) => chapter.trim()))]
+    if (normalizedChapters.length !== chapters.length) {
+      return response.status(400).json({ error: 'Chapter selections must be unique' })
     }
     if (!Array.isArray(excludeIds) || excludeIds.length > 25000 || excludeIds.some((id) => typeof id !== 'string' || !/^[a-f\d]{24}$/i.test(id))) {
       return response.status(400).json({ error: 'Excluded question IDs must be valid MongoDB IDs' })
     }
 
-    let requestedTotal = 0
-    const normalizedChapters = []
-    for (const selection of chapters) {
-      if (!selection || typeof selection.chapter !== 'string' || selection.chapter.trim().length === 0 || selection.chapter.length > 120) {
-        return response.status(400).json({ error: 'Every selection must have a valid chapter' })
-      }
-      if (!selection.counts || typeof selection.counts !== 'object' || Array.isArray(selection.counts)) {
-        return response.status(400).json({ error: 'Every chapter selection must include question type counts' })
-      }
-      const counts = {}
-      for (const [type, count] of Object.entries(selection.counts)) {
-        if (!validTypes.includes(type) || !Number.isInteger(count) || count < 0 || count > 100) {
-          return response.status(400).json({ error: 'Question type counts must be whole numbers from 0 to 100' })
-        }
-        if (count > 0) {
-          counts[type] = count
-          requestedTotal += count
-        }
-      }
-      normalizedChapters.push({ chapter: selection.chapter.trim(), counts })
+    if (!requestedCounts || typeof requestedCounts !== 'object' || Array.isArray(requestedCounts)) {
+      return response.status(400).json({ error: 'Question type counts are required' })
     }
-    if (new Set(normalizedChapters.map(({ chapter }) => chapter)).size !== normalizedChapters.length) {
-      return response.status(400).json({ error: 'Chapter selections must be unique' })
+    const counts = {}
+    let requestedTotal = 0
+    for (const [type, count] of Object.entries(requestedCounts)) {
+      if (!validTypes.includes(type) || !Number.isInteger(count) || count < 0 || count > 100) {
+        return response.status(400).json({ error: 'Question type counts must be whole numbers from 0 to 100' })
+      }
+      if (count > 0) {
+        counts[type] = count
+        requestedTotal += count
+      }
     }
     if (requestedTotal < 1 || requestedTotal > 200) {
       return response.status(400).json({ error: 'Request between 1 and 200 random questions' })
@@ -836,26 +831,22 @@ app.post('/api/questions/random', async (request, response, next) => {
 
     const grades = questionBankGrade(grade) === 9 ? [9, 10] : [questionBankGrade(grade)]
     const excludedObjectIds = excludeIds.map((id) => new mongoose.Types.ObjectId(id))
-    const questions = []
-    for (const { chapter, counts } of normalizedChapters) {
-      const facets = Object.fromEntries(Object.entries(counts).map(([type, count]) => [
-        `type_${type}`,
-        [{ $match: { type } }, { $sample: { size: count } }],
-      ]))
-      if (Object.keys(facets).length === 0) continue
-      const [sampledByType = {}] = await Question.aggregate([
-        {
-          $match: {
-            subject,
-            grade: { $in: grades },
-            chapter,
-            ...(excludedObjectIds.length > 0 ? { _id: { $nin: excludedObjectIds } } : {}),
-          },
+    const facets = Object.fromEntries(Object.entries(counts).map(([type, count]) => [
+      `type_${type}`,
+      [{ $match: { type } }, { $sample: { size: count } }],
+    ]))
+    const [sampledByType = {}] = await Question.aggregate([
+      {
+        $match: {
+          subject,
+          grade: { $in: grades },
+          chapter: { $in: normalizedChapters },
+          ...(excludedObjectIds.length > 0 ? { _id: { $nin: excludedObjectIds } } : {}),
         },
-        { $facet: facets },
-      ])
-      Object.values(sampledByType).forEach((sampledQuestions) => questions.push(...sampledQuestions))
-    }
+      },
+      { $facet: facets },
+    ])
+    const questions = Object.values(sampledByType).flat()
     response.json({ questions })
   } catch (error) {
     next(error)
