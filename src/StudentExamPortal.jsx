@@ -342,26 +342,28 @@ export default function StudentExamPortal({ user }) {
   const accountName = user.displayName || user.email || 'শিক্ষার্থী'
 
   return (
-    <main className="student-portal">
-      <header className="student-header">
+    <main className={`student-portal${attempt ? ' exam-active' : ''}`}>
+      {!attempt && <header className="student-header">
         <div className="student-brand"><span><BookOpen size={21} /></span><div><strong>প্রশ্নঘর</strong><small>শিক্ষার্থী পোর্টাল</small></div></div>
         <div className="student-account"><span className="student-profile-avatar" title={accountName}>{accountName.trim().charAt(0)}{googlePhotoURL && <img src={googlePhotoURL} alt={`${accountName} profile`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
-      </header>
+      </header>}
 
-      <div className="student-content">
-        <section className="student-welcome">
+      <div className={`student-content${attempt ? ' student-content-exam-active' : ''}`}>
+        {!attempt && <>
+          <section className="student-welcome">
           <span className="student-welcome-icon"><GraduationCap size={25} /></span>
           <div><p className="student-eyebrow">শিক্ষার্থীদের জন্য</p><h1>MCQ পরীক্ষা ও সাপ্তাহিক র‍্যাঙ্ক</h1><p>শ্রেণি ও বিষয় বেছে পরীক্ষা দিন। প্রতি সপ্তাহে সোমবার র‍্যাঙ্ক নতুন করে শুরু হয়।</p></div>
-        </section>
+          </section>
 
-        <section className="student-teacher-request" aria-label="Teacher হওয়ার অনুরোধ">
+          <section className="student-teacher-request" aria-label="Teacher হওয়ার অনুরোধ">
           <div><strong>Teacher account-এ কী করতে পারবেন?</strong><p>Shared question bank দেখতে পারবেন; নিজের প্রশ্ন যোগ, সম্পাদনা/মুছুন, Excel import, প্রশ্নপত্র তৈরি ও PDF/প্রিন্ট করতে পারবেন। নিজের পরিবর্তন এই browser-এ সংরক্ষিত থাকবে।</p></div>
           {teacherRequestStatus === 'pending'
             ? <span className="student-request-pending">অনুরোধ অপেক্ষমাণ</span>
             : <button type="button" onClick={requestTeacherRole} disabled={teacherRequestBusy || teacherRequestStatus === 'loading'}>
               {teacherRequestBusy ? 'পাঠানো হচ্ছে…' : 'Teacher হওয়ার অনুরোধ'}
             </button>}
-        </section>
+          </section>
+        </>}
 
         <section className="student-panel student-exam-panel">
           <div className="student-panel-heading"><div><h2>{attempt ? 'পরীক্ষা চলছে' : 'পরীক্ষা শুরু করুন'}</h2><p>{attempt ? 'প্রতিটি প্রশ্নের একটি উত্তর নির্বাচন করুন।' : 'নির্বাচিত বিষয় থেকে সর্বোচ্চ ২০টি MCQ প্রশ্ন আসবে।'}</p></div><span className="student-mcq-badge">MCQ</span></div>
@@ -407,8 +409,10 @@ export default function StudentExamPortal({ user }) {
               </div>
             </div>
           )}
+          {attempt && error && <p className="student-error" role="alert">{error}</p>}
         </section>
 
+        {!attempt && <>
         {result && <section className="student-result" role="status"><CheckCircle2 size={24} /><div><h2>পরীক্ষা সম্পন্ন</h2><p>আপনার স্কোর <strong>{bengaliNumber(result.score)} / {bengaliNumber(result.totalQuestions)}</strong> ({bengaliNumber(result.percentage)}%) · এই সপ্তাহে আপনার র‍্যাঙ্ক <strong>{result.rank ? bengaliNumber(result.rank) : '—'}</strong></p>{Number.isInteger(result.elapsedSeconds) && <p>পরীক্ষা দিতে সময় লেগেছে <strong>{examDurationLabel(result.elapsedSeconds)}</strong></p>}</div><button type="button" onClick={() => setShowAnswerReview((visible) => !visible)}>{showAnswerReview ? 'উত্তর লুকান' : 'সঠিক উত্তর দেখুন'}</button><button type="button" onClick={startExam} disabled={busy}><RotateCcw size={15} /> আবার পরীক্ষা দিন</button></section>}
 
         {result && showAnswerReview && answerReview && <section className="student-panel student-answer-review" aria-label="পরীক্ষার সঠিক উত্তর">
@@ -459,6 +463,7 @@ export default function StudentExamPortal({ user }) {
                 ))}</div>}
         </section>
         <p className="student-week-note">র‍্যাঙ্ক নির্বাচিত শ্রেণি ও বিষয়ের জন্য আলাদা। এক সপ্তাহে একজন শিক্ষার্থীর সর্বোচ্চ স্কোর গণনা করা হয়।</p>
+        </>}
       </div>
     </main>
   )

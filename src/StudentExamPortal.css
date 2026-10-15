@@ -201,6 +201,26 @@ html[data-theme='dark'] .student-feedback-item strong { color: #e2ebe5; }
 html[data-theme='dark'] .student-feedback-item small { color: #9eaea3; }
 html[data-theme='dark'] .student-feedback-item p { color: #c0cdc4; }
 
+.student-portal.exam-active {
+	min-height: 100vh;
+	min-height: 100svh;
+}
+
+.student-content-exam-active {
+	display: grid;
+	width: min(1180px, calc(100% - 40px));
+	min-height: 100vh;
+	min-height: 100svh;
+	align-content: center;
+	margin: 0 auto;
+	padding: clamp(16px, 4vh, 44px) 0;
+}
+
+.student-content-exam-active .student-exam-panel {
+	width: 100%;
+	margin: 0;
+}
+
 @media (max-width: 620px) {
 	.student-header { min-height: 64px; padding: 0 14px; }
 	.student-account { gap: 8px; }
@@ -223,4 +243,5 @@ html[data-theme='dark'] .student-feedback-item p { color: #c0cdc4; }
 	.student-exam-actions { align-items: flex-start; flex-direction: column; }
 	.student-teacher-request { align-items: flex-start; flex-direction: column; }
 	.student-teacher-request button { width: 100%; }
+	.student-content-exam-active { width: calc(100% - 24px); }
 }
