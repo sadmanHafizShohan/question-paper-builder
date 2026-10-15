@@ -75,3 +75,12 @@ html[data-theme='dark'] .admin-action-delete:hover:not(:disabled) { border-color
 	.admin-user-summary > div { padding: 11px; }
 	.admin-user-table .question-table { min-width: 760px; }
 }
+
+@media (max-width: 460px) {
+	.admin-user-summary { grid-template-columns: minmax(0, 1fr); }
+	.admin-user-summary > div,
+	.admin-teacher-request > div { min-width: 0; }
+	.admin-teacher-request { align-items: stretch; flex-direction: column; }
+	.admin-teacher-request > div { overflow-wrap: anywhere; }
+	.admin-teacher-request button { width: 100%; }
+}

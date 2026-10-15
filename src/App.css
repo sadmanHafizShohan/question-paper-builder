@@ -5380,8 +5380,14 @@ html[data-theme='dark'] .bank-create-paper-button {
 		position: fixed;
 		inset: 0 auto 0 0;
 		z-index: 51;
+		display: flex;
 		width: min(280px, calc(100vw - 56px));
 		height: 100dvh;
+		align-items: stretch;
+		flex-direction: column;
+		justify-content: flex-start;
+		overflow-y: auto;
+		padding: 28px 18px 18px;
 		transform: translateX(-105%);
 		transition: transform .22s ease;
 		box-shadow: 12px 0 36px rgb(24 8 56 / 22%);
@@ -5389,6 +5395,40 @@ html[data-theme='dark'] .bank-create-paper-button {
 
 	.sidebar.sidebar-open {
 		transform: translateX(0);
+	}
+
+	.sidebar .brand {
+		margin: 0 4px 42px;
+	}
+
+	.sidebar .brand small,
+	.sidebar .side-label {
+		display: block;
+	}
+
+	.sidebar .subject-switch {
+		display: flex;
+	}
+
+	.sidebar .sidebar-bottom {
+		display: block;
+		margin-top: auto;
+	}
+
+	.sidebar .nav-item {
+		width: 100%;
+		gap: 12px;
+		margin: 7px 0 0;
+		padding: 12px 14px;
+		font-size: 16px;
+	}
+
+	.sidebar .nav-item .nav-count {
+		display: inline;
+	}
+
+	.sidebar .admin-nav-item > span:nth-child(2) {
+		display: inline;
 	}
 
 	.sidebar-backdrop {
