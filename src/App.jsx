@@ -62,6 +62,7 @@ const questionTypes = [
   { id: 'cq', label: 'সৃজনশীল', labelBn: 'সৃজনশীল প্রশ্ন', labelEn: 'Creative Questions', headingBn: 'সৃজনশীল প্রশ্ন', headingEn: 'Creative Questions' },
   { id: 'long', label: 'বর্ণনামূলক', labelBn: 'বর্ণনামূলক প্রশ্ন', labelEn: 'Writing', headingBn: 'বর্ণনামূলক প্রশ্ন', headingEn: 'Writing' },
 ]
+const chapterCountTypeLabels = { mcq: 'MCQ', cq: 'CQ', short: 'SQ', long: 'বর্ণনামূলক' }
 const builtInFigures = ['triangle', 'circle', 'rectangle']
 const createSetCode = () => `SET-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 const isHttpImageUrl = (value) => {
@@ -525,16 +526,11 @@ function QuestionPaperBuilder({ user, role }) {
     return counts
   }, [questionMeta.chapterCounts, localForContext])
   const totalQuestionCount = questionMeta.total + localForContext.length
-  const questionTypeCount = new Set([...Object.keys(questionMeta.typeCounts), ...localForContext.map((question) => question.type)]).size
   const singleSelectedChapterCounts = selectedChapters.length === 1
     ? chapterQuestionCounts.get(selectedChapters[0]) ?? { total: 0, typeCounts: {} }
     : null
   const selectedQuestions = questions.filter((question) => selected.includes(question.id))
   const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
-  const configuredRandomTotal = questionTypes.reduce(
-    (sum, type) => sum + (Number(randomQuotas[type.id]) || 0),
-    0,
-  )
   const selectedChapterTypeCounts = questionTypes.reduce((counts, type) => {
     counts[type.id] = selectedChapters.reduce(
       (sum, chapter) => sum + (chapterQuestionCounts.get(chapter)?.typeCounts[type.id] ?? 0),
@@ -542,6 +538,29 @@ function QuestionPaperBuilder({ user, role }) {
     )
     return counts
   }, {})
+  const allQuestionTypeCounts = questionTypes.reduce((counts, type) => {
+    counts[type.id] = (questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length
+    return counts
+  }, {})
+  const questionTypeCounts = questionTypes.reduce((counts, type) => {
+    counts[type.id] = selectedChapters.length
+      ? selectedChapterTypeCounts[type.id]
+      : allQuestionTypeCounts[type.id]
+    return counts
+  }, {})
+  const availableQuestionTypes = questionTypes.filter((type) => questionTypeCounts[type.id] > 0)
+  const activeTypeCount = questionTypeCounts[activeType] ?? 0
+  const questionTypeCount = questionTypes.filter((type) => allQuestionTypeCounts[type.id] > 0).length
+  const configuredRandomTotal = availableQuestionTypes.reduce(
+    (sum, type) => sum + (Number(randomQuotas[type.id]) || 0),
+    0,
+  )
+
+  useEffect(() => {
+    if (!isLoadingQuestions && dataMode !== 'connecting' && activeType !== 'all' && activeTypeCount === 0) {
+      setActiveType('all')
+    }
+  }, [activeType, activeTypeCount, dataMode, isLoadingQuestions])
 
   async function refreshQuestionMeta() {
     const requestedContext = { grade, subject }
@@ -760,7 +779,7 @@ function QuestionPaperBuilder({ user, role }) {
   }
 
   async function selectRandomQuestions() {
-    const hasInvalidQuota = questionTypes.some((type) => {
+    const hasInvalidQuota = availableQuestionTypes.some((type) => {
       const value = randomQuotas[type.id]
       return value !== undefined && value !== '' && (!Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > 100)
     })
@@ -768,7 +787,7 @@ function QuestionPaperBuilder({ user, role }) {
       setNotice('প্রতিটি ধরনের প্রশ্নসংখ্যা ০ থেকে ১০০-এর মধ্যে সঠিক পূর্ণসংখ্যা দিন')
       return
     }
-    const counts = Object.fromEntries(questionTypes
+    const counts = Object.fromEntries(availableQuestionTypes
       .map((type) => [type.id, Number(randomQuotas[type.id] || 0)])
       .filter(([, count]) => count > 0))
     const requestedTotal = Object.values(counts).reduce((sum, count) => sum + count, 0)
@@ -1245,10 +1264,12 @@ function QuestionPaperBuilder({ user, role }) {
                       <strong>{chapter}</strong>
                       <div className="chapter-count-metrics">
                         <span><small>মোট</small><b>{bengaliNumber(counts.total)}</b></span>
-                        <span><small>MCQ</small><b>{bengaliNumber(counts.typeCounts.mcq ?? 0)}</b></span>
-                        <span><small>CQ</small><b>{bengaliNumber(counts.typeCounts.cq ?? 0)}</b></span>
-                        <span><small>SQ</small><b>{bengaliNumber(counts.typeCounts.short ?? 0)}</b></span>
-                        <span><small>বর্ণনামূলক</small><b>{bengaliNumber(counts.typeCounts.long ?? 0)}</b></span>
+                        {questionTypes.filter((type) => (counts.typeCounts[type.id] ?? 0) > 0).map((type) => (
+                          <span key={type.id}>
+                            <small>{chapterCountTypeLabels[type.id] ?? typeLabel(type.id, subject)}</small>
+                            <b>{bengaliNumber(counts.typeCounts[type.id])}</b>
+                          </span>
+                        ))}
                       </div>
                     </section>
                   })}
@@ -1259,7 +1280,7 @@ function QuestionPaperBuilder({ user, role }) {
                     </div>
                     <p>সব নির্বাচিত অধ্যায় মিলিয়ে প্রতিটি ধরন থেকে কতটি প্রশ্ন নেবেন সেট করুন। প্রতিটি ধরনে সর্বোচ্চ ১০০টি।</p>
                     <div className="chapter-random-inputs">
-                      {questionTypes.map((type) => (
+                      {availableQuestionTypes.map((type) => (
                         <label key={type.id}>
                           <span>{typeLabel(type.id, subject)} <small>({bengaliNumber(selectedChapterTypeCounts[type.id] ?? 0)}টি আছে)</small></span>
                           <input
@@ -1289,10 +1310,8 @@ function QuestionPaperBuilder({ user, role }) {
                   {[
                     ...['mcq', 'short', 'cq', 'long'].map((id) => questionTypes.find((type) => type.id === id)).filter(Boolean),
                     ...questionTypes.filter((type) => !['mcq', 'short', 'cq', 'long'].includes(type.id)),
-                  ].map((type) => {
-                    const typeCount = singleSelectedChapterCounts
-                      ? singleSelectedChapterCounts.typeCounts[type.id] ?? 0
-                      : (questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length
+                  ].filter((type) => questionTypeCounts[type.id] > 0).map((type) => {
+                    const typeCount = questionTypeCounts[type.id]
                     return <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{typeLabel(type.id, subject)}{selectedChapters.length < 2 && <span>{questionCount(typeCount)}</span>}</button>
                   })}
                 </div>
