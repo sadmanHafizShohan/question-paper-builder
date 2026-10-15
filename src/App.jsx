@@ -1300,14 +1300,17 @@ function QuestionPaperBuilder({ user, role }) {
                   <table className="question-table">
                     <thead><tr><th className="check-column"><input type="checkbox" checked={filteredQuestions.length > 0 && filteredQuestions.every((question) => selected.includes(question.id))} onChange={toggleAllVisible} aria-label="সব দৃশ্যমান প্রশ্ন নির্বাচন" /></th><th>প্রশ্ন</th><th>অধ্যায়</th><th>ধরন</th><th>নম্বর</th><th aria-label="অ্যাকশন" /></tr></thead>
                     <tbody>{filteredQuestions.map((question, index) => (
-                      <tr key={question.id} className={selected.includes(question.id) ? 'row-selected' : ''}>
-                        <td className="check-column"><input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} aria-label="প্রশ্ন নির্বাচন" /></td>
-                        <td><div className="question-cell"><span className="row-number">{bengaliNumber(index + 1).padStart(2, '০')}</span><span className="question-copy"><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong>{question.type === 'mcq' && <small>{question.statements?.length ? `${question.statements.map((statement, statementIndex) => `${statementLabels[statementIndex] ?? bengaliNumber(statementIndex + 1)}. ${statement}`).join(' · ')} ${question.statementQuestion ?? ''} ${question.options.join(' · ')}` : question.options.join(' · ')}</small>}</span></div></td>
-                        <td><span className="chapter-pill">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></td>
-                        <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type, subject)}</span></td>
-                        <td className="marks-cell">{bengaliNumber(question.marks)}</td>
-                        <td>{(isAdmin || question.isLocal) && <div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => runWithActivity('প্রশ্ন মুছে ফেলা হচ্ছে…', () => deleteQuestion(question))}><Trash2 size={15} /></button></div>}</td>
-                      </tr>
+                      <Fragment key={question.id}>
+                        <tr className={selected.includes(question.id) ? 'row-selected' : ''}>
+                          <td className="check-column"><input type="checkbox" checked={selected.includes(question.id)} onChange={() => toggleSelected(question.id)} aria-label="প্রশ্ন নির্বাচন" /></td>
+                          <td><div className="question-cell"><span className="row-number">{bengaliNumber(index + 1).padStart(2, '০')}</span><span className="question-copy"><strong><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></strong></span></div></td>
+                          <td><span className="chapter-pill">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></td>
+                          <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type, subject)}</span></td>
+                          <td className="marks-cell">{bengaliNumber(question.marks)}</td>
+                          <td>{(isAdmin || question.isLocal) && <div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => runWithActivity('প্রশ্ন মুছে ফেলা হচ্ছে…', () => deleteQuestion(question))}><Trash2 size={15} /></button></div>}</td>
+                        </tr>
+                        <tr className="question-preview-row"><td colSpan={6}><QuestionBankPreview id={`question-preview-${question.id}`} question={question} subject={subject} number={index + 1} /></td></tr>
+                      </Fragment>
                     ))}</tbody>
                   </table>
                   {filteredQuestions.length === 0 && !isLoadingQuestions && <div className="empty-state"><Search size={22} /><strong>{dataMode === 'unavailable' ? 'MongoDB সংযোগ নেই' : 'কোনো প্রশ্ন পাওয়া যায়নি'}</strong><span>{dataMode === 'unavailable' ? 'MongoDB চালু হলে এই শ্রেণি ও বিষয়ের প্রশ্ন লোড হবে।' : 'অন্য শব্দ বা অধ্যায় দিয়ে খুঁজে দেখুন।'}</span></div>}
@@ -2268,6 +2271,72 @@ function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
       })}
       {equation && !hasEquationMarker && <MathFormula display displayMode value={normalizeMathValue(equation)} />}
     </Fragment>
+  )
+}
+
+function QuestionBankPreview({ id, question, subject, number }) {
+  const answer = question.answer ?? ''
+  const questionNumber = subject.startsWith('english-') ? String(number) : bengaliNumber(number)
+
+  return (
+    <div id={id} className="bank-question-preview">
+      <article className="bank-question-preview-paper">
+        <header className="bank-question-preview-meta">
+          <span>{typeLabel(question.type, subject)}</span>
+          <span>{bengaliNumber(question.marks)} নম্বর</span>
+        </header>
+        <div className="bank-question-preview-prompt">
+          <span className="bank-question-preview-number">{questionNumber}.</span>
+          <div><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></div>
+        </div>
+        {question.figure && <QuestionFigure figure={question.figure} />}
+        {question.type === 'mcq' && question.statements?.length > 0 && (
+          <div className="paper-statement-body">
+            <div className="paper-statements">
+              {question.statements.map((statement, index) => (
+                <div key={`${question.id}-preview-statement-${index}`}>
+                  <span>{statementLabels[index] ?? bengaliNumber(index + 1)}.</span>
+                  <span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span>
+                </div>
+              ))}
+            </div>
+            {question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}
+          </div>
+        )}
+        {question.type === 'mcq' && (
+          <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>
+            {(question.options ?? []).map((option, index) => {
+              const optionText = option ?? ''
+              const label = optionLabelsFor(subject)[index] ?? bengaliNumber(index + 1)
+              const isMathOption = subject === 'math' && isMathExpression(optionText) && !optionText.includes(equationMarker) && !optionText.includes('$') && !optionText.includes('\\')
+              return (
+                <div className="paper-option" key={`${question.id}-preview-option-${index}`}>
+                  <span className="paper-option-label option-label-period">{`${label}.`}</span>
+                  {optionText && (isMathOption
+                    ? <MathFormula display value={optionText} />
+                    : <QuestionPrompt prompt={optionText} equation={question.optionEquations?.[index]} inlineEquations={question.optionInlineEquations?.[index]} />)}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </article>
+      <section className={`bank-question-preview-answer${answer || question.answerEquation ? '' : ' is-missing'}`} aria-label="প্রশ্নের উত্তর">
+        <strong>উত্তর</strong>
+        {answer || question.answerEquation
+          ? <div>
+              {answer && (question.type === 'cq'
+                ? <CreativeQuestionAnswer answer={answer} inlineEquations={question.inlineAnswerEquations} />
+                : <QuestionPrompt
+                    prompt={answer}
+                    equation={question.type === 'short' && answer.split(equationMarker).length === 2 ? question.answerEquation : ''}
+                    inlineEquations={question.inlineAnswerEquations}
+                  />)}
+              {question.answerEquation && !(question.type === 'short' && answer.split(equationMarker).length === 2) && <MathFormula display value={question.answerEquation} />}
+            </div>
+          : <span>এই প্রশ্নের উত্তর সংরক্ষিত নেই</span>}
+      </section>
+    </div>
   )
 }
 
