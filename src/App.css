@@ -1900,11 +1900,18 @@ input[type='checkbox'] {
 	margin: 0;
 }
 
-.chapter-merge-modal .modal-footer {
+.chapter-merge-modal .modal-footer,
+.chapter-rename-modal .modal-footer {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 	padding: 0 20px 18px;
+}
+
+.chapter-rename-hint {
+	margin: -4px 0 0;
+	color: #89958d;
+	font-size: 9px;
 }
 
 .bulk-import-modal {
@@ -3883,6 +3890,10 @@ html[data-theme='dark'] .chapter-count-metrics b {
 }
 
 html[data-theme='dark'] .chapter-count-metrics small {
+	color: #98a99d;
+}
+
+html[data-theme='dark'] .chapter-rename-hint {
 	color: #98a99d;
 }
 

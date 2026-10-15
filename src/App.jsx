@@ -234,9 +234,12 @@ function QuestionPaperBuilder({ user, role }) {
   const [showEditor, setShowEditor] = useState(false)
   const [showImporter, setShowImporter] = useState(false)
   const [showChapterMerger, setShowChapterMerger] = useState(false)
+  const [showChapterRenamer, setShowChapterRenamer] = useState(false)
   const [mergeFirstChapter, setMergeFirstChapter] = useState('')
   const [mergeSecondChapter, setMergeSecondChapter] = useState('')
   const [mergedChapterName, setMergedChapterName] = useState('')
+  const [chapterToRename, setChapterToRename] = useState('')
+  const [renamedChapterName, setRenamedChapterName] = useState('')
   const [showDuplicateDetector, setShowDuplicateDetector] = useState(false)
   const [editorResetKey, setEditorResetKey] = useState(0)
   const [showPreview, setShowPreview] = useState(() => Boolean(workspaceState.showPreview && workspaceState.selected?.length))
@@ -555,6 +558,87 @@ function QuestionPaperBuilder({ user, role }) {
     setMergeSecondChapter(mergeableChapters[1] ?? '')
     setMergedChapterName('')
     setShowChapterMerger(true)
+  }
+
+  function openChapterRenamer() {
+    setChapterToRename(mergeableChapters[0] ?? '')
+    setRenamedChapterName('')
+    setShowChapterRenamer(true)
+  }
+
+  async function renameChapter() {
+    const sourceChapter = chapterToRename
+    const targetChapter = renamedChapterName.trim()
+    if (!sourceChapter || !mergeableChapters.includes(sourceChapter)) {
+      setNotice('নাম পরিবর্তনের জন্য একটি বৈধ অধ্যায় নির্বাচন করুন')
+      return
+    }
+    if (!targetChapter || targetChapter.length > 120) {
+      setNotice('নতুন অধ্যায়ের নাম ১ থেকে ১২০ অক্ষরের মধ্যে দিন')
+      return
+    }
+    if (targetChapter === sourceChapter) {
+      setNotice('নতুন নামটি বর্তমান অধ্যায়ের নামের থেকে আলাদা হতে হবে')
+      return
+    }
+    if (mergeableChapters.includes(targetChapter)) {
+      setNotice('এই নামে একটি অধ্যায় আগে থেকেই আছে; মার্জ করতে “অধ্যায় মার্জ” ব্যবহার করুন')
+      return
+    }
+
+    try {
+      await runWithActivity('অধ্যায়ের নাম পরিবর্তন করা হচ্ছে…', async () => {
+        let updatedCount
+        if (isAdmin) {
+          if (dataMode !== 'mongo') throw new Error('MongoDB সংযোগ ছাড়া main database-এর অধ্যায়ের নাম পরিবর্তন করা যাবে না')
+          const response = await authenticatedFetch(`${apiUrl}/questions/rename-chapter`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              subject,
+              grade: questionBankGrade(grade),
+              sourceChapter,
+              targetChapter,
+            }),
+          })
+          let result = null
+          try {
+            result = await response.json()
+          } catch {
+            if (response.ok) throw new Error('সার্ভার থেকে নাম পরিবর্তন হওয়া প্রশ্নের তথ্য পাওয়া যায়নি')
+          }
+          if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${response.status} ত্রুটি এসেছে`)
+          updatedCount = result.updatedCount
+        } else {
+          const matchingQuestions = localQuestions.filter((question) => question.grade === grade
+            && question.subject === subject
+            && question.chapter === sourceChapter)
+          if (matchingQuestions.length === 0) throw new Error('নির্বাচিত অধ্যায়ে এই ডিভাইসের কোনো প্রশ্ন পাওয়া যায়নি')
+          const updatedIds = new Set(matchingQuestions.map((question) => question.id))
+          const nextLocalQuestions = localQuestions.map((question) => updatedIds.has(question.id)
+            ? { ...question, chapter: targetChapter }
+            : question)
+          if (!saveLocalQuestions(nextLocalQuestions)) throw new Error('এই ডিভাইসে পরিবর্তন সংরক্ষণ করা যায়নি')
+          updatedCount = matchingQuestions.length
+        }
+
+        setQuestions((current) => current.map((question) => question.chapter === sourceChapter
+          && (isAdmin ? !question.isLocal : question.isLocal)
+          && question.subject === subject
+          && (isAdmin
+            ? question.grade === questionBankGrade(grade) || (grade >= 9 && question.grade === 10)
+            : question.grade === grade)
+          ? { ...question, chapter: targetChapter }
+          : question))
+        setSelectedChapters((current) => current.map((chapter) => chapter === sourceChapter ? targetChapter : chapter))
+        const metadataUpdated = !isAdmin || await refreshQuestionMeta()
+        setShowChapterRenamer(false)
+        setNotice(`${bengaliNumber(updatedCount)}টি প্রশ্নের অধ্যায় “${sourceChapter}” থেকে “${targetChapter}” করা হয়েছে${metadataUpdated ? '' : '; তবে অধ্যায়ের তালিকা হালনাগাদ হয়নি'}`)
+      })
+    } catch (error) {
+      console.error('Could not rename chapter', error)
+      setNotice(error instanceof Error ? `অধ্যায়ের নাম পরিবর্তন হয়নি: ${error.message}` : 'অধ্যায়ের নাম পরিবর্তন হয়নি; আবার চেষ্টা করুন')
+    }
   }
 
   async function mergeChapters() {
@@ -1124,6 +1208,7 @@ function QuestionPaperBuilder({ user, role }) {
                 <div className="page-heading-actions">
                   {isAdmin && <button className="quiet-button" onClick={() => setShowDuplicateDetector(true)}><CopyX size={16} /> ডুপ্লিকেট খুঁজুন</button>}
                   {mergeableChapters.length > 1 && <button className="quiet-button" disabled={Boolean(busyMessage) || (isAdmin && dataMode !== 'mongo')} onClick={openChapterMerger}><GitMerge size={16} /> অধ্যায় মার্জ</button>}
+                  {mergeableChapters.length > 0 && <button className="quiet-button" disabled={Boolean(busyMessage) || (isAdmin && dataMode !== 'mongo')} onClick={openChapterRenamer}><Pencil size={15} /> অধ্যায়ের নাম বদলান</button>}
                   <button className="quiet-button" onClick={() => setShowImporter(true)}><FileSpreadsheet size={16} /> Excel ইমপোর্ট {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
                   <button className="primary-button" onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
                 </div>
@@ -1332,6 +1417,27 @@ function QuestionPaperBuilder({ user, role }) {
             <div className="modal-footer">
               <button type="button" className="quiet-button" disabled={Boolean(busyMessage)} onClick={() => setShowChapterMerger(false)}>বাতিল</button>
               <button type="submit" className="primary-button" disabled={Boolean(busyMessage) || mergeableChapters.length < 2 || !mergedChapterName.trim() || mergeFirstChapter === mergeSecondChapter}><GitMerge size={15} /> মার্জ করুন</button>
+            </div>
+          </form>
+        </section>
+      </div>}
+      {showChapterRenamer && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyMessage) setShowChapterRenamer(false) }}>
+        <section className="question-modal chapter-rename-modal" role="dialog" aria-modal="true" aria-labelledby="chapter-rename-title">
+          <div className="modal-heading">
+            <div><span className="modal-icon"><Pencil size={17} /></span><div><h2 id="chapter-rename-title">অধ্যায়ের নাম পরিবর্তন</h2><p>নির্বাচিত অধ্যায়ের সব প্রশ্নে নতুন নাম প্রয়োগ হবে</p></div></div>
+            <button type="button" className="icon-button" aria-label="বন্ধ করুন" disabled={Boolean(busyMessage)} onClick={() => setShowChapterRenamer(false)}><X size={17} /></button>
+          </div>
+          <form onSubmit={(event) => { event.preventDefault(); void renameChapter() }}>
+            <div className="modal-body chapter-merge-fields">
+              <label className="field-label"><span>যে অধ্যায়ের নাম বদলাবেন</span><select value={chapterToRename} onChange={(event) => setChapterToRename(event.target.value)} required>
+                {mergeableChapters.map((chapter) => <option key={chapter} value={chapter}>{chapter}</option>)}
+              </select></label>
+              <label className="field-label"><span>নতুন অধ্যায়ের নাম</span><input autoFocus maxLength={120} value={renamedChapterName} onChange={(event) => setRenamedChapterName(event.target.value)} placeholder="নতুন অধ্যায়ের নাম লিখুন" required /></label>
+              <p className="chapter-rename-hint">আগে থেকে থাকা অধ্যায়ের নাম দিলে প্রশ্নগুলো মার্জ হয়ে যেতে পারে। মার্জ করতে “অধ্যায় মার্জ” ব্যবহার করুন।</p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="quiet-button" disabled={Boolean(busyMessage)} onClick={() => setShowChapterRenamer(false)}>বাতিল</button>
+              <button type="submit" className="primary-button" disabled={Boolean(busyMessage) || !chapterToRename || !renamedChapterName.trim() || renamedChapterName.trim() === chapterToRename || mergeableChapters.includes(renamedChapterName.trim())}><Pencil size={15} /> নাম পরিবর্তন করুন</button>
             </div>
           </form>
         </section>

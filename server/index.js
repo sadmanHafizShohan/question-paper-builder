@@ -950,6 +950,47 @@ app.put('/api/questions/merge-chapters', requireAdmin, async (request, response,
   }
 })
 
+app.put('/api/questions/rename-chapter', requireAdmin, async (request, response, next) => {
+  try {
+    const { subject, grade, sourceChapter, targetChapter } = request.body ?? {}
+    if (typeof subject !== 'string' || !validSubjects.includes(subject.trim())) {
+      return response.status(400).json({ error: 'Provide a valid subject' })
+    }
+    if (!Number.isInteger(Number(grade)) || Number(grade) < 5 || Number(grade) > 10) {
+      return response.status(400).json({ error: 'Provide a valid grade' })
+    }
+    if (typeof sourceChapter !== 'string' || sourceChapter.trim().length === 0 || sourceChapter.length > 120) {
+      return response.status(400).json({ error: 'Provide a valid source chapter name' })
+    }
+    if (typeof targetChapter !== 'string' || targetChapter.trim().length === 0 || targetChapter.trim().length > 120) {
+      return response.status(400).json({ error: 'Provide a valid destination chapter name' })
+    }
+    const normalizedSource = sourceChapter.trim()
+    const normalizedTarget = targetChapter.trim()
+    if (normalizedSource === normalizedTarget) {
+      return response.status(400).json({ error: 'The destination chapter name must be different' })
+    }
+
+    const grades = Number(grade) === 9 || Number(grade) === 10 ? [9, 10] : [questionBankGrade(grade)]
+    const chapterFilter = { subject: subject.trim(), grade: { $in: grades } }
+    if (await Question.exists({ ...chapterFilter, chapter: normalizedTarget })) {
+      return response.status(409).json({ error: 'A chapter with the destination name already exists' })
+    }
+
+    const result = await Question.updateMany(
+      { ...chapterFilter, chapter: normalizedSource },
+      { $set: { chapter: normalizedTarget } },
+      { runValidators: true },
+    )
+    if (result.matchedCount === 0) {
+      return response.status(404).json({ error: 'No questions were found in the source chapter' })
+    }
+    response.json({ updatedCount: result.modifiedCount })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.delete('/api/questions', requireAdmin, async (request, response, next) => {
   try {
     const { ids } = request.body
