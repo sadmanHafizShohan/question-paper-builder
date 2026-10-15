@@ -18,6 +18,7 @@ import {
   GitMerge,
   LayoutDashboard,
   LogOut,
+  Menu,
   Moon,
   Pencil,
   Plus,
@@ -206,6 +207,11 @@ function getLocalPaperSettings(grade, subject, uid, isAdmin) {
   }
 }
 
+function ActionButton({ variant, className = '', children, ...buttonProps }) {
+  const variantClass = variant === 'primary' ? 'primary-button' : 'quiet-button'
+  return <button className={`action-button action-button-${variant} ${variantClass} ${className}`.trim()} {...buttonProps}>{children}</button>
+}
+
 function QuestionPaperBuilder({ user, role }) {
   const isAdmin = role === 'admin'
   const [workspaceState] = useState(readWorkspaceState)
@@ -244,6 +250,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [editorResetKey, setEditorResetKey] = useState(0)
   const [showPreview, setShowPreview] = useState(() => Boolean(workspaceState.showPreview && workspaceState.selected?.length))
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [paperTitle, setPaperTitle] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
   const [paperDuration, setPaperDuration] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperDuration ?? '২ ঘণ্টা')
   const [paperClass, setPaperClass] = useState(() => paperClassLabel(getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperClass ?? gradeLabel(grade)))
@@ -1155,23 +1162,24 @@ function QuestionPaperBuilder({ user, role }) {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <button type="button" className="brand" onClick={() => setPage('bank')}>
+      {isSidebarOpen && <button type="button" className="sidebar-backdrop" aria-label="মেনু বন্ধ করুন" onClick={() => setIsSidebarOpen(false)} />}
+      <aside className={`sidebar ${isSidebarOpen ? 'sidebar-open' : ''}`}>
+        <button type="button" className="brand" onClick={() => { setPage('bank'); setIsSidebarOpen(false) }}>
           <span className="brand-mark"><BookOpen size={20} strokeWidth={2.2} /></span>
           <span><strong>প্রশ্নঘর</strong><small>সৃজনশীল প্রাইভেট সেন্টার</small></span>
         </button>
         <div className="side-label">ওয়ার্কস্পেস</div>
-        <button className={`nav-item ${page === 'bank' ? 'active' : ''}`} onClick={() => setPage('bank')}>
+        <button className={`nav-item ${page === 'bank' ? 'active' : ''}`} onClick={() => { setPage('bank'); setIsSidebarOpen(false) }}>
           <LayoutDashboard size={18} /><span>প্রশ্ন ব্যাংক</span><span className="nav-count">{questionCount(totalQuestionCount)}</span>
         </button>
-        <button className={`nav-item ${page === 'builder' ? 'active' : ''}`} onClick={() => setPage('builder')}>
+        <button className={`nav-item ${page === 'builder' ? 'active' : ''}`} onClick={() => { setPage('builder'); setIsSidebarOpen(false) }}>
           <ClipboardList size={18} /><span>প্রশ্নপত্র তৈরি</span>
           {selected.length > 0 && <span className="nav-count selected-count">{bengaliNumber(selected.length)}</span>}
         </button>
-        <button type="button" className={`nav-item ${page === 'activities' ? 'active' : ''}`} onClick={() => setPage('activities')}>
+        <button type="button" className={`nav-item ${page === 'activities' ? 'active' : ''}`} onClick={() => { setPage('activities'); setIsSidebarOpen(false) }}>
           <Activity size={18} /><span>শিক্ষার্থী activity</span>
         </button>
-        {isAdmin && <button type="button" className={`nav-item admin-nav-item ${page === 'users' ? 'active' : ''}`} aria-label="ব্যবহারকারী ও role পরিচালনা" title="ব্যবহারকারী" onClick={() => setPage('users')}>
+        {isAdmin && <button type="button" className={`nav-item admin-nav-item ${page === 'users' ? 'active' : ''}`} aria-label="ব্যবহারকারী ও role পরিচালনা" title="ব্যবহারকারী" onClick={() => { setPage('users'); setIsSidebarOpen(false) }}>
           <Shield size={18} /><span>ব্যবহারকারী</span>
         </button>}
         <div className="side-label subject-label">বিষয়</div>
@@ -1184,6 +1192,7 @@ function QuestionPaperBuilder({ user, role }) {
 
       <main className="main-area">
         <header className="topbar">
+          <button type="button" className="icon-button sidebar-toggle" aria-label="মেনু খুলুন" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)}><Menu size={19} /></button>
           <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : page === 'users' ? 'ব্যবহারকারী' : page === 'activities' ? 'শিক্ষার্থী activity' : 'প্রশ্নপত্র তৈরি'}</strong></div>
           <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'Data Base Connected' : dataMode === 'connecting' ? 'Data Base Connecting' : 'Data Base Connection Failed'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}><span>{accountInitial}</span>{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
         </header>
@@ -1203,14 +1212,14 @@ function QuestionPaperBuilder({ user, role }) {
               ? <StudentActivityPanel apiUrl={apiUrl} />
               : page === 'bank' ? (
             <>
-              <section className="page-heading">
+              <section className="page-heading question-bank-heading">
                 <div><div className="eyebrow">{gradeLabel(grade)} <span>/</span> {subjectLabel(subject)}</div><h1>প্রশ্ন ব্যাংক</h1><p>অধ্যায়ভিত্তিক প্রশ্ন সাজান, খুঁজুন এবং প্রশ্নপত্রে যোগ করুন।</p></div>
                 <div className="page-heading-actions">
-                  {isAdmin && <button className="quiet-button" onClick={() => setShowDuplicateDetector(true)}><CopyX size={16} /> ডুপ্লিকেট খুঁজুন</button>}
-                  {mergeableChapters.length > 1 && <button className="quiet-button" disabled={Boolean(busyMessage) || (isAdmin && dataMode !== 'mongo')} onClick={openChapterMerger}><GitMerge size={16} /> অধ্যায় মার্জ</button>}
-                  {mergeableChapters.length > 0 && <button className="quiet-button" disabled={Boolean(busyMessage) || (isAdmin && dataMode !== 'mongo')} onClick={openChapterRenamer}><Pencil size={15} /> অধ্যায়ের নাম বদলান</button>}
-                  <button className="quiet-button" onClick={() => setShowImporter(true)}><FileSpreadsheet size={16} /> Excel ইমপোর্ট {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
-                  <button className="primary-button" onClick={() => openEditor()}><Plus size={17} /> নতুন প্রশ্ন {isAdmin ? '· MongoDB' : '· এই ডিভাইস'}</button>
+                  {isAdmin && <ActionButton variant="secondary" onClick={() => setShowDuplicateDetector(true)}><CopyX size={17} /> ডুপ্লিকেট খুঁজুন</ActionButton>}
+                  {mergeableChapters.length > 1 && <ActionButton variant="secondary" disabled={Boolean(busyMessage) || (isAdmin && dataMode !== 'mongo')} onClick={openChapterMerger}><GitMerge size={17} /> অধ্যায় মার্জ</ActionButton>}
+                  {mergeableChapters.length > 0 && <ActionButton variant="secondary" disabled={Boolean(busyMessage) || (isAdmin && dataMode !== 'mongo')} onClick={openChapterRenamer}><Pencil size={16} /> অধ্যায়ের নাম বদলান</ActionButton>}
+                  <ActionButton variant="soft" onClick={() => setShowImporter(true)}><FileSpreadsheet size={17} /> Excel ইমপোর্ট</ActionButton>
+                  <ActionButton variant="primary" onClick={() => openEditor()}><Plus size={18} /> নতুন প্রশ্ন</ActionButton>
                 </div>
               </section>
 
@@ -1222,7 +1231,7 @@ function QuestionPaperBuilder({ user, role }) {
               </section>
 
               <section className="bank-panel">
-                <div className="panel-heading"><div><h2>সব প্রশ্ন</h2><p>প্রশ্ন বাছাই করে নতুন প্রশ্নপত্র তৈরি করুন</p></div><button className="text-button" onClick={() => setPage('builder')}><ClipboardList size={16} /> প্রশ্নপত্র তৈরি <ChevronRight size={15} /></button></div>
+                <div className="panel-heading"><div><h2>সব প্রশ্ন</h2><p>প্রশ্ন বাছাই করে নতুন প্রশ্নপত্র তৈরি করুন</p></div><ActionButton variant="soft" className="bank-create-paper-button" onClick={() => setPage('builder')}><ClipboardList size={17} /> প্রশ্নপত্র তৈরি <ChevronRight size={16} /></ActionButton></div>
                 <div className="filter-toolbar">
                   <label className="search-box"><Search size={17} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="প্রশ্ন বা অধ্যায় খুঁজুন" /></label>
                   <ChapterFilter chapters={availableChapters} selectedChapters={selectedChapters} onChange={setSelectedChapters} />

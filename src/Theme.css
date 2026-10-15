@@ -1,0 +1,1920 @@
+html,
+body,
+#root {
+	min-height: 100%;
+	background: var(--bg-app);
+}
+
+body {
+	color: var(--text);
+	font-family: 'Hind Siliguri', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+	font-family: 'Hind Siliguri', sans-serif;
+}
+
+html[data-theme='dark'] body,
+html[data-theme='dark'] #root {
+	background: var(--bg-app);
+	color: var(--text);
+}
+
+.app-shell,
+.main-area,
+.student-portal {
+	background: var(--bg-app);
+	color: var(--text);
+}
+
+.content-area {
+	box-sizing: border-box;
+}
+
+.student-portal {
+	min-height: 100vh;
+}
+
+.topbar,
+.student-header,
+.auth-split-container {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+.breadcrumbs,
+.breadcrumbs strong,
+.page-heading h1,
+.builder-section-title h2,
+.panel-heading h2,
+.student-welcome h1,
+.student-panel-heading h2,
+.student-answer-review h2 {
+	color: var(--purple-950);
+}
+
+.eyebrow,
+.page-heading p,
+.context-hint,
+.panel-heading p,
+.builder-section-title p,
+.student-account,
+.student-brand small,
+.student-welcome p:last-child,
+.student-panel-heading p,
+.student-exam-context,
+.student-exam-actions,
+.student-answer-review > p,
+.student-week-note {
+	color: var(--text-muted);
+}
+
+.context-bar label,
+.search-box,
+.chapter-select,
+.sort-button,
+.student-selectors select,
+.student-account button,
+.student-refresh,
+.student-previous-button,
+.student-result > button {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+.context-bar label > span,
+.student-selectors label {
+	color: var(--text-muted);
+}
+
+.context-bar select,
+.search-box input,
+.student-selectors select,
+.student-activity-feedback-form textarea {
+	color: var(--text);
+}
+
+.page-heading-actions > .primary-button,
+.primary-button,
+.student-primary-button,
+.auth-submit {
+	border-color: transparent;
+	background: linear-gradient(135deg, var(--purple-600), var(--purple-800));
+	color: #fff;
+}
+
+.page-heading-actions > .primary-button:hover:not(:disabled),
+.primary-button:hover:not(:disabled),
+.student-primary-button:hover:not(:disabled),
+.auth-submit:hover:not(:disabled) {
+	filter: brightness(1.08);
+	background: linear-gradient(135deg, var(--purple-600), var(--purple-800));
+}
+
+.quiet-button,
+.sort-button,
+.text-button,
+.student-refresh,
+.student-previous-button,
+.student-account button,
+.student-result > button {
+	border-color: var(--purple-300);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.quiet-button:hover:not(:disabled),
+.sort-button:hover,
+.text-button:hover,
+.student-refresh:hover,
+.student-previous-button:hover:not(:disabled),
+.student-account button:hover,
+.student-result > button:hover {
+	background: var(--purple-200);
+	color: var(--purple-900);
+}
+
+.text-button {
+	min-height: 44px;
+	border-radius: 12px;
+	white-space: nowrap;
+}
+
+.bank-panel,
+.panel,
+.builder-main,
+.builder-sidebar,
+.builder-question-list,
+.selection-breakdown,
+.selection-chapter-card,
+.chapter-count-card,
+.chapter-random-settings,
+.student-panel,
+.student-activity-card,
+.student-activity-state,
+.admin-user-summary > div,
+.question-modal,
+.preview-modal,
+.auth-split-container {
+	border-color: var(--card-border);
+	background-color: var(--card);
+	color: var(--text);
+}
+
+.builder-section-title,
+.settings-divider,
+.panel-heading,
+.modal-heading,
+.modal-footer,
+.builder-question,
+.builder-question-list,
+.question-table th,
+.question-table td,
+.table-footer,
+.selection-type-row,
+.student-feedback-form,
+.student-review-question,
+.student-leaderboard th,
+.student-leaderboard td {
+	border-color: var(--card-border);
+}
+
+.builder-question,
+.selection-type-row,
+.student-question,
+.student-review-options > div,
+.student-options label {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+.builder-question.checked,
+.question-table .row-selected,
+.question-table tbody tr:hover,
+.student-options label.selected,
+.student-own-row {
+	background: var(--purple-100);
+}
+
+.question-table th {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.question-table td {
+	color: var(--text);
+}
+
+.question-copy strong,
+.builder-question-copy > strong,
+.selection-chapter-title strong,
+.statement-generated-option,
+.statement-question-preview,
+.answer-equation-preview,
+.option-math-preview,
+.question-live-preview {
+	color: var(--text);
+}
+
+.chapter-inline,
+.selection-breakdown-empty,
+.selection-chapter-title small,
+.selection-type-count,
+.selection-type-marks,
+.builder-mark,
+.field-hint,
+.paper-setting-toggle,
+.watermark-toggle,
+.watermark-settings output,
+.paper-hint {
+	color: var(--text-muted);
+}
+
+.selection-breakdown-header strong,
+.statement-generated-option strong,
+.statement-input-row > span,
+.option-text-control > span,
+.option-equation-insert,
+.preview-editbar .preview-edit-toggle.is-enabled,
+.dup-clean-icon {
+	color: var(--purple-800);
+}
+
+.selection-chapter-card,
+.option-editor,
+.statement-editor,
+.statement-generated-field,
+.statement-question-preview,
+.answer-equation-preview,
+.question-live-preview,
+.option-text-control > span,
+.option-equation-insert,
+.math-field,
+.preview-toolbar,
+.preview-editbar,
+.preview-text-editor,
+.preview-columns select,
+.preview-option-style select,
+.preview-editbar .preview-edit-toggle.is-enabled,
+.bulk-preview-row,
+.dup-clean-icon {
+	border-color: var(--card-border);
+	background: var(--card);
+}
+
+.option-equation-insert:hover,
+.preview-editbar .preview-edit-toggle.is-enabled:hover {
+	border-color: var(--purple-600);
+	background: var(--purple-100);
+}
+
+.option-text-control > span,
+.option-equation-insert,
+.dup-clean-icon {
+	background: var(--purple-100);
+}
+
+.modal-backdrop {
+	background: rgb(46 16 101 / 55%);
+}
+
+.paper-resize-handle {
+	border-color: var(--purple-600);
+}
+
+.watermark-toggle input,
+.paper-setting-toggle input,
+.watermark-settings input[type='range'],
+.preview-chapter-toggle input,
+.preview-editbar input[type='range'] {
+	accent-color: var(--purple-600);
+}
+
+.preview-modal {
+	background: var(--bg-app);
+}
+
+.preview-toolbar,
+.preview-editbar {
+	color: var(--text);
+}
+
+.preview-toolbar strong,
+.preview-editbar > span,
+.preview-image-size output,
+.preview-chapter-toggle,
+.preview-font-size,
+.preview-columns select,
+.preview-option-style select,
+.preview-text-editor {
+	color: var(--text);
+}
+
+.preview-toolbar span,
+.preview-edit-help {
+	color: var(--text-muted);
+}
+
+.preview-editbar .preview-edit-toggle.is-enabled {
+	border-color: var(--purple-300);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.dup-clean-icon {
+	background: var(--purple-100);
+}
+
+.dup-clean-state strong {
+	color: var(--purple-950);
+}
+
+.question-table td,
+.question-table th {
+	border-color: var(--card-border);
+}
+
+.question-table input[type='checkbox'],
+.selection-bar input[type='checkbox'],
+.student-options input,
+.student-time-setting input[type='range'] {
+	accent-color: var(--purple-600);
+}
+
+.row-number,
+.marks-cell,
+.student-eyebrow,
+.student-question legend > span,
+.student-review-question h3 > span,
+.student-exam-counter strong,
+.student-exam-progress .student-timer,
+.student-leaderboard td:first-child,
+.student-my-rank strong,
+.student-rank-person + strong {
+	color: var(--purple-800);
+}
+
+.chapter-pill,
+.type-tabs button > span,
+.student-mcq-badge,
+.student-my-rank,
+.student-equation,
+.student-rank-avatar,
+.student-profile-avatar,
+.admin-user-avatar {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.type-tabs button.active {
+	color: var(--purple-800);
+}
+
+.type-tabs button.active::after {
+	background: var(--purple-600);
+}
+
+.type-mcq,
+.type-short,
+.type-cq,
+.type-long {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.selection-bar,
+.selection-breakdown-header {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+.selection-check,
+.modal-icon,
+.student-brand > span,
+.student-welcome-icon,
+.auth-brand-mark,
+.auth-lock {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.danger-button {
+	min-height: 44px;
+	border-radius: 12px;
+}
+
+.search-box:focus-within,
+.field-label input:focus,
+.field-label select:focus,
+.field-label textarea:focus,
+.student-selectors select:focus,
+.student-activity-feedback-form textarea:focus {
+	border-color: var(--purple-600);
+}
+
+.question-modal .modal-heading,
+.question-modal .modal-footer,
+.preview-modal .modal-heading,
+.preview-modal .modal-footer {
+	background: var(--card);
+	color: var(--text);
+}
+
+.modal-heading h2,
+.modal-heading p,
+.field-label,
+.paper-setting-toggle,
+.preview-chapter-toggle,
+.paper-types > span,
+.marks-summary,
+.chapter-pill {
+	color: var(--text);
+}
+
+.field-label input,
+.field-label select,
+.field-label textarea,
+.chapter-random-inputs input,
+.student-activity-feedback-form textarea,
+.student-selectors select {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+.chapter-random-heading,
+.chapter-count-card > strong {
+	color: var(--purple-800);
+}
+
+.chapter-random-settings > p,
+.chapter-random-inputs > label,
+.chapter-random-actions,
+.chapter-random-heading > span,
+.chapter-count-metrics small {
+	color: var(--text-muted);
+}
+
+.chapter-random-inputs input,
+.chapter-random-settings,
+.chapter-count-card {
+	border-color: var(--card-border);
+	background: var(--card);
+}
+
+.stat-icon.mint,
+.stat-icon.sky,
+.stat-icon.peach,
+.stat-icon.lavender,
+.subject-dot {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.stat-card strong {
+	color: var(--purple-800);
+}
+
+.stat-card > div:nth-child(2) span,
+.stat-card > small {
+	color: var(--text-muted);
+}
+
+.stat-action {
+	border-color: transparent;
+	background: linear-gradient(135deg, var(--purple-700), var(--purple-900));
+	color: #fff;
+}
+
+.stat-action strong,
+.stat-action > div:nth-child(2) span,
+.stat-action > small {
+	color: #fff;
+}
+
+.stat-action .stat-icon {
+	background: rgb(255 255 255 / 16%);
+	color: #fff;
+}
+
+.student-header {
+	color: var(--text);
+}
+
+.student-brand > span,
+.student-welcome-icon {
+	background: linear-gradient(135deg, var(--purple-600), var(--purple-800));
+	color: #fff;
+}
+
+.student-teacher-request,
+.student-feedback-item,
+.student-activity-feedback,
+.admin-role-help,
+.admin-teacher-request,
+.admin-message-success,
+.student-result {
+	border-color: var(--purple-300);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.student-teacher-request button,
+.student-activity-feedback-form button,
+.student-activity-more,
+.admin-teacher-request button {
+	border-color: var(--purple-300);
+	background: var(--card);
+	color: var(--purple-800);
+}
+
+.student-options label.selected,
+.student-review-options > div.correct {
+	border-color: var(--purple-300);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.student-review-options > div.incorrect {
+	border-color: #efc6c3;
+	background: #fff5f4;
+	color: #a8423c;
+}
+
+.loading-status,
+.loading-status strong,
+.loading-status small,
+.loading-progress-track {
+	color: var(--text-muted);
+}
+
+.loading-spinner {
+	border-color: var(--card-border);
+	border-top-color: var(--purple-600);
+}
+
+.question-loading-status {
+	border-color: var(--card-border);
+	background: linear-gradient(135deg, var(--card), var(--purple-100));
+}
+
+.question-loading-status strong {
+	color: var(--purple-800);
+}
+
+.question-loading-status .loading-spinner {
+	box-shadow: 0 0 0 6px var(--purple-100);
+}
+
+.loading-progress-track {
+	background: var(--purple-100);
+}
+
+.loading-progress-track > span {
+	background: var(--purple-600);
+}
+
+.auth-shell {
+	background: radial-gradient(ellipse at top, var(--purple-100), var(--bg-app) 68%);
+	color: var(--text);
+}
+
+.auth-split-container {
+	border-color: var(--card-border);
+	box-shadow: 0 20px 65px rgb(46 16 101 / 10%);
+}
+
+.auth-brand-mark,
+.auth-submit {
+	background: linear-gradient(135deg, var(--purple-600), var(--purple-800));
+	color: #fff;
+}
+
+.auth-brand strong,
+.auth-heading h1,
+.auth-setup h1 {
+	color: var(--purple-950);
+}
+
+.auth-brand small,
+.auth-heading p,
+.auth-setup > p,
+.auth-setup ol,
+.auth-loading {
+	color: var(--text-muted);
+}
+
+.auth-google-button {
+	border-color: var(--purple-300);
+	background: var(--card);
+	color: var(--purple-800);
+}
+
+.auth-google-button:hover:not(:disabled) {
+	background: var(--purple-100);
+}
+
+.auth-setup pre {
+	border: 1px solid var(--card-border);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.admin-user-summary > div,
+.admin-teacher-request {
+	border-color: var(--card-border);
+	background: var(--card);
+}
+
+.admin-summary-icon,
+.admin-summary-icon.admin-shield,
+.admin-user-avatar,
+.admin-user-status {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.admin-user-summary small,
+.admin-table-state,
+.admin-user-name small,
+.admin-teacher-request small,
+.admin-teacher-requests-empty {
+	color: var(--text-muted);
+}
+
+.admin-user-summary strong,
+.admin-user-name strong,
+.admin-teacher-request strong {
+	color: var(--text);
+}
+
+.admin-role-help,
+.admin-teacher-request button,
+.admin-action-button {
+	border-color: var(--purple-300);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.admin-action-button:hover:not(:disabled) {
+	background: var(--purple-200);
+}
+
+.admin-message-success {
+	border-color: var(--purple-300);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.student-activity-card,
+.student-activity-state {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+.student-activity-person strong,
+.student-feedback-item strong {
+	color: var(--text);
+}
+
+.student-activity-person small,
+.student-activity-details,
+.student-activity-feedback small,
+.student-feedback-item small,
+.student-empty,
+.student-leaderboard th,
+.student-leaderboard td .student-score-time {
+	color: var(--text-muted);
+}
+
+.student-activity-avatar,
+.student-rank-avatar {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.student-activity-score,
+.student-my-rank strong {
+	color: var(--purple-800);
+}
+
+.student-activity-feedback,
+.student-feedback-item {
+	border-left-color: var(--purple-600);
+	background: var(--purple-100);
+}
+
+.student-activity-feedback p,
+.student-feedback-item p {
+	color: var(--text);
+}
+
+.student-activity-feedback-form,
+.student-review-question,
+.student-leaderboard th,
+.student-leaderboard td {
+	border-color: var(--card-border);
+}
+
+.student-activity-feedback-form label {
+	color: var(--text-muted);
+}
+
+.student-leaderboard td:first-child {
+	color: var(--purple-800);
+}
+
+.student-leaderboard th {
+	color: var(--text-muted);
+}
+
+.student-result {
+	color: var(--purple-800);
+}
+
+.student-result p {
+	color: var(--text);
+}
+
+.save-indicator,
+.mongo-indicator {
+	color: #5b21b6;
+}
+
+.save-indicator > span,
+.mongo-indicator > span {
+	background: var(--purple-600);
+}
+
+.toast {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--purple-800);
+}
+
+.toast-error {
+	border-color: #efc6c3;
+	color: #a8423c;
+}
+
+.app-activity,
+.data-loading-banner,
+.data-unavailable-banner {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+.empty-state {
+	color: var(--text-muted);
+}
+
+html[data-theme='dark'] .app-shell,
+html[data-theme='dark'] .main-area,
+html[data-theme='dark'] .student-portal,
+html[data-theme='dark'] .auth-shell {
+	background: var(--bg-app);
+	color: var(--text);
+}
+
+html[data-theme='dark'] .topbar,
+html[data-theme='dark'] .student-header,
+html[data-theme='dark'] .auth-split-container,
+html[data-theme='dark'] .bank-panel,
+html[data-theme='dark'] .panel,
+html[data-theme='dark'] .builder-main,
+html[data-theme='dark'] .builder-sidebar,
+html[data-theme='dark'] .builder-question-list,
+html[data-theme='dark'] .student-panel,
+html[data-theme='dark'] .student-activity-card,
+html[data-theme='dark'] .student-activity-state,
+html[data-theme='dark'] .question-modal,
+html[data-theme='dark'] .preview-modal,
+html[data-theme='dark'] .stat-card {
+	border-color: var(--card-border);
+	background-color: var(--card);
+	color: var(--text);
+}
+
+html[data-theme='dark'] .context-bar label,
+html[data-theme='dark'] .search-box,
+html[data-theme='dark'] .chapter-select,
+html[data-theme='dark'] .sort-button,
+html[data-theme='dark'] .field-label input,
+html[data-theme='dark'] .field-label select,
+html[data-theme='dark'] .field-label textarea,
+html[data-theme='dark'] .chapter-random-inputs input,
+html[data-theme='dark'] .student-selectors select,
+html[data-theme='dark'] .student-activity-feedback-form textarea,
+html[data-theme='dark'] .student-options label,
+html[data-theme='dark'] .student-review-options > div,
+html[data-theme='dark'] .student-account button,
+html[data-theme='dark'] .student-refresh,
+html[data-theme='dark'] .student-previous-button,
+html[data-theme='dark'] .student-result > button,
+html[data-theme='dark'] .auth-google-button,
+html[data-theme='dark'] .admin-action-button {
+	border-color: var(--card-border);
+	background-color: var(--card);
+	color: var(--text);
+}
+
+html[data-theme='dark'] .breadcrumbs,
+html[data-theme='dark'] .breadcrumbs strong,
+html[data-theme='dark'] .page-heading h1,
+html[data-theme='dark'] .page-heading p,
+html[data-theme='dark'] .panel-heading h2,
+html[data-theme='dark'] .panel-heading p,
+html[data-theme='dark'] .builder-section-title h2,
+html[data-theme='dark'] .builder-section-title p,
+html[data-theme='dark'] .context-hint,
+html[data-theme='dark'] .context-bar label > span,
+html[data-theme='dark'] .context-bar select,
+html[data-theme='dark'] .search-box input,
+html[data-theme='dark'] .stat-card > div:nth-child(2) span,
+html[data-theme='dark'] .stat-card strong,
+html[data-theme='dark'] .stat-card > small,
+html[data-theme='dark'] .question-table td,
+html[data-theme='dark'] .student-welcome h1,
+html[data-theme='dark'] .student-welcome p:last-child,
+html[data-theme='dark'] .student-panel-heading h2,
+html[data-theme='dark'] .student-panel-heading p,
+html[data-theme='dark'] .student-selectors label,
+html[data-theme='dark'] .student-exam-context,
+html[data-theme='dark'] .student-statements,
+html[data-theme='dark'] .student-statement-question,
+html[data-theme='dark'] .student-exam-actions,
+html[data-theme='dark'] .student-answer-review > h2,
+html[data-theme='dark'] .student-answer-review > p,
+html[data-theme='dark'] .student-week-note,
+html[data-theme='dark'] .student-activity-person strong,
+html[data-theme='dark'] .student-activity-person small,
+html[data-theme='dark'] .student-activity-details,
+html[data-theme='dark'] .student-activity-feedback p,
+html[data-theme='dark'] .student-activity-feedback small,
+html[data-theme='dark'] .admin-user-summary small,
+html[data-theme='dark'] .admin-user-summary strong,
+html[data-theme='dark'] .admin-user-name strong,
+html[data-theme='dark'] .admin-user-name small,
+html[data-theme='dark'] .admin-teacher-request strong,
+html[data-theme='dark'] .admin-teacher-request small,
+html[data-theme='dark'] .modal-heading h2,
+html[data-theme='dark'] .modal-heading p,
+html[data-theme='dark'] .field-label,
+html[data-theme='dark'] .loading-status strong,
+html[data-theme='dark'] .loading-status small,
+html[data-theme='dark'] .auth-brand strong,
+html[data-theme='dark'] .auth-heading h1,
+html[data-theme='dark'] .auth-setup h1,
+html[data-theme='dark'] .auth-heading p,
+html[data-theme='dark'] .auth-setup > p,
+html[data-theme='dark'] .auth-setup ol,
+html[data-theme='dark'] .auth-loading {
+	color: var(--text);
+}
+
+html[data-theme='dark'] .question-table th {
+	background: #352064;
+	color: var(--purple-200);
+}
+
+html[data-theme='dark'] .question-copy strong,
+html[data-theme='dark'] .builder-question-copy > strong,
+html[data-theme='dark'] .selection-chapter-title strong,
+html[data-theme='dark'] .statement-generated-option,
+html[data-theme='dark'] .statement-question-preview,
+html[data-theme='dark'] .answer-equation-preview,
+html[data-theme='dark'] .option-math-preview,
+html[data-theme='dark'] .question-live-preview,
+html[data-theme='dark'] .preview-toolbar strong,
+html[data-theme='dark'] .preview-editbar > span,
+html[data-theme='dark'] .preview-image-size output,
+html[data-theme='dark'] .preview-chapter-toggle,
+html[data-theme='dark'] .preview-font-size,
+html[data-theme='dark'] .preview-columns select,
+html[data-theme='dark'] .preview-option-style select,
+html[data-theme='dark'] .preview-text-editor {
+	color: var(--text);
+}
+
+html[data-theme='dark'] .chapter-inline,
+html[data-theme='dark'] .selection-breakdown-header,
+html[data-theme='dark'] .selection-breakdown-empty,
+html[data-theme='dark'] .selection-chapter-title small,
+html[data-theme='dark'] .selection-type-count,
+html[data-theme='dark'] .selection-type-marks,
+html[data-theme='dark'] .builder-mark,
+html[data-theme='dark'] .field-hint,
+html[data-theme='dark'] .paper-setting-toggle,
+html[data-theme='dark'] .watermark-toggle,
+html[data-theme='dark'] .watermark-settings output,
+html[data-theme='dark'] .paper-hint,
+html[data-theme='dark'] .preview-toolbar span,
+html[data-theme='dark'] .preview-edit-help {
+	color: var(--text-muted);
+}
+
+html[data-theme='dark'] .selection-breakdown-header strong,
+html[data-theme='dark'] .statement-generated-option strong,
+html[data-theme='dark'] .statement-input-row > span,
+html[data-theme='dark'] .option-text-control > span,
+html[data-theme='dark'] .option-equation-insert,
+html[data-theme='dark'] .preview-editbar .preview-edit-toggle.is-enabled,
+html[data-theme='dark'] .dup-clean-icon,
+html[data-theme='dark'] .dup-clean-state strong {
+	color: var(--purple-200);
+}
+
+html[data-theme='dark'] .selection-chapter-card,
+html[data-theme='dark'] .option-editor,
+html[data-theme='dark'] .statement-editor,
+html[data-theme='dark'] .statement-generated-field,
+html[data-theme='dark'] .statement-question-preview,
+html[data-theme='dark'] .answer-equation-preview,
+html[data-theme='dark'] .question-live-preview,
+html[data-theme='dark'] .option-text-control > span,
+html[data-theme='dark'] .option-equation-insert,
+html[data-theme='dark'] .math-field,
+html[data-theme='dark'] .preview-modal,
+html[data-theme='dark'] .preview-toolbar,
+html[data-theme='dark'] .preview-editbar,
+html[data-theme='dark'] .preview-text-editor,
+html[data-theme='dark'] .preview-columns select,
+html[data-theme='dark'] .preview-option-style select,
+html[data-theme='dark'] .preview-editbar .preview-edit-toggle.is-enabled,
+html[data-theme='dark'] .bulk-preview-row,
+html[data-theme='dark'] .dup-clean-icon {
+	border-color: var(--card-border);
+	background: var(--card);
+}
+
+html[data-theme='dark'] .preview-editbar .preview-edit-toggle.is-enabled,
+html[data-theme='dark'] .option-text-control > span,
+html[data-theme='dark'] .option-equation-insert,
+html[data-theme='dark'] .dup-clean-icon {
+	background: #352064;
+}
+
+html[data-theme='dark'] .preview-editbar .preview-edit-toggle.is-enabled:hover,
+html[data-theme='dark'] .option-equation-insert:hover {
+	border-color: var(--purple-600);
+	background: #432879;
+}
+
+html[data-theme='dark'] .question-table tbody tr:hover,
+html[data-theme='dark'] .question-table .row-selected,
+html[data-theme='dark'] .builder-question.checked,
+html[data-theme='dark'] .student-options label.selected,
+html[data-theme='dark'] .student-own-row,
+html[data-theme='dark'] .student-my-rank {
+	background: #352064;
+	color: var(--purple-100);
+}
+
+html[data-theme='dark'] .quiet-button,
+html[data-theme='dark'] .sort-button,
+html[data-theme='dark'] .text-button,
+html[data-theme='dark'] .student-refresh,
+html[data-theme='dark'] .student-previous-button,
+html[data-theme='dark'] .student-account button,
+html[data-theme='dark'] .student-result > button,
+html[data-theme='dark'] .student-teacher-request button,
+html[data-theme='dark'] .student-activity-feedback-form button,
+html[data-theme='dark'] .student-activity-more,
+html[data-theme='dark'] .admin-role-help,
+html[data-theme='dark'] .admin-teacher-request button,
+html[data-theme='dark'] .admin-action-button {
+	border-color: var(--purple-700);
+	background: #352064;
+	color: var(--purple-200);
+}
+
+html[data-theme='dark'] .student-teacher-request,
+html[data-theme='dark'] .student-feedback-item,
+html[data-theme='dark'] .student-activity-feedback,
+html[data-theme='dark'] .student-result,
+html[data-theme='dark'] .admin-message-success,
+html[data-theme='dark'] .admin-role-help,
+html[data-theme='dark'] .admin-teacher-request,
+html[data-theme='dark'] .question-loading-status {
+	border-color: var(--purple-700);
+	background: #352064;
+	color: var(--purple-200);
+}
+
+html[data-theme='dark'] .student-result p,
+html[data-theme='dark'] .student-feedback-item p,
+html[data-theme='dark'] .student-feedback-item strong,
+html[data-theme='dark'] .student-activity-feedback p {
+	color: var(--purple-100);
+}
+
+html[data-theme='dark'] .student-equation,
+html[data-theme='dark'] .student-mcq-badge,
+html[data-theme='dark'] .student-profile-avatar,
+html[data-theme='dark'] .student-rank-avatar,
+html[data-theme='dark'] .student-activity-avatar,
+html[data-theme='dark'] .admin-user-avatar,
+html[data-theme='dark'] .admin-summary-icon,
+html[data-theme='dark'] .admin-summary-icon.admin-shield,
+html[data-theme='dark'] .admin-user-status {
+	background: #352064;
+	color: var(--purple-200);
+}
+
+html[data-theme='dark'] .student-leaderboard th,
+html[data-theme='dark'] .student-leaderboard td,
+html[data-theme='dark'] .student-review-question,
+html[data-theme='dark'] .student-activity-feedback-form,
+html[data-theme='dark'] .student-feedback-form {
+	border-color: var(--card-border);
+}
+
+html[data-theme='dark'] .student-activity-score,
+html[data-theme='dark'] .student-my-rank strong,
+html[data-theme='dark'] .student-leaderboard td:first-child,
+html[data-theme='dark'] .student-exam-counter strong,
+html[data-theme='dark'] .student-exam-progress .student-timer {
+	color: var(--purple-300);
+}
+
+html[data-theme='dark'] .admin-user-table .question-table select {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+html[data-theme='dark'] .question-loading-status strong,
+html[data-theme='dark'] .student-eyebrow {
+	color: var(--purple-300);
+}
+
+html[data-theme='dark'] .question-loading-status .loading-spinner {
+	box-shadow: 0 0 0 6px #352064;
+}
+
+html[data-theme='dark'] .loading-progress-track {
+	background: #352064;
+}
+
+html[data-theme='dark'] .loading-progress-track > span {
+	background: var(--purple-600);
+}
+
+html[data-theme='dark'] .auth-setup pre {
+	border-color: var(--card-border);
+	background: #352064;
+	color: var(--purple-100);
+}
+
+@media (max-width: 760px) {
+	.student-content {
+		width: calc(100% - 32px);
+	}
+}
+
+html[data-theme='dark'] .sidebar {
+	border-color: #342d3d;
+	background: linear-gradient(180deg, #201b29 0%, #2a2236 100%);
+	color: #eee9f5;
+}
+
+html[data-theme='dark'] .brand-mark,
+html[data-theme='dark'] .subject-dot {
+	background: #a78bd4;
+	color: #20172b;
+}
+
+html[data-theme='dark'] .brand small,
+html[data-theme='dark'] .side-label,
+html[data-theme='dark'] .subject-switch small,
+html[data-theme='dark'] .profile-row small {
+	color: #c0b2d5;
+}
+
+html[data-theme='dark'] .nav-item {
+	color: #e2dce9;
+}
+
+html[data-theme='dark'] .nav-item:hover {
+	background: rgb(255 255 255 / 8%);
+	color: #fff;
+}
+
+html[data-theme='dark'] .nav-item.active {
+	background: #3b3249;
+	color: #f4edff;
+}
+
+html[data-theme='dark'] .nav-item.active .nav-count {
+	background: #201b29;
+	color: #d8c2ff;
+}
+
+html[data-theme='dark'] .subject-switch {
+	border-color: #51445f;
+	background: rgb(255 255 255 / 5%);
+	color: #eee9f5;
+}
+
+html[data-theme='dark'] .subject-switch strong,
+html[data-theme='dark'] .profile-row strong {
+	color: #f4f0f8;
+}
+
+html[data-theme='dark'] .help-card,
+html[data-theme='dark'] .profile-row {
+	border-color: #453b50;
+	color: #c6bdd1;
+}
+
+html[data-theme='dark'] .main-area,
+html[data-theme='dark'] .app-shell,
+html[data-theme='dark'] .student-portal {
+	background: var(--bg-app);
+	color: var(--text);
+}
+
+html[data-theme='dark'] .topbar,
+html[data-theme='dark'] .student-header {
+	border-color: var(--card-border);
+	background: #1b1821;
+	color: var(--text);
+}
+
+html[data-theme='dark'] .breadcrumbs,
+html[data-theme='dark'] .breadcrumbs strong,
+html[data-theme='dark'] .question-bank-heading h1,
+html[data-theme='dark'] .panel-heading h2,
+html[data-theme='dark'] .builder-section-title h2,
+html[data-theme='dark'] .student-welcome h1,
+html[data-theme='dark'] .student-panel-heading h2,
+html[data-theme='dark'] .student-answer-review > h2 {
+	color: #f0eafa;
+}
+
+html[data-theme='dark'] .question-bank-heading p,
+html[data-theme='dark'] .panel-heading p,
+html[data-theme='dark'] .builder-section-title p,
+html[data-theme='dark'] .context-hint,
+html[data-theme='dark'] .eyebrow,
+html[data-theme='dark'] .student-account,
+html[data-theme='dark'] .student-welcome p:last-child,
+html[data-theme='dark'] .student-panel-heading p,
+html[data-theme='dark'] .student-exam-context,
+html[data-theme='dark'] .student-exam-actions,
+html[data-theme='dark'] .student-answer-review > p {
+	color: var(--text-muted);
+}
+
+html[data-theme='dark'] .stat-card,
+html[data-theme='dark'] .bank-panel,
+html[data-theme='dark'] .panel,
+html[data-theme='dark'] .builder-main,
+html[data-theme='dark'] .builder-sidebar,
+html[data-theme='dark'] .builder-question-list,
+html[data-theme='dark'] .selection-breakdown,
+html[data-theme='dark'] .selection-chapter-card,
+html[data-theme='dark'] .chapter-count-card,
+html[data-theme='dark'] .chapter-random-settings,
+html[data-theme='dark'] .student-panel,
+html[data-theme='dark'] .student-activity-card,
+html[data-theme='dark'] .student-activity-state,
+html[data-theme='dark'] .admin-user-summary > div,
+html[data-theme='dark'] .question-modal,
+html[data-theme='dark'] .preview-modal,
+html[data-theme='dark'] .auth-split-container {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: var(--text);
+}
+
+html[data-theme='dark'] .stat-card > div:nth-child(2) span,
+html[data-theme='dark'] .stat-card > small,
+html[data-theme='dark'] .chapter-count-metrics small,
+html[data-theme='dark'] .question-copy small,
+html[data-theme='dark'] .chapter-inline,
+html[data-theme='dark'] .builder-mark,
+html[data-theme='dark'] .field-hint,
+html[data-theme='dark'] .selection-type-count,
+html[data-theme='dark'] .selection-type-marks,
+html[data-theme='dark'] .student-activity-person small,
+html[data-theme='dark'] .student-activity-details,
+html[data-theme='dark'] .admin-user-name small,
+html[data-theme='dark'] .admin-user-summary small {
+	color: var(--text-subtle);
+}
+
+html[data-theme='dark'] .stat-card strong {
+	color: #d2b9ff;
+}
+
+html[data-theme='dark'] .stat-icon.mint,
+html[data-theme='dark'] .stat-icon.sky,
+html[data-theme='dark'] .stat-icon.peach,
+html[data-theme='dark'] .stat-icon.lavender {
+	background: #302a3a;
+	color: #d1bdf2;
+}
+
+html[data-theme='dark'] .stat-action {
+	border-color: #594477;
+	background: linear-gradient(135deg, #382b4d, #292235);
+}
+
+html[data-theme='dark'] .stat-action > div:nth-child(2) span,
+html[data-theme='dark'] .stat-action strong,
+html[data-theme='dark'] .stat-action > small {
+	color: #f4effa;
+}
+
+html[data-theme='dark'] .stat-action .stat-icon {
+	background: rgb(196 169 243 / 15%);
+	color: #d9c9f4;
+}
+
+html[data-theme='dark'] .context-bar label,
+html[data-theme='dark'] .search-box,
+html[data-theme='dark'] .chapter-select,
+html[data-theme='dark'] .sort-button,
+html[data-theme='dark'] .field-label input,
+html[data-theme='dark'] .field-label select,
+html[data-theme='dark'] .field-label textarea,
+html[data-theme='dark'] .chapter-random-inputs input,
+html[data-theme='dark'] .student-selectors select,
+html[data-theme='dark'] .student-activity-feedback-form textarea,
+html[data-theme='dark'] .admin-user-table .question-table select,
+html[data-theme='dark'] .math-field,
+html[data-theme='dark'] .preview-text-editor,
+html[data-theme='dark'] .preview-columns select,
+html[data-theme='dark'] .preview-option-style select {
+	border-color: #403a49;
+	background: #19171f;
+	color: #eee9f5;
+}
+
+html[data-theme='dark'] .question-table-wrap {
+	border-color: var(--card-border);
+	background: var(--card);
+}
+
+html[data-theme='dark'] .question-table th {
+	border-color: var(--card-border);
+	background: #292431;
+	color: #cbb9e5;
+}
+
+html[data-theme='dark'] .question-table td {
+	border-color: #342f3b;
+	color: #e1dce8;
+}
+
+html[data-theme='dark'] .question-table tbody tr:hover,
+html[data-theme='dark'] .question-table .row-selected,
+html[data-theme='dark'] .builder-question:hover,
+html[data-theme='dark'] .builder-question.checked,
+html[data-theme='dark'] .student-options label.selected,
+html[data-theme='dark'] .student-own-row {
+	background: #2b2634;
+}
+
+html[data-theme='dark'] .question-copy strong,
+html[data-theme='dark'] .builder-question-copy > strong,
+html[data-theme='dark'] .selection-chapter-title strong,
+html[data-theme='dark'] .student-activity-person strong,
+html[data-theme='dark'] .student-feedback-item strong,
+html[data-theme='dark'] .admin-user-name strong,
+html[data-theme='dark'] .admin-user-summary strong {
+	color: #eee9f5;
+}
+
+html[data-theme='dark'] .chapter-pill,
+html[data-theme='dark'] .type-tabs button > span,
+html[data-theme='dark'] .type-mcq,
+html[data-theme='dark'] .type-short,
+html[data-theme='dark'] .type-cq,
+html[data-theme='dark'] .type-long,
+html[data-theme='dark'] .stat-icon,
+html[data-theme='dark'] .student-mcq-badge,
+html[data-theme='dark'] .student-profile-avatar,
+html[data-theme='dark'] .student-rank-avatar,
+html[data-theme='dark'] .student-activity-avatar,
+html[data-theme='dark'] .admin-user-avatar,
+html[data-theme='dark'] .admin-summary-icon,
+html[data-theme='dark'] .admin-user-status {
+	background: #302a3a;
+	color: #d1bdf2;
+}
+
+html[data-theme='dark'] .type-tabs button.active,
+html[data-theme='dark'] .row-number,
+html[data-theme='dark'] .marks-cell,
+html[data-theme='dark'] .student-eyebrow,
+html[data-theme='dark'] .student-activity-score,
+html[data-theme='dark'] .student-my-rank strong,
+html[data-theme='dark'] .student-leaderboard td:first-child,
+html[data-theme='dark'] .student-exam-counter strong,
+html[data-theme='dark'] .student-exam-progress .student-timer {
+	color: #cbb1f2;
+}
+
+html[data-theme='dark'] .type-tabs button.active::after {
+	background: #a77ae9;
+}
+
+html[data-theme='dark'] .action-button-secondary,
+html[data-theme='dark'] .quiet-button,
+html[data-theme='dark'] .sort-button,
+html[data-theme='dark'] .text-button,
+html[data-theme='dark'] .student-refresh,
+html[data-theme='dark'] .student-previous-button,
+html[data-theme='dark'] .student-account button,
+html[data-theme='dark'] .student-result > button,
+html[data-theme='dark'] .admin-action-button {
+	border-color: #57486b;
+	background: #2b2634;
+	color: #dfd1f2;
+}
+
+html[data-theme='dark'] .action-button-secondary:hover:not(:disabled),
+html[data-theme='dark'] .quiet-button:hover:not(:disabled),
+html[data-theme='dark'] .sort-button:hover,
+html[data-theme='dark'] .text-button:hover,
+html[data-theme='dark'] .student-refresh:hover,
+html[data-theme='dark'] .student-account button:hover,
+html[data-theme='dark'] .icon-button:hover,
+html[data-theme='dark'] .row-actions button:hover,
+html[data-theme='dark'] .admin-action-button:hover:not(:disabled) {
+	background: #393145;
+	color: #fff;
+}
+
+html[data-theme='dark'] .avatar {
+	background: #3b3249;
+	color: #e2d5f3;
+}
+
+html[data-theme='dark'] .avatar.top-avatar {
+	border-color: #57486b;
+}
+
+html[data-theme='dark'] .action-button-primary,
+html[data-theme='dark'] .primary-button,
+html[data-theme='dark'] .student-primary-button,
+html[data-theme='dark'] .auth-submit {
+	background: linear-gradient(135deg, #8859cf, #6842a7);
+	color: #fff;
+}
+
+html[data-theme='dark'] .action-button-primary:hover:not(:disabled),
+html[data-theme='dark'] .primary-button:hover:not(:disabled),
+html[data-theme='dark'] .student-primary-button:hover:not(:disabled),
+html[data-theme='dark'] .auth-submit:hover:not(:disabled) {
+	background: linear-gradient(135deg, #9a6ce0, #7650b6);
+}
+
+html[data-theme='dark'] .question-modal .modal-heading,
+html[data-theme='dark'] .question-modal .modal-footer,
+html[data-theme='dark'] .preview-modal .modal-heading,
+html[data-theme='dark'] .preview-modal .modal-footer,
+html[data-theme='dark'] .preview-toolbar,
+html[data-theme='dark'] .preview-editbar,
+html[data-theme='dark'] .selection-bar,
+html[data-theme='dark'] .selection-breakdown-header {
+	border-color: var(--card-border);
+	background: #201d26;
+	color: var(--text);
+}
+
+html[data-theme='dark'] .option-editor,
+html[data-theme='dark'] .statement-editor,
+html[data-theme='dark'] .statement-generated-field,
+html[data-theme='dark'] .statement-question-preview,
+html[data-theme='dark'] .answer-equation-preview,
+html[data-theme='dark'] .question-live-preview,
+html[data-theme='dark'] .option-equation-insert,
+html[data-theme='dark'] .bulk-preview-row,
+html[data-theme='dark'] .watermark-image-preview img,
+html[data-theme='dark'] .school-logo-preview img {
+	border-color: var(--card-border);
+	background: #19171f;
+	color: #e8e2ef;
+}
+
+html[data-theme='dark'] .student-teacher-request,
+html[data-theme='dark'] .student-feedback-item,
+html[data-theme='dark'] .student-activity-feedback,
+html[data-theme='dark'] .student-result,
+html[data-theme='dark'] .admin-role-help,
+html[data-theme='dark'] .admin-teacher-request,
+html[data-theme='dark'] .admin-message-success,
+html[data-theme='dark'] .question-loading-status,
+html[data-theme='dark'] .data-loading-banner,
+html[data-theme='dark'] .app-activity {
+	border-color: #4b3e5c;
+	background: #282230;
+	color: #e1d9eb;
+}
+
+html[data-theme='dark'] .student-result p,
+html[data-theme='dark'] .student-feedback-item p,
+html[data-theme='dark'] .student-activity-feedback p,
+html[data-theme='dark'] .admin-role-help {
+	color: #e1d9eb;
+}
+
+html[data-theme='dark'] .student-options label,
+html[data-theme='dark'] .student-review-options > div {
+	border-color: var(--card-border);
+	background: var(--card);
+	color: #e1dce8;
+}
+
+html[data-theme='dark'] .student-options label.selected,
+html[data-theme='dark'] .student-review-options > div.correct {
+	border-color: #705992;
+	background: #342b43;
+	color: #e8dcf8;
+}
+
+html[data-theme='dark'] .auth-shell {
+	background: radial-gradient(ellipse at top, #2a2236, #15131a 70%);
+}
+
+html[data-theme='dark'] .auth-brand strong,
+html[data-theme='dark'] .auth-heading h1,
+html[data-theme='dark'] .auth-setup h1 {
+	color: #f0eafa;
+}
+
+html[data-theme='dark'] .auth-brand small,
+html[data-theme='dark'] .auth-heading p,
+html[data-theme='dark'] .auth-setup > p,
+html[data-theme='dark'] .auth-setup ol,
+html[data-theme='dark'] .auth-loading {
+	color: #b3aabd;
+}
+
+html[data-theme='dark'] .auth-google-button {
+	border-color: #57486b;
+	background: #292431;
+	color: #e9e0f4;
+}
+
+html[data-theme='dark'] .auth-google-button:hover:not(:disabled) {
+	background: #393145;
+}
+
+html[data-theme='dark'] .auth-setup pre {
+	border-color: var(--card-border);
+	background: #19171f;
+	color: #e1d9eb;
+}
+
+html[data-theme='dark'] .loading-spinner {
+	border-color: #494252;
+	border-top-color: #a77ae9;
+}
+
+html[data-theme='dark'] .loading-progress-track {
+	background: #342e3d;
+}
+
+html[data-theme='dark'] .loading-progress-track > span {
+	background: #9564e8;
+}
+
+select {
+	color-scheme: light;
+}
+
+select option,
+select optgroup {
+	background: #fff;
+	color: #2a1a4a;
+}
+
+select option:checked {
+	background: #ede9fe;
+	color: #3b0f8c;
+}
+
+html[data-theme='dark'] select {
+	color-scheme: dark;
+}
+
+html[data-theme='dark'] select option,
+html[data-theme='dark'] select optgroup {
+	background: #201d26;
+	color: #ede9f5;
+}
+
+html[data-theme='dark'] select option:checked {
+	background: #3b3249;
+	color: #f4edff;
+}
+
+.context-bar select,
+.field-label select,
+.student-selectors select {
+	accent-color: var(--purple-600);
+}
+
+.chapter-filter > summary {
+	min-height: 44px;
+	border-color: var(--card-border);
+	border-radius: 12px;
+	background: var(--card);
+	color: var(--text-muted);
+}
+
+.chapter-filter > summary > span {
+	color: var(--text);
+	font-size: 13px;
+}
+
+.chapter-filter > summary:hover,
+.chapter-filter[open] > summary {
+	border-color: var(--purple-300);
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.chapter-filter-menu {
+	min-width: max(100%, 260px);
+	padding: 8px;
+	border-color: var(--card-border);
+	border-radius: 14px;
+	background: var(--card);
+	box-shadow: 0 14px 34px rgb(46 16 101 / 14%);
+	color: var(--text);
+}
+
+.chapter-filter-heading {
+	padding: 7px 8px 9px;
+	border-color: var(--card-border);
+	color: var(--text);
+	font-size: 13px;
+}
+
+.chapter-filter-heading button {
+	min-height: 32px;
+	padding: 4px 8px;
+	border-radius: 8px;
+	color: var(--purple-800);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.chapter-filter-heading button:hover {
+	background: var(--purple-100);
+}
+
+.chapter-filter-option {
+	min-height: 40px;
+	padding: 6px 9px;
+	border-radius: 9px;
+	color: var(--text);
+	font-size: 13px;
+}
+
+.chapter-filter-option:hover {
+	background: var(--purple-100);
+	color: var(--purple-800);
+}
+
+.chapter-filter-option input {
+	accent-color: var(--purple-600);
+}
+
+.chapter-filter-empty {
+	padding: 12px 8px;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+html[data-theme='dark'] .chapter-filter > summary {
+	border-color: var(--card-border);
+	background: #19171f;
+	color: var(--text-muted);
+}
+
+html[data-theme='dark'] .chapter-filter > summary > span {
+	color: var(--text);
+}
+
+html[data-theme='dark'] .chapter-filter > summary:hover,
+html[data-theme='dark'] .chapter-filter[open] > summary {
+	border-color: #57486b;
+	background: #2b2634;
+	color: #dfd1f2;
+}
+
+html[data-theme='dark'] .chapter-filter-menu {
+	border-color: #403a49;
+	background: #201d26;
+	box-shadow: 0 16px 38px rgb(0 0 0 / 38%);
+	color: #ede9f5;
+}
+
+html[data-theme='dark'] .chapter-filter-heading {
+	border-color: #393441;
+	color: #ede9f5;
+}
+
+html[data-theme='dark'] .chapter-filter-heading button {
+	color: #d1bdf2;
+}
+
+html[data-theme='dark'] .chapter-filter-heading button:hover,
+html[data-theme='dark'] .chapter-filter-option:hover {
+	background: #332e3d;
+	color: #f0eafa;
+}
+
+html[data-theme='dark'] .chapter-filter-option {
+	color: #e1dce8;
+}
+
+html[data-theme='dark'] .chapter-filter-empty {
+	color: #b3aabd;
+}
+
+.chapter-count-breakdown {
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+	gap: 12px;
+}
+
+.chapter-count-card {
+	gap: 10px;
+	padding: 14px;
+	border-radius: 12px;
+}
+
+.chapter-count-card > strong {
+	display: -webkit-box;
+	overflow: hidden;
+	font-size: clamp(14px, 1vw + 10px, 16px);
+	line-height: 1.45;
+	overflow-wrap: anywhere;
+	text-overflow: ellipsis;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	white-space: normal;
+}
+
+.chapter-count-metrics {
+	gap: 8px clamp(12px, 2vw, 20px);
+}
+
+.chapter-count-metrics > span {
+	gap: 3px;
+}
+
+.chapter-count-metrics small {
+	font-size: clamp(12px, .85vw + 9px, 13px);
+	line-height: 1.4;
+}
+
+.chapter-count-metrics b {
+	font-size: clamp(15px, 1vw + 11px, 17px);
+	line-height: 1.35;
+}
+
+.chapter-random-settings {
+	gap: 12px;
+	padding: clamp(14px, 2vw, 20px);
+	border-radius: 14px;
+}
+
+.chapter-random-heading {
+	gap: 10px;
+	font-size: clamp(15px, 1vw + 11px, 17px);
+	line-height: 1.45;
+}
+
+.chapter-random-heading strong {
+	gap: 8px;
+}
+
+.chapter-random-heading > span {
+	flex-shrink: 0;
+	font-size: clamp(12px, .85vw + 9px, 14px);
+}
+
+.chapter-random-settings > p {
+	font-size: clamp(13px, .9vw + 10px, 15px);
+	line-height: 1.6;
+}
+
+.chapter-random-inputs {
+	gap: 10px 16px;
+}
+
+.chapter-random-inputs > label {
+	grid-template-columns: minmax(0, 1fr) 64px;
+	gap: 10px;
+	font-size: clamp(13px, .9vw + 10px, 15px);
+	line-height: 1.5;
+}
+
+.chapter-random-inputs > label > span {
+	overflow: visible;
+	text-overflow: clip;
+	white-space: normal;
+}
+
+.chapter-random-inputs > label small {
+	font-size: clamp(12px, .8vw + 9px, 13px);
+	line-height: 1.45;
+}
+
+.chapter-random-inputs input {
+	min-height: 44px;
+	height: 44px;
+	padding: 8px 10px;
+	border-radius: 9px;
+	font-size: 16px;
+}
+
+.chapter-random-actions {
+	gap: 12px;
+	padding-top: 4px;
+	font-size: clamp(13px, .9vw + 10px, 15px);
+	line-height: 1.5;
+}
+
+.chapter-random-actions .primary-button {
+	min-height: 44px;
+	padding: 0 16px;
+	font-size: 14px;
+}
+
+@media (max-width: 600px) {
+	.chapter-count-breakdown {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.chapter-random-heading {
+		align-items: flex-start;
+	}
+
+	.chapter-random-inputs {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.chapter-random-actions {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.chapter-random-actions .primary-button {
+		justify-content: center;
+		white-space: normal;
+	}
+}
+
+.question-table th {
+	height: auto;
+	min-height: 44px;
+	padding-top: 12px;
+	padding-bottom: 12px;
+	font-size: clamp(13px, .8vw + 10px, 15px);
+	line-height: 1.4;
+}
+
+.question-table td {
+	height: auto;
+	min-height: 76px;
+	padding-top: 16px;
+	padding-bottom: 16px;
+	font-size: clamp(14px, .75vw + 11px, 16px);
+	line-height: 1.55;
+	vertical-align: middle;
+}
+
+.question-table input[type='checkbox'] {
+	width: 20px;
+	height: 20px;
+}
+
+.question-cell {
+	max-width: 560px;
+	gap: 10px;
+}
+
+.row-number {
+	flex: 0 0 auto;
+	padding-top: 2px;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.question-copy {
+	min-width: 0;
+	gap: 5px;
+}
+
+.question-copy strong {
+	font-size: clamp(15px, .85vw + 11px, 17px);
+	line-height: 1.55;
+}
+
+.question-copy small {
+	display: -webkit-box;
+	font-size: clamp(13px, .7vw + 10px, 14px);
+	line-height: 1.55;
+	white-space: normal;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+.chapter-pill {
+	max-width: min(240px, 100%);
+	padding: 6px 9px;
+	border-radius: 8px;
+	font-size: clamp(12px, .65vw + 9px, 14px);
+	line-height: 1.45;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+.type-pill {
+	min-height: 30px;
+	justify-content: center;
+	padding: 4px 9px;
+	border-radius: 8px;
+	font-size: clamp(12px, .65vw + 9px, 14px);
+	line-height: 1.4;
+}
+
+.marks-cell {
+	font-size: clamp(15px, .8vw + 12px, 17px);
+	font-weight: 650;
+}
+
+@media (max-width: 760px) {
+	.question-table th {
+		min-height: 42px;
+		padding-top: 10px;
+		padding-bottom: 10px;
+	}
+
+	.question-table td {
+		min-height: 76px;
+		padding-top: 14px;
+		padding-bottom: 14px;
+	}
+
+	.question-cell {
+		gap: 8px;
+	}
+
+	.question-copy strong {
+		font-size: clamp(15px, 2.4vw + 7px, 17px);
+	}
+
+	.question-copy small {
+		font-size: 13px;
+	}
+}
+
+@media (max-width: 420px) {
+	.question-table th:first-child,
+	.question-table td:first-child {
+		padding-left: 8px;
+	}
+
+	.question-table td {
+		padding-top: 12px;
+		padding-bottom: 12px;
+	}
+
+	.question-table th:last-child,
+	.question-table td:last-child {
+		width: 64px;
+		padding-right: 8px;
+	}
+
+	.question-copy strong {
+		font-size: 15px;
+	}
+
+	.question-copy small {
+		font-size: 13px;
+	}
+}
