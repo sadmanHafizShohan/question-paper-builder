@@ -11,4 +11,6 @@ export const subjects = [
   { id: 'islam', label: 'ইসলাম ও নৈতিক শিক্ষা' },
   { id: 'hindu', label: 'হিন্দু ধর্ম' },
   { id: 'ict', label: 'তথ্য ও যোগাযোগ প্রযুক্তি' },
+  { id: 'Agriculture', label: 'কৃষিশিক্ষা' },
+  { id: 'HigherMath', label: 'উচ্চতর গণিত' },
 ]
