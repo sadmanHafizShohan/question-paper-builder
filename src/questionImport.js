@@ -219,6 +219,23 @@ function parseQuestionRow(row, columns) {
   }
 }
 
+function parseQuestionRows(sheetRows, columns) {
+  const missingColumns = ['type', 'prompt', 'marks'].filter((field) => !columns.has(field))
+  if (missingColumns.length > 0) {
+    throw new Error('প্রথম সারিতে type, prompt ও marks কলাম থাকতে হবে। টেমপ্লেট ডাউনলোড করে ব্যবহার করুন।')
+  }
+
+  const rows = []
+  sheetRows.slice(1).forEach((row, index) => {
+    const hasValues = [...columns.values()].some((column) => cellText(row[column]))
+    if (!hasValues) return
+    if (rows.length >= maximumQuestionRows) throw new Error('একবারে সর্বোচ্চ ২০০০টি প্রশ্ন ইমপোর্ট করা যাবে।')
+    rows.push({ rowNumber: index + 2, ...parseQuestionRow(row, columns) })
+  })
+  if (rows.length === 0) throw new Error('টেমপ্লেটের শিরোনাম সারির পরে কোনো প্রশ্ন পাওয়া যায়নি।')
+  return rows
+}
+
 export async function parseQuestionWorkbook(file) {
   if (file.size > maximumFileSize) throw new Error('ফাইলের আকার সর্বোচ্চ ১০ MB হতে পারবে।')
   if (!/\.xlsx$/i.test(file.name)) throw new Error('Excel-এর .xlsx ফাইল নির্বাচন করুন।')
@@ -234,20 +251,7 @@ export async function parseQuestionWorkbook(file) {
 
   const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false })
   const columns = getColumnMap(sheetRows[0] ?? [])
-  const missingColumns = ['type', 'prompt', 'marks'].filter((field) => !columns.has(field))
-  if (missingColumns.length > 0) {
-    throw new Error('প্রথম সারিতে type, prompt ও marks কলাম থাকতে হবে। টেমপ্লেট ডাউনলোড করে ব্যবহার করুন।')
-  }
-
-  const rows = []
-  sheetRows.slice(1).forEach((row, index) => {
-    const hasValues = [...columns.values()].some((column) => cellText(row[column]))
-    if (!hasValues) return
-    if (rows.length >= maximumQuestionRows) throw new Error('একবারে সর্বোচ্চ ২০০০টি প্রশ্ন ইমপোর্ট করা যাবে।')
-    rows.push({ rowNumber: index + 2, ...parseQuestionRow(row, columns) })
-  })
-  if (rows.length === 0) throw new Error('টেমপ্লেটের শিরোনাম সারির পরে কোনো প্রশ্ন পাওয়া যায়নি।')
-  return rows
+  return parseQuestionRows(sheetRows, columns)
 }
 
 export async function parseBanglaSecondPaperWorkbook(file) {
@@ -273,6 +277,10 @@ export async function parseBanglaSecondPaperWorkbook(file) {
     if (['marks', 'mark', 'নম্বর', 'মান'].includes(normalized)) headers.set('marks', columnIndex)
     if (['answer', 'উত্তর', 'উত্তরবিবরণ', 'সমাধান'].includes(normalized)) headers.set('answer', columnIndex)
   })
+  const questionColumns = getColumnMap(sheetRows[0] ?? [])
+  if (questionColumns.has('type') || !headers.has('section')) {
+    return parseQuestionRows(sheetRows, questionColumns)
+  }
   const missingColumns = ['section', 'prompt', 'marks'].filter((field) => !headers.has(field))
   if (missingColumns.length) throw new Error('প্রথম সারিতে section, prompt ও marks কলাম থাকতে হবে। বাংলা ২য় পত্রের টেমপ্লেট ডাউনলোড করুন।')
 

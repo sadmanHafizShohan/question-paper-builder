@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Check, Download, FileSpreadsheet, Upload, X } from 'lucide-react'
 import {
-  downloadBanglaSecondPaperTemplate,
   downloadQuestionTemplate,
   downloadEnglishQuestionTemplate,
   parseBanglaSecondPaperWorkbook,
@@ -141,9 +140,7 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
     setIsDownloadingTemplate(true)
     setParseError('')
     try {
-      if (templateType === 'bangla2') {
-        await downloadBanglaSecondPaperTemplate()
-      } else if (subject?.startsWith('english')) {
+      if (subject?.startsWith('english')) {
         await downloadEnglishQuestionTemplate()
       } else {
         await downloadQuestionTemplate()
@@ -162,12 +159,12 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
     <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !isImporting) onClose() }}>
       <section className="question-modal bulk-import-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-import-title">
         <header className="modal-heading">
-          <div><span className="modal-icon"><FileSpreadsheet size={18} /></span><div><h2 id="bulk-import-title">Excel থেকে প্রশ্ন ইমপোর্ট</h2><p>{templateType === 'bangla2' ? 'বাংলা ২য় পত্র · ৬টি নির্ধারিত রচনামূলক অংশ' : 'MCQ, সংক্ষিপ্ত, সৃজনশীল ও বর্ণনামূলক প্রশ্ন'}</p></div></div>
+          <div><span className="modal-icon"><FileSpreadsheet size={18} /></span><div><h2 id="bulk-import-title">Excel থেকে প্রশ্ন ইমপোর্ট</h2><p>{templateType === 'bangla2' ? 'বাংলা ২য় পত্র · MCQ ও রচনামূলক প্রশ্ন' : 'MCQ, সংক্ষিপ্ত, সৃজনশীল ও বর্ণনামূলক প্রশ্ন'}</p></div></div>
           <button type="button" className="icon-button" aria-label="ইমপোর্ট বন্ধ করুন" disabled={isImporting} onClick={onClose}><X size={17} /></button>
         </header>
         <div className="bulk-import-content">
           <div className="bulk-import-help">
-            <p>{templateType === 'bangla2' ? 'বাংলা ২য় পত্রের আলাদা Excel টেমপ্লেট ডাউনলোড করুন। section, prompt, alternative, marks ও answer পূরণ করে ইমপোর্ট করুন।' : 'টেমপ্লেট ডাউনলোড করে প্রশ্ন পূরণ করুন।'} Excel .xlsx ফাইলের প্রথম worksheet পড়া হবে; সর্বোচ্চ ২০০০টি প্রশ্ন ও ১০ MB পর্যন্ত ফাইল সমর্থিত।</p>
+            <p>{templateType === 'bangla2' ? 'MCQ-সহ সাধারণ প্রশ্নের জন্য type, prompt ও marks কলামযুক্ত Excel টেমপ্লেট ব্যবহার করুন। ছয়টি নির্ধারিত রচনামূলক অংশের পুরোনো section টেমপ্লেটও সমর্থিত।' : 'টেমপ্লেট ডাউনলোড করে প্রশ্ন পূরণ করুন।'} Excel .xlsx ফাইলের প্রথম worksheet পড়া হবে; সর্বোচ্চ ২০০০টি প্রশ্ন ও ১০ MB পর্যন্ত ফাইল সমর্থিত।</p>
             <button type="button" className="quiet-button" disabled={isDownloadingTemplate || isImporting} onClick={saveTemplate}>
               {isDownloadingTemplate ? <span className="loading-spinner loading-spinner-button" aria-hidden="true" /> : <Download size={15} />}
               {isDownloadingTemplate ? 'টেমপ্লেট তৈরি হচ্ছে…' : 'টেমপ্লেট ডাউনলোড'}
