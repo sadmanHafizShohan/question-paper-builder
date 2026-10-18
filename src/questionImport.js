@@ -37,6 +37,34 @@ function cellText(cell) {
   return String(cell).trim()
 }
 
+function combineBanglaPromptAndAlternative(prompt, alternative) {
+  if (!alternative) return prompt
+
+  const optionPattern = /^\s*\([কখগঘ]\)\s*/
+  const alternativeLines = alternative.split(/\r?\n/)
+  const optionLineIndexes = alternativeLines
+    .map((line, index) => (optionPattern.test(line.replace(/^\s*অথবা[、,，]?\s*/, '')) ? index : -1))
+    .filter((index) => index !== -1)
+
+  if (optionLineIndexes.length > 0) {
+    const promptHasOption = prompt.split(/\r?\n/).some((line) => optionPattern.test(line))
+    const showOrBeforeFirstOption = promptHasOption || optionLineIndexes.length === 1
+    let optionCount = 0
+    const formattedAlternative = alternativeLines.map((line) => {
+      const optionMatch = line.match(/^(\s*)(?:অথবা[、,，]?\s*)?(\([কখগঘ]\)\s*.*)$/)
+      if (!optionMatch) return line
+
+      const showOr = optionCount > 0 || showOrBeforeFirstOption
+      optionCount += 1
+      return `${optionMatch[1]}${showOr ? 'অথবা, ' : ''}${optionMatch[2]}`
+    }).join('\n')
+
+    return `${prompt}\n${formattedAlternative}`
+  }
+
+  return `${prompt}\n${/^অথবা[、,，]?\s*/.test(alternative) ? alternative : `অথবা, ${alternative}`}`
+}
+
 function normalizeDigits(value) {
   return value.replace(/[০-৯]/g, (digit) => String('০১২৩৪৫৬৭৮৯'.indexOf(digit)))
 }
@@ -283,7 +311,7 @@ export async function parseBanglaSecondPaperWorkbook(file) {
       question: {
         type: section.id,
         chapter: section.label,
-        prompt: `${prompt}${alternative ? `\n${/^অথবা[、,，]?\s*/.test(alternative) ? alternative : `অথবা, ${alternative}`}` : ''}`,
+        prompt: combineBanglaPromptAndAlternative(prompt, alternative),
         marks,
         answer,
         options: [],
@@ -358,7 +386,7 @@ export async function downloadBanglaSecondPaperTemplate() {
     ['প্রথম সারির section, prompt, alternative, marks ও answer শিরোনাম অপরিবর্তিত রাখুন।'],
     ['section-এ অনুচ্ছেদ রচনা, পত্র রচনা, সারাংশ / সারমর্ম, ভাবসম্প্রসারণ, প্রতিবেদন রচনা অথবা প্রবন্ধ রচনা লিখুন।'],
     ['একই প্রশ্নের একাধিক লাইন prompt cell-এ line break দিয়ে লিখুন। (ক), (খ), (গ) দিয়ে উপপ্রশ্ন শুরু করলে ছাপায় এগুলো মূল নির্দেশনা থেকে ভেতরে align হবে।'],
-    ['প্রতিটি সারিতে একটি প্রশ্ন দিন। বিকল্প প্রশ্ন থাকলে alternative কলামে লিখুন; কাগজে “অথবা,” দিয়ে দেখানো হবে। answer-এ প্রশ্নটির উত্তর লিখুন।'],
+    ['প্রতিটি সারিতে একটি প্রশ্ন দিন। বিকল্প প্রশ্ন alternative কলামে লিখুন; একাধিক (ক), (খ) বিকল্প দিলে প্রতিটি নতুন লাইনে লিখুন এবং প্রথমটির পরে কাগজে “অথবা,” দেখানো হবে। answer-এ প্রশ্নটির উত্তর লিখুন।'],
     ['নম্বর পূর্ণসংখ্যা দিন। প্রতিটি অংশে একাধিক প্রশ্ন ইমপোর্ট করা যাবে; প্রশ্নপত্রে প্রতিটি অংশ থেকে একটি বেছে নিন। উত্তরগুলো অন্য বিষয়ের মতো আলাদা উত্তরমালায় ছাপা হবে।'],
     ['উদাহরণ সারিগুলো নিজের প্রশ্ন দিয়ে প্রতিস্থাপন করুন। সর্বোচ্চ ২০০০টি প্রশ্ন এবং ১০ MB পর্যন্ত .xlsx ফাইল সমর্থিত।'],
   ])
