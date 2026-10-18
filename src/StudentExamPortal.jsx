@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, GraduationCap, LogOut, M
 import { signOut } from '@firebase/auth'
 import authenticatedFetch from './authenticatedFetch.js'
 import LoadingStatus from './LoadingStatus.jsx'
+import QuestionBankTotal from './QuestionBankTotal.jsx'
 import { auth } from './firebase.js'
 import { grades, subjects } from './academic.js'
 import './StudentExamPortal.css'
@@ -349,6 +350,7 @@ export default function StudentExamPortal({ user }) {
       </header>}
 
       <div className={`student-content${attempt ? ' student-content-exam-active' : ''}`}>
+        <QuestionBankTotal apiUrl={apiUrl} className="student-question-bank-total" />
         {!attempt && <>
           <section className="student-welcome">
           <span className="student-welcome-icon"><GraduationCap size={25} /></span>

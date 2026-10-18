@@ -1,0 +1,119 @@
+.question-bank-total {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  border: 1px solid #dcebe1;
+  border-radius: 11px;
+  background: #f4faf5;
+  color: #176b55;
+  font-family: inherit;
+}
+
+.question-bank-total-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 9px;
+  background: #e2f2e8;
+}
+
+.question-bank-total-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.question-bank-total-copy small {
+  color: #78847d;
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.question-bank-total-copy strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.landing-question-bank-total {
+  margin-top: 22px;
+  box-shadow: 0 8px 22px #2036650b;
+}
+
+.landing-question-bank-total .question-bank-total-icon {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+}
+
+.landing-question-bank-total .question-bank-total-copy small {
+  font-size: 11px;
+}
+
+.landing-question-bank-total .question-bank-total-copy strong {
+  font-size: 19px;
+}
+
+.topbar-actions .question-bank-total {
+  padding: 4px 9px;
+  border-color: var(--card-border, #dcebe1);
+  background: var(--bg-app, #f4faf5);
+  color: var(--purple-800, #176b55);
+}
+
+.topbar-actions .question-bank-total-icon {
+  width: 28px;
+  height: 28px;
+  flex-basis: 28px;
+}
+
+.topbar-actions .question-bank-total-copy small {
+  font-size: 9px;
+}
+
+.topbar-actions .question-bank-total-copy strong {
+  font-size: 13px;
+}
+
+html[data-theme='dark'] .app-shell .question-bank-total,
+html[data-theme='dark'] .student-portal .question-bank-total {
+  border-color: #35473d;
+  background: #202e26;
+  color: #b8e0c6;
+}
+
+html[data-theme='dark'] .app-shell .question-bank-total-icon,
+html[data-theme='dark'] .student-portal .question-bank-total-icon {
+  background: #2a4032;
+}
+
+html[data-theme='dark'] .app-shell .question-bank-total-copy small,
+html[data-theme='dark'] .student-portal .question-bank-total-copy small {
+  color: #a1b1a7;
+}
+
+@media (max-width: 620px) {
+  .topbar-actions .question-bank-total {
+    gap: 5px;
+    padding: 3px 5px;
+  }
+
+  .topbar-actions .question-bank-total-icon {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+  }
+
+  .topbar-actions .question-bank-total-copy small {
+    display: none;
+  }
+
+  .topbar-actions .question-bank-total-copy strong {
+    font-size: 11px;
+  }
+}

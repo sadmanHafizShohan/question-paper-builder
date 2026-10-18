@@ -61,6 +61,7 @@
 .student-account .student-theme-toggle { display: grid; width: 34px; height: 34px; place-items: center; padding: 0; }
 
 .student-content { width: min(920px, calc(100% - 40px)); margin: 34px auto 60px; }
+.student-question-bank-total { margin: 0 0 20px auto; }
 .student-welcome { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
 .student-welcome-icon { width: 52px; height: 52px; border-radius: 14px; flex: 0 0 auto; }
 .student-eyebrow { margin: 0 0 4px; color: #16715d; font-size: 11px; font-weight: 700; }

@@ -15,7 +15,9 @@ import {
   X,
 } from 'lucide-react'
 import './PublicLandingPage.css'
+import QuestionBankTotal from './QuestionBankTotal.jsx'
 
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 const features = [
   {
     icon: Layers3,
@@ -283,6 +285,7 @@ export default function PublicLandingPage() {
                 <a className="landing-button-primary" href="#/register">শুরু করুন <ArrowRight size={18} /></a>
                 <a className="landing-button-secondary" href="#/login">লগইন করুন</a>
               </div>
+              <QuestionBankTotal apiUrl={apiUrl} className="landing-question-bank-total" />
               <div className="landing-hero-note"><Check size={16} /> Google দিয়ে সাইন ইন করে শুরু করুন</div>
             </div>
             <div className="landing-hero-art"><PaperPreview /></div>

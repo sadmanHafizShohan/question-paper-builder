@@ -23,6 +23,15 @@ app.get('/api/health', (_request, response) => {
   response.json({ api: 'ok', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' })
 })
 
+app.get('/api/questions/count', async (_request, response, next) => {
+  try {
+    const total = await Question.countDocuments()
+    response.json({ total })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.use('/api', async (request, response, next) => {
   const authorization = request.get('authorization') || ''
   const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i)

@@ -43,6 +43,8 @@ import authenticatedFetch from './authenticatedFetch.js'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
 import StudentActivityPanel from './StudentActivityPanel.jsx'
 import StudentExamPortal from './StudentExamPortal.jsx'
+import QuestionBankTotal from './QuestionBankTotal.jsx'
+import { notifyQuestionBankCountChanged } from './questionBankCountEvents.js'
 import { banglaSecondPaperChapter, banglaSecondPaperSections } from './banglaSecondPaper.js'
 import { grades, subjects } from './academic.js'
 import LoadingStatus from './LoadingStatus.jsx'
@@ -1009,6 +1011,7 @@ function QuestionPaperBuilder({ user, role }) {
       })
     }
     void refreshQuestionMeta()
+    if (!editing) notifyQuestionBankCountChanged()
     if (editing) {
       setShowEditor(false)
       setEditingQuestion(null)
@@ -1046,7 +1049,10 @@ function QuestionPaperBuilder({ user, role }) {
     }
     setQuestions((current) => current.filter((question) => question.id !== id))
     setVisibleQuestionIds((current) => current.filter((visibleId) => visibleId !== id))
-    if (!question.isLocal) void refreshQuestionMeta()
+    if (!question.isLocal) {
+      void refreshQuestionMeta()
+      notifyQuestionBankCountChanged()
+    }
     setSelected((current) => current.filter((item) => item !== id))
     setNotice(question.isLocal ? 'এই ডিভাইসের প্রশ্নটি মুছে ফেলা হয়েছে' : 'প্রশ্নটি main database থেকে মুছে ফেলা হয়েছে')
   }
@@ -1105,7 +1111,10 @@ function QuestionPaperBuilder({ user, role }) {
       setQuestions((current) => current.filter((question) => !processedServerIds.includes(question.id)))
       setVisibleQuestionIds((current) => current.filter((id) => !processedServerIds.includes(id)))
       setSelected((current) => current.filter((id) => !processedServerIds.includes(id)))
-      if (deletedServerIds.length > 0) void refreshQuestionMeta()
+      if (deletedServerIds.length > 0) {
+        void refreshQuestionMeta()
+        notifyQuestionBankCountChanged()
+      }
       setNotice(`${bengaliNumber(deletedServerIds.length)}টি main প্রশ্ন মুছে গেছে; ${bengaliNumber(failedServerIds.length)}টি মুছতে পারিনি। কোনো local প্রশ্ন মুছিনি। আবার চেষ্টা করুন।`)
       return
     }
@@ -1118,6 +1127,7 @@ function QuestionPaperBuilder({ user, role }) {
         if (deletedServerIds.length > 0) {
           setVisibleQuestionIds((current) => current.filter((id) => !processedServerIds.includes(id)))
           void refreshQuestionMeta()
+          notifyQuestionBankCountChanged()
           setNotice(`${deletedServerIds.length}টি main প্রশ্ন মুছে গেছে, কিন্তু local প্রশ্নগুলো এই ডিভাইসে সংরক্ষণ সমস্যার কারণে মুছতে পারিনি।`)
         }
         return
@@ -1129,7 +1139,10 @@ function QuestionPaperBuilder({ user, role }) {
     setQuestions((current) => current.filter((question) => !removedIds.includes(question.id)))
     setVisibleQuestionIds((current) => current.filter((id) => !removedIds.includes(id)))
     setSelected((current) => current.filter((id) => !removedIds.includes(id)))
-    if (deletedServerIds.length > 0) void refreshQuestionMeta()
+    if (deletedServerIds.length > 0) {
+      void refreshQuestionMeta()
+      notifyQuestionBankCountChanged()
+    }
     setNotice(`${bengaliNumber(deletedCount)}টি নির্বাচিত প্রশ্ন মুছে ফেলা হয়েছে${missingServerIds.length ? `; ${bengaliNumber(missingServerIds.length)}টি আগে থেকেই নেই` : ''}`)
   }
 
@@ -1236,7 +1249,7 @@ function QuestionPaperBuilder({ user, role }) {
         <header className="topbar">
           <button type="button" className="icon-button sidebar-toggle" aria-label="মেনু খুলুন" aria-expanded={isSidebarOpen} onClick={() => setIsSidebarOpen(true)}><Menu size={19} /></button>
           <div className="breadcrumbs"><span>ওয়ার্কস্পেস</span><ChevronRight size={14} /><strong>{page === 'bank' ? 'প্রশ্ন ব্যাংক' : page === 'users' ? 'ব্যবহারকারী' : page === 'activities' ? 'শিক্ষার্থী activity' : 'প্রশ্নপত্র তৈরি'}</strong></div>
-          <div className="topbar-actions"><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'Data Base Connected' : dataMode === 'connecting' ? 'Data Base Connecting' : 'Data Base Connection Failed'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}><span>{accountInitial}</span>{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
+          <div className="topbar-actions"><QuestionBankTotal apiUrl={apiUrl} /><span className={`save-indicator ${dataMode === 'mongo' ? 'mongo-indicator' : ''}`}><span />{dataMode === 'mongo' ? 'Data Base Connected' : dataMode === 'connecting' ? 'Data Base Connecting' : 'Data Base Connection Failed'}</span><button type="button" className="icon-button theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button><div className="avatar top-avatar" title={accountName}><span>{accountInitial}</span>{user.photoURL && <img src={user.photoURL} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</div><button type="button" className="icon-button mobile-logout" aria-label="লগআউট" title="লগআউট" disabled={Boolean(busyMessage)} onClick={() => runWithActivity('লগআউট করা হচ্ছে…', handleLogout)}><LogOut size={16} /></button></div>
         </header>
 
         <div className="content-area">
@@ -1266,7 +1279,7 @@ function QuestionPaperBuilder({ user, role }) {
               </section>
 
               <section className="stats-row" aria-label="প্রশ্ন ব্যাংকের সারাংশ">
-                <div className="stat-card"><div className="stat-icon mint"><BookOpen size={18} /></div><div><span>মোট প্রশ্ন</span><strong>{questionCount(totalQuestionCount)}</strong></div><small>প্রশ্ন ব্যাংকে</small></div>
+                <div className="stat-card"><div className="stat-icon mint"><BookOpen size={18} /></div><div><span>এই শ্রেণি ও বিষয়ের প্রশ্ন</span><strong>{questionCount(totalQuestionCount)}</strong></div><small>প্রশ্ন ব্যাংকে</small></div>
                 <div className="stat-card"><div className="stat-icon sky"><ClipboardList size={18} /></div><div><span>অধ্যায়</span><strong>{questionCount(availableChapters.length)}</strong></div><small>প্রশ্ন রয়েছে</small></div>
                 <div className="stat-card"><div className="stat-icon peach"><FileText size={18} /></div><div><span>প্রশ্নের ধরন</span><strong>{questionCount(questionTypeCount)}</strong></div><small>ধরন সক্রিয়</small></div>
                 <button className="stat-card stat-action" onClick={() => setPage('builder')}><div className="stat-icon lavender"><FilePlus2 size={18} /></div><div><span>নির্বাচিত প্রশ্ন</span><strong>{bengaliNumber(selected.length)}</strong></div><small>প্রশ্নপত্র তৈরি <ChevronRight size={13} /></small></button>
@@ -1446,6 +1459,7 @@ function QuestionPaperBuilder({ user, role }) {
             .map((question) => question.id)
           setVisibleQuestionIds((current) => [...new Set(sortOrder === 'desc' ? [...importedServerIds, ...current] : [...current, ...importedServerIds])])
           if (isAdmin) void refreshQuestionMeta()
+          if (isAdmin && savedQuestions.length > 0) notifyQuestionBankCountChanged()
           return true
         }}
         onNotice={setNotice}
@@ -1508,6 +1522,7 @@ function QuestionPaperBuilder({ user, role }) {
           setVisibleQuestionIds((current) => current.filter((id) => !deletedIds.includes(id)))
           setSelected((current) => current.filter((id) => !deletedIds.includes(id)))
           void refreshQuestionMeta()
+          if (deletedIds.length > 0) notifyQuestionBankCountChanged()
           setNotice(`${bengaliNumber(deletedIds.length)}টি ডুপ্লিকেট প্রশ্ন মুছে ফেলা হয়েছে`)
         }}
         onClose={() => setShowDuplicateDetector(false)}
