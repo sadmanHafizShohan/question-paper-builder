@@ -43,6 +43,7 @@ import authenticatedFetch from './authenticatedFetch.js'
 import AdminUsersPanel from './AdminUsersPanel.jsx'
 import StudentActivityPanel from './StudentActivityPanel.jsx'
 import StudentExamPortal from './StudentExamPortal.jsx'
+import { banglaSecondPaperChapter, banglaSecondPaperSections } from './banglaSecondPaper.js'
 import { grades, subjects } from './academic.js'
 import LoadingStatus from './LoadingStatus.jsx'
 import AnimatedNumber from './AnimatedNumber.jsx'
@@ -61,6 +62,14 @@ const questionTypes = [
   { id: 'synonym_antonym', label: 'Synonym/Antonym', labelBn: 'সমার্থক/বিপরীতার্থক', labelEn: 'Synonym/Antonym', headingBn: 'সমার্থক/বিপরীতার্থক', headingEn: 'Synonyms and Antonyms' },
   { id: 'cq', label: 'সৃজনশীল', labelBn: 'সৃজনশীল প্রশ্ন', labelEn: 'Creative Questions', headingBn: 'সৃজনশীল প্রশ্ন', headingEn: 'Creative Questions' },
   { id: 'long', label: 'বর্ণনামূলক', labelBn: 'বর্ণনামূলক প্রশ্ন', labelEn: 'Writing', headingBn: 'বর্ণনামূলক প্রশ্ন', headingEn: 'Writing' },
+  ...banglaSecondPaperSections.map((section) => ({
+    id: section.id,
+    label: section.label,
+    labelBn: section.label,
+    labelEn: section.label,
+    headingBn: section.label,
+    headingEn: section.label,
+  })),
 ]
 const chapterCountTypeLabels = { mcq: 'MCQ', cq: 'CQ', short: 'SQ', long: 'বর্ণনামূলক' }
 const builtInFigures = ['triangle', 'circle', 'rectangle']
@@ -199,7 +208,12 @@ function getLocalPaperSettings(grade, subject, uid, isAdmin) {
     const settings = {
       ...defaultPaperSettings,
       ...savedSettings,
-      paperSetCode: savedSettings.paperSetCode || createSetCode(),
+      schoolName: savedSettings.schoolName || (subject === 'bangla-2' ? 'যশোর বোর্ড ২০২৪' : defaultPaperSettings.schoolName),
+      paperSetCode: savedSettings.paperSetCode && !(subject === 'bangla-2' && /^SET-/i.test(savedSettings.paperSetCode))
+        ? savedSettings.paperSetCode
+        : subject === 'bangla-2' ? '১০২' : createSetCode(),
+      paperDuration: savedSettings.paperDuration ?? (subject === 'bangla-2' ? '২ ঘণ্টা ৩০ মিনিট' : defaultPaperSettings.paperDuration),
+      paperTitle: savedSettings.paperTitle ?? (subject === 'bangla-2' ? 'রচনামূলক প্রশ্ন' : 'সাপ্তাহিক পরিক্ষা'),
     }
     if (!savedSettings.paperSetCode) localStorage.setItem(storageKey, JSON.stringify(settings))
     return settings
@@ -276,14 +290,19 @@ function QuestionPaperBuilder({ user, role }) {
   }, [grade, subject])
 
   const applyPaperSettings = useCallback((settings) => {
-    setSchoolName(settings.schoolName ?? defaultPaperSettings.schoolName)
+    const configuredCode = settings.paperSetCode ?? getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperSetCode
+    setSchoolName(settings.schoolName && !(subject === 'bangla-2' && settings.schoolName === defaultPaperSettings.schoolName)
+      ? settings.schoolName
+      : subject === 'bangla-2' ? 'যশোর বোর্ড ২০২৪' : defaultPaperSettings.schoolName)
     setSchoolSubtitle(settings.schoolSubtitle ?? defaultPaperSettings.schoolSubtitle)
     setSchoolLogo(settings.schoolLogo ?? defaultPaperSettings.schoolLogo)
-    setPaperSetCode(settings.paperSetCode ?? getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperSetCode)
+    setPaperSetCode(subject === 'bangla-2' && /^SET-/i.test(configuredCode) ? '১০২' : configuredCode)
     setQuestionTextColor(settings.questionTextColor ?? defaultPaperSettings.questionTextColor)
     setShowChapters(settings.showChapters ?? true)
     setPaperTitle(settings.paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
-    setPaperDuration(settings.paperDuration ?? '২ ঘণ্টা')
+    setPaperDuration(settings.paperDuration && !(subject === 'bangla-2' && settings.paperDuration === defaultPaperSettings.paperDuration)
+      ? settings.paperDuration
+      : subject === 'bangla-2' ? '২ ঘণ্টা ৩০ মিনিট' : '২ ঘণ্টা')
     setPaperClass(paperClassLabel(settings.paperClass ?? gradeLabel(grade)))
     setWatermark({ ...defaultPaperSettings.watermark, ...(settings.watermark ?? {}) })
   }, [grade, subject, isAdmin, user.uid])
@@ -457,9 +476,10 @@ function QuestionPaperBuilder({ user, role }) {
       const localForContext = getLocalQuestions(user.uid).filter((question) => question.grade === grade && question.subject === subject)
       setVisibleQuestionIds(localForContext.map((question) => question.id))
       const params = new URLSearchParams({ subject, grade: String(questionBankGrade(grade)), sort: sortOrder })
-      if (activeType !== 'all') params.set('type', activeType)
-      if (debouncedSearch) params.set('search', debouncedSearch)
-      selectedChapters.forEach((chapter) => params.append('chapter', chapter))
+      const loadAllBanglaPaperQuestions = page === 'builder' && subject === 'bangla-2'
+      if (!loadAllBanglaPaperQuestions && activeType !== 'all') params.set('type', activeType)
+      if (!loadAllBanglaPaperQuestions && debouncedSearch) params.set('search', debouncedSearch)
+      if (!loadAllBanglaPaperQuestions) selectedChapters.forEach((chapter) => params.append('chapter', chapter))
       try {
         const response = await authenticatedFetch(`${apiUrl}/questions?${params}`, { signal: controller.signal })
         if (!response.ok) throw new Error(`Question API failed with HTTP ${response.status}`)
@@ -490,7 +510,7 @@ function QuestionPaperBuilder({ user, role }) {
       active = false
       controller.abort()
     }
-  }, [dataMode, grade, subject, activeType, selectedChapters, debouncedSearch, sortOrder, user.uid])
+  }, [dataMode, grade, subject, activeType, selectedChapters, debouncedSearch, sortOrder, user.uid, page])
 
   useEffect(() => {
     if (!notice) return undefined
@@ -501,11 +521,12 @@ function QuestionPaperBuilder({ user, role }) {
 
   const questionsById = useMemo(() => new Map(questions.map((question) => [question.id, question])), [questions])
   const filteredQuestions = useMemo(() => {
+    const useBanglaPaperSelection = page === 'builder' && subject === 'bangla-2'
     const localForContext = questions.filter((question) => question.isLocal
-      && questionMatchesFilters(question, grade, subject, activeType, selectedChapters, debouncedSearch))
+      && questionMatchesFilters(question, grade, subject, useBanglaPaperSelection ? 'all' : activeType, useBanglaPaperSelection ? [] : selectedChapters, useBanglaPaperSelection ? '' : debouncedSearch))
     const serverForPage = visibleQuestionIds.map((id) => questionsById.get(id)).filter((question) => question && !question.isLocal)
     return [...localForContext, ...serverForPage]
-  }, [questions, visibleQuestionIds, questionsById, grade, subject, activeType, selectedChapters, debouncedSearch])
+  }, [questions, visibleQuestionIds, questionsById, grade, subject, activeType, selectedChapters, debouncedSearch, page])
   const localForContext = questions.filter((question) => question.isLocal && question.grade === grade && question.subject === subject)
   const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
   const mergeableChapters = isAdmin
@@ -744,9 +765,10 @@ function QuestionPaperBuilder({ user, role }) {
       sort: sortOrder,
       cursor: nextQuestionCursor,
     })
-    if (activeType !== 'all') params.set('type', activeType)
-    if (debouncedSearch) params.set('search', debouncedSearch)
-    selectedChapters.forEach((chapter) => params.append('chapter', chapter))
+    const loadAllBanglaPaperQuestions = page === 'builder' && subject === 'bangla-2'
+    if (!loadAllBanglaPaperQuestions && activeType !== 'all') params.set('type', activeType)
+    if (!loadAllBanglaPaperQuestions && debouncedSearch) params.set('search', debouncedSearch)
+    if (!loadAllBanglaPaperQuestions) selectedChapters.forEach((chapter) => params.append('chapter', chapter))
     try {
       const response = await authenticatedFetch(`${apiUrl}/questions?${params}`)
       if (!response.ok) throw new Error(`Question API failed with HTTP ${response.status}`)
@@ -918,11 +940,11 @@ function QuestionPaperBuilder({ user, role }) {
     const isLocalQuestion = !isAdmin || editingQuestion?.isLocal
     if (editing && !isAdmin && !editingQuestion?.isLocal) {
       setNotice('Main database-এর প্রশ্ন শুধু admin সম্পাদনা করতে পারবেন')
-      return
+      return false
     }
     if (!isLocalQuestion && dataMode !== 'mongo') {
       setNotice('MongoDB সংযোগ ছাড়া main database-এ প্রশ্ন সংরক্ষণ করা যাবে না')
-      return
+      return false
     }
     const payload = { ...question, subject, grade: questionBankGrade(grade) }
 
@@ -937,7 +959,7 @@ function QuestionPaperBuilder({ user, role }) {
       const updatedLocalQuestions = localQuestions.some((item) => item.id === savedQuestion.id)
         ? localQuestions.map((item) => item.id === savedQuestion.id ? savedQuestion : item)
         : [savedQuestion, ...localQuestions]
-      if (!saveLocalQuestions(updatedLocalQuestions)) return
+      if (!saveLocalQuestions(updatedLocalQuestions)) return false
       setQuestions((current) => current.some((item) => item.id === savedQuestion.id)
         ? current.map((item) => item.id === savedQuestion.id ? savedQuestion : item)
         : [savedQuestion, ...current])
@@ -948,7 +970,7 @@ function QuestionPaperBuilder({ user, role }) {
         setEditorResetKey((current) => current + 1)
       }
       setNotice(editing ? 'এই ডিভাইসের প্রশ্নটি সম্পাদনা করা হয়েছে' : 'প্রশ্নটি শুধু এই ডিভাইসে সংরক্ষণ করা হয়েছে')
-      return
+      return savedQuestion
     }
 
     let savedQuestion = payload
@@ -975,7 +997,7 @@ function QuestionPaperBuilder({ user, role }) {
       }
     } catch {
       setNotice('MongoDB-তে সংরক্ষণ হয়নি; সংযোগ পরীক্ষা করুন')
-      return
+      return false
     }
     setQuestions((current) => current.some((item) => item.id === payload.id)
       ? current.map((item) => item.id === payload.id ? savedQuestion : item)
@@ -996,6 +1018,7 @@ function QuestionPaperBuilder({ user, role }) {
     setNotice(statementFieldsConfirmed
       ? 'প্রশ্নটি সংরক্ষণ করা হয়েছে'
       : 'API সার্ভার restart করে বিবৃতির প্রশ্নটি আবার সংরক্ষণ করুন')
+    return savedQuestion
   }
 
   async function deleteQuestion(question) {
@@ -1119,8 +1142,8 @@ function QuestionPaperBuilder({ user, role }) {
       setNotice('ওয়াটারমার্কের জন্য সঠিক HEX রঙের কোড দিন')
       return
     }
-    if (!/^[A-Za-z0-9_-]{1,32}$/.test(paperSetCode.trim())) {
-      setNotice('সেট কোডে ১–৩২টি ইংরেজি অক্ষর, সংখ্যা, - অথবা _ ব্যবহার করুন')
+    if (!/^[A-Za-z0-9_\u09E6-\u09EF-]{1,32}$/.test(paperSetCode.trim())) {
+      setNotice('কোডে ১–৩২টি ইংরেজি/বাংলা সংখ্যা, ইংরেজি অক্ষর, - অথবা _ ব্যবহার করুন')
       return
     }
     const settings = { schoolName, schoolSubtitle, schoolLogo, paperSetCode: paperSetCode.trim(), questionTextColor, showChapters, paperTitle, paperDuration, paperClass, watermark }
@@ -1370,14 +1393,14 @@ function QuestionPaperBuilder({ user, role }) {
                 </section>
                 <aside className="paper-settings panel">
                   <div className="builder-section-title"><div><h2>প্রশ্নপত্রের বিন্যাস</h2><p>শিরোনাম ও পরীক্ষার সময় নির্ধারণ করুন</p></div></div>
-                  <label className="field-label">বিদ্যালয়ের নাম<input value={schoolName} onChange={(event) => setSchoolName(event.target.value)} placeholder="বিদ্যালয়ের নাম" /></label>
-                  <label className="field-label">নামের নিচের তথ্য<textarea rows={3} value={schoolSubtitle} onChange={(event) => setSchoolSubtitle(event.target.value)} placeholder="প্রতিষ্ঠানের ঠিকানা, ফোন নম্বর..." /></label>
-                  <div className="field-label school-logo-field"><span>প্রশ্নপত্রের header-এর লোগো <small className="field-hint">সর্বোচ্চ ৫ MB</small></span><input type="file" accept="image/*" onChange={uploadSchoolLogo} />{schoolLogo && <div className="school-logo-preview"><img src={schoolLogo} alt="প্রতিষ্ঠানের লোগোর নমুনা" /><button type="button" className="quiet-button" onClick={() => setSchoolLogo('')}><Trash2 size={14} /> লোগো সরান</button></div>}</div>
-                  <label className="field-label">প্রশ্নপত্রের নাম<input value={paperTitle} onChange={(event) => setPaperTitle(event.target.value)} /></label>
-                  <label className="field-label">প্রশ্নপত্রের সেট কোড<input required maxLength="32" value={paperSetCode} onChange={(event) => setPaperSetCode(event.target.value)} placeholder="যেমন SET-A" /><small>প্রিভিউ header-এ [SET-A] আকারে দেখাবে।</small></label>
-                  <label className="field-label">শ্রেণি<select value={paperClass} onChange={(event) => setPaperClass(event.target.value)}><option>ষষ্ঠ</option><option>সপ্তম</option><option>অষ্টম</option><option>নবম-দশম শ্রেণি</option></select></label>
+                  <label className="field-label">{subject === 'bangla-2' ? 'পরীক্ষা / বোর্ডের নাম' : 'বিদ্যালয়ের নাম'}<input value={schoolName} onChange={(event) => setSchoolName(event.target.value)} placeholder={subject === 'bangla-2' ? 'যেমন: যশোর বোর্ড ২০২৪' : 'বিদ্যালয়ের নাম'} /></label>
+                  {subject !== 'bangla-2' && <label className="field-label">নামের নিচের তথ্য<textarea rows={3} value={schoolSubtitle} onChange={(event) => setSchoolSubtitle(event.target.value)} placeholder="প্রতিষ্ঠানের ঠিকানা, ফোন নম্বর..." /></label>}
+                  {subject !== 'bangla-2' && <div className="field-label school-logo-field"><span>প্রশ্নপত্রের header-এর লোগো <small className="field-hint">সর্বোচ্চ ৫ MB</small></span><input type="file" accept="image/*" onChange={uploadSchoolLogo} />{schoolLogo && <div className="school-logo-preview"><img src={schoolLogo} alt="প্রতিষ্ঠানের লোগোর নমুনা" /><button type="button" className="quiet-button" onClick={() => setSchoolLogo('')}><Trash2 size={14} /> লোগো সরান</button></div>}</div>}
+                  {subject !== 'bangla-2' && <label className="field-label">প্রশ্নপত্রের নাম<input value={paperTitle} onChange={(event) => setPaperTitle(event.target.value)} /></label>}
+                  <label className="field-label">{subject === 'bangla-2' ? 'বিষয় কোড' : 'প্রশ্নপত্রের সেট কোড'}<input required maxLength="32" value={paperSetCode} onChange={(event) => setPaperSetCode(event.target.value)} placeholder={subject === 'bangla-2' ? 'যেমন ১০২' : 'যেমন SET-A'} />{subject !== 'bangla-2' && <small>প্রিভিউ header-এ [SET-A] আকারে দেখাবে।</small>}</label>
+                  {subject !== 'bangla-2' && <label className="field-label">শ্রেণি<select value={paperClass} onChange={(event) => setPaperClass(event.target.value)}><option>ষষ্ঠ</option><option>সপ্তম</option><option>অষ্টম</option><option>নবম-দশম শ্রেণি</option></select></label>}
                   <label className="field-label">পরীক্ষার সময়<input value={paperDuration} onChange={(event) => setPaperDuration(event.target.value)} /></label>
-                  <label className="paper-setting-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => setShowChapters(event.target.checked)} /><span>প্রশ্নপত্রে অধ্যায়ের নাম দেখান</span></label>
+                  {subject !== 'bangla-2' && <label className="paper-setting-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => setShowChapters(event.target.checked)} /><span>প্রশ্নপত্রে অধ্যায়ের নাম দেখান</span></label>}
                   <label className="field-label">প্রিভিউ ও প্রশ্নপত্রের সব লেখার রং<div className="color-field-row"><input aria-label="রং বাছাই" type="color" value={/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d'} onChange={(event) => setQuestionTextColor(event.target.value)} /><input aria-label="HEX রঙের কোড" value={questionTextColor} onChange={(event) => setQuestionTextColor(event.target.value)} placeholder="#26352D" /></div></label>
                   <div className="watermark-settings">
                     <label className="watermark-toggle"><input type="checkbox" checked={watermark.enabled} onChange={(event) => updateWatermark({ enabled: event.target.checked })} /><span>ওয়াটারমার্ক যোগ করুন</span></label>
@@ -1412,11 +1435,14 @@ function QuestionPaperBuilder({ user, role }) {
         grade={questionBankGrade(grade)}
         subject={subject}
         isAdmin={isAdmin}
+        templateType={subject === 'bangla-2' ? 'bangla2' : 'general'}
         onImported={(savedQuestions) => {
           if (!isAdmin && !saveLocalQuestions([...savedQuestions, ...localQuestions])) return false
           setQuestions((current) => [...savedQuestions, ...current])
           const importedServerIds = savedQuestions
-            .filter((question) => !question.isLocal && questionMatchesFilters(question, grade, subject, activeType, selectedChapters, debouncedSearch))
+            .filter((question) => !question.isLocal && (subject === 'bangla-2'
+              ? question.grade === grade && question.subject === subject
+              : questionMatchesFilters(question, grade, subject, activeType, selectedChapters, debouncedSearch)))
             .map((question) => question.id)
           setVisibleQuestionIds((current) => [...new Set(sortOrder === 'desc' ? [...importedServerIds, ...current] : [...current, ...importedServerIds])])
           if (isAdmin) void refreshQuestionMeta()
@@ -1687,7 +1713,13 @@ function QuestionModal({ question, grade, subject, chapters: chapterOptions, loa
             <label className="field-label">বিষয়<select value={subject} onChange={(event) => onContextChange(grade, event.target.value)}>{subjects.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
           </div>
           <div className="form-row">
-            <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => { setType(event.target.value); setMarks(event.target.value === 'passage' ? 0 : event.target.value === 'mcq' ? 1 : event.target.value === 'cq' ? 10 : 2) }}>{questionTypes.map((item) => <option key={item.id} value={item.id}>{typeLabel(item.id, subject)}</option>)}</select></label>
+            <label className="field-label">প্রশ্নের ধরন<select value={type} onChange={(event) => {
+              const selectedType = event.target.value
+              const selectedSection = banglaSecondPaperSections.find((section) => section.id === selectedType)
+              setType(selectedType)
+              setMarks(selectedSection?.marks ?? (selectedType === 'passage' ? 0 : selectedType === 'mcq' ? 1 : selectedType === 'cq' ? 10 : 2))
+              if (selectedSection) setChapter(selectedSection.label)
+            }}>{questionTypes.filter((item) => subject === 'bangla-2' || !banglaSecondPaperSections.some((section) => section.id === item.id)).map((item) => <option key={item.id} value={item.id}>{typeLabel(item.id, subject)}</option>)}</select></label>
             <label className="field-label">অধ্যায়<input required={!question || Boolean(question.chapter)} list="question-chapter-options" value={chapter} onChange={(event) => setChapter(event.target.value)} placeholder="অধ্যায় নির্বাচন বা লিখুন" /><datalist id="question-chapter-options">{chapterOptions.map((item) => <option key={item} value={item} />)}</datalist></label>
           </div>
           <div className="field-label prompt-field"><label htmlFor="question-prompt">প্রশ্নের বিবরণ</label><textarea id="question-prompt" ref={promptRef} required rows={type === 'cq' ? 4 : 3} value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="এখানে প্রশ্ন লিখুন..." />{subject === 'math' && <div className="prompt-field-tools"><button type="button" className="prompt-insert-button" onClick={insertEquationMarker}><Sigma size={14} /> সূত্র এখানে বসান</button><small>LaTeX সূত্র $...$, \( ... \) অথবা \[ ... \] দিয়ে লিখুন</small></div>}{(prompt.trim() || equation.trim()) && <div className="question-live-preview"><span>প্রিভিউ</span><QuestionPrompt prompt={prompt} equation={equation} /></div>}</div>
@@ -1994,13 +2026,37 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   })[optionStyle] ?? `${label})`
 
   const paperChapters = [...new Set(questions.map((question) => question.chapter).filter(Boolean))]
+  const isEnglish = subjectId?.startsWith('english')
+  const isBanglaSecondPaper = subjectId === 'bangla-2'
+  const banglaSectionOrder = new Map(banglaSecondPaperSections.map((section, index) => [
+    section.id,
+    index,
+  ]))
+  const banglaSectionType = new Map()
+  banglaSecondPaperSections.forEach((section, index) => {
+    const legacyChapter = banglaSecondPaperChapter(section.id)
+    banglaSectionOrder.set(legacyChapter, index)
+    banglaSectionOrder.set(section.label, index)
+    banglaSectionType.set(legacyChapter, section.id)
+    banglaSectionType.set(section.label, section.id)
+  })
+  const banglaQuestionOrder = (question) => banglaSectionOrder.get(question.type)
+    ?? banglaSectionOrder.get(question.chapter)
+    ?? banglaSecondPaperSections.length
+  const answerQuestionType = (question) => isBanglaSecondPaper && question.type === 'long'
+    ? banglaSectionType.get(question.chapter) ?? question.type
+    : question.type
+  const answerQuestions = isBanglaSecondPaper
+    ? [...questions].sort((first, second) => (
+      banglaQuestionOrder(first) - banglaQuestionOrder(second)
+    ))
+    : questions
   const answerGroups = questionTypes.map((type) => ({
     ...type,
     heading: typeHeading(type.id, subjectId),
-    questions: questions.filter((question) => question.type === type.id && (question.answer?.trim() || question.answerEquation)),
+    questions: answerQuestions.filter((question) => answerQuestionType(question) === type.id && (question.answer?.trim() || question.answerEquation)),
   })).filter((type) => type.questions.length > 0)
 
-  const isEnglish = subjectId?.startsWith('english')
   const localNumber = (value) => isEnglish ? String(value) : bengaliNumber(value)
   const marksText = (marks) => isEnglish ? `(${marks} ${marks > 1 ? 'marks' : 'mark'})` : `(${bengaliNumber(marks)} নম্বর)`
 
@@ -2024,7 +2080,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
               updateElement(selectedElement, { text })
             }}
           />}
-          <label className="preview-chapter-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => onShowChaptersChange(event.target.checked)} /> অধ্যায় দেখান</label>
+          {!isBanglaSecondPaper && <label className="preview-chapter-toggle"><input type="checkbox" checked={showChapters} onChange={(event) => onShowChaptersChange(event.target.checked)} /> অধ্যায় দেখান</label>}
           <label className="preview-columns">কলাম<select aria-label="প্রশ্নপত্রের কলামের সংখ্যা" value={previewColumns} onChange={(event) => setPreviewColumns(Number(event.target.value))}>{[1, 2].map((columnCount) => <option value={columnCount} key={columnCount}>{bengaliNumber(columnCount)}</option>)}</select></label>
           <label className="preview-option-style">অপশন<select aria-label="MCQ অপশন নম্বরের ধরন" value={optionStyle} onChange={(event) => setOptionStyle(event.target.value)}>{optionStyles.map((style) => <option value={style.id} key={style.id}>{style.label}</option>)}</select></label>
           {selectedImage
@@ -2049,20 +2105,37 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
         </div>
         <article className="paper-preview" style={{ '--paper-text-color': /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(questionTextColor) ? questionTextColor : '#26352d' }}>
           {watermark.enabled && (watermark.type === 'text' ? watermark.text : watermark.image) && <div className={`paper-watermark watermark-${watermark.type}`} aria-hidden="true" style={{ ...watermarkPositionStyle, opacity: watermark.opacity, '--watermark-color': watermark.color, fontSize: `${Math.max(12, watermark.size)}px`, width: watermark.type === 'image' ? `${watermark.size}%` : undefined }}>{watermark.type === 'image' ? <img src={watermark.image} alt="" /> : watermark.text}</div>}
-          <header className="paper-institution-header">
-            {renderEditable('school-name', <div className="paper-school">{schoolName || (isEnglish ? 'School / College Name' : 'বিদ্যালয়ের নাম')}</div>, 'paper-school-item')}
-            {renderEditable('school-subtitle', <div className="paper-school-subtitle">{schoolSubtitle}</div>, 'paper-subtitle-item')}
-            {schoolLogo && <img className="paper-school-logo" src={schoolLogo} alt="" />}
-          </header>
-          {renderEditable('paper-set-code', <div className="paper-set-code">[{paperSetCode}]</div>, 'paper-set-code-item')}
-          {renderEditable('paper-title', <h2 className="paper-title">{title || (isEnglish ? 'Question Paper' : 'প্রশ্নপত্র')}</h2>, 'paper-title-item')}
-          {renderEditable('paper-meta', <div className="paper-meta">
-            <span>{isEnglish ? 'Class' : 'শ্রেণি'}: {paperClass}</span>
-            <span>{isEnglish ? 'Subject' : 'বিষয়'}: {subject}</span>
-            <span>{isEnglish ? 'Time' : 'সময়'}: {duration}</span>
-            <span>{isEnglish ? 'Full Marks' : 'পূর্ণমান'}: {isEnglish ? totalMarks : bengaliNumber(totalMarks)}</span>
-            {showChapters && paperChapters.length > 0 && <span className="paper-meta-chapters">{isEnglish ? 'Units' : 'অধ্যায়'}: {paperChapters.join(' · ')}</span>}
-          </div>, 'paper-meta-item')}
+          {isBanglaSecondPaper
+            ? <>
+                <header className="paper-institution-header bangla2-preview-header">
+                  {renderEditable('school-name', <div className="paper-school">{schoolName || 'পরীক্ষার নাম'}</div>, 'paper-school-item')}
+                </header>
+                {renderEditable('paper-title', <div className="bangla2-preview-subtitle">
+                  <strong>বাংলা (আবশ্যিক) দ্বিতীয় পত্র</strong>
+                  <span>বিষয় কোড: <b>{paperSetCode || '—'}</b></span>
+                </div>, 'paper-title-item bangla2-preview-title')}
+                {renderEditable('paper-meta', <div className="bangla2-preview-meta">
+                  <span>সময়—{duration}</span>
+                  <strong>রচনামূলক প্রশ্ন</strong>
+                  <span>পূর্ণমান—{bengaliNumber(totalMarks)}</span>
+                </div>, 'paper-meta-item bangla2-preview-meta-item')}
+              </>
+            : <>
+                <header className="paper-institution-header">
+                  {renderEditable('school-name', <div className="paper-school">{schoolName || (isEnglish ? 'School / College Name' : 'বিদ্যালয়ের নাম')}</div>, 'paper-school-item')}
+                  {renderEditable('school-subtitle', <div className="paper-school-subtitle">{schoolSubtitle}</div>, 'paper-subtitle-item')}
+                  {schoolLogo && <img className="paper-school-logo" src={schoolLogo} alt="" />}
+                </header>
+                {renderEditable('paper-set-code', <div className="paper-set-code">[{paperSetCode}]</div>, 'paper-set-code-item')}
+                {renderEditable('paper-title', <h2 className="paper-title">{title || (isEnglish ? 'Question Paper' : 'প্রশ্নপত্র')}</h2>, 'paper-title-item')}
+                {renderEditable('paper-meta', <div className="paper-meta">
+                  <span>{isEnglish ? 'Class' : 'শ্রেণি'}: {paperClass}</span>
+                  <span>{isEnglish ? 'Subject' : 'বিষয়'}: {subject}</span>
+                  <span>{isEnglish ? 'Time' : 'সময়'}: {duration}</span>
+                  <span>{isEnglish ? 'Full Marks' : 'পূর্ণমান'}: {isEnglish ? totalMarks : bengaliNumber(totalMarks)}</span>
+                  {showChapters && paperChapters.length > 0 && <span className="paper-meta-chapters">{isEnglish ? 'Units' : 'অধ্যায়'}: {paperChapters.join(' · ')}</span>}
+                </div>, 'paper-meta-item')}
+              </>}
           {renderEditable('paper-rule', <div className="paper-rule" />, 'paper-rule-item')}
           {(() => {
             const englishHeadings = {
@@ -2074,6 +2147,48 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
               rearrange: 'Put the following parts of the story in the correct order to make the whole story.',
               table_completion: 'Complete the table with information from the passage.',
               synonym_antonym: 'Read the passage carefully and replace the following words with their suitable synonyms or antonyms.',
+            }
+
+            if (isBanglaSecondPaper) {
+              const orderedQuestions = [...questions].sort((first, second) => (
+                banglaQuestionOrder(first) - banglaQuestionOrder(second)
+              ))
+              return orderedQuestions.map((question, index) => (
+                <Fragment key={question.id}>{renderEditable(`question-${question.id}`, <div className="bangla2-paper-question">
+                  <span className="bangla2-paper-number">{bengaliNumber(index + 1)}।</span>
+                  <div className="bangla2-paper-prompt">
+                    {question.prompt.split(/\r?\n/).map((line, lineIndex) => {
+                      const alternativeMatch = line.match(/^\s*অথবা[、,，]?\s*\(([কখগঘ])\)\s*(.*)$/)
+                      const subquestionMatch = line.match(/^\s*\(([কখগঘ])\)\s*(.*)$/)
+                      const prefix = alternativeMatch
+                        ? { text: 'অথবা,', label: `(${alternativeMatch[1]})` }
+                        : subquestionMatch ? { text: '', label: `(${subquestionMatch[1]})` } : null
+                      const linePrompt = alternativeMatch?.[2] ?? (subquestionMatch ? subquestionMatch[2] : line)
+                      const isAlternative = Boolean(alternativeMatch)
+                      const isSubquestion = Boolean(subquestionMatch) && !isAlternative
+                      const isContinuation = lineIndex > 0 && !isAlternative && !isSubquestion
+                      const lineClass = [
+                        'bangla2-paper-line',
+                        isAlternative && 'bangla2-paper-line-alternative',
+                        isSubquestion && 'bangla2-paper-line-subquestion',
+                        isContinuation && 'bangla2-paper-line-continuation',
+                      ].filter(Boolean).join(' ')
+                      return (
+                      <div className={lineClass} key={lineIndex}>
+                        {prefix && <>
+                          {prefix.text && <span className="bangla2-paper-line-prefix">{prefix.text}</span>}
+                          <span className="bangla2-paper-line-label">{prefix.label}</span>
+                        </>}
+                        <span className="bangla2-paper-line-text">
+                          <QuestionPrompt prompt={linePrompt} equation={lineIndex === 0 ? question.equation : ''} inlineEquations={question.inlineEquations} />
+                        </span>
+                      </div>
+                      )
+                    })}
+                  </div>
+                  <strong className="bangla2-paper-marks">{bengaliNumber(question.marks)}</strong>
+                </div>, 'paper-question paper-question-bangla2')}</Fragment>
+              ))
             }
 
             // ── ENGLISH: chapter-first rendering ──────────────────────────────────

@@ -1,17 +1,23 @@
 import { useState } from 'react'
 import { Check, Download, FileSpreadsheet, Upload, X } from 'lucide-react'
-import { downloadQuestionTemplate, downloadEnglishQuestionTemplate, parseQuestionWorkbook } from './questionImport.js'
+import {
+  downloadBanglaSecondPaperTemplate,
+  downloadQuestionTemplate,
+  downloadEnglishQuestionTemplate,
+  parseBanglaSecondPaperWorkbook,
+  parseQuestionWorkbook,
+} from './questionImport.js'
 import authenticatedFetch from './authenticatedFetch.js'
 import LoadingStatus from './LoadingStatus.jsx'
 
 const concurrency = 4
-const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক', passage: 'Reading Text', true_false: 'True/False', fill_in_the_blanks: 'Fill in the blanks', matching: 'Matching', rearrange: 'Rearrange', table_completion: 'Table Completion', synonym_antonym: 'Synonym/Antonym' }
+const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক', passage: 'Reading Text', true_false: 'True/False', fill_in_the_blanks: 'Fill in the blanks', matching: 'Matching', rearrange: 'Rearrange', table_completion: 'Table Completion', synonym_antonym: 'Synonym/Antonym', paragraph: 'অনুচ্ছেদ রচনা', letter: 'পত্র রচনা', summary: 'সারাংশ / সারমর্ম', expansion: 'ভাবসম্প্রসারণ', report: 'প্রতিবেদন রচনা', essay: 'প্রবন্ধ রচনা' }
 
 function responseError(result, status) {
   return result && typeof result.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${status} ত্রুটি এসেছে।`
 }
 
-export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, onImported, onNotice, onClose }) {
+export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, onImported, onNotice, onClose, templateType = 'general' }) {
   const [rows, setRows] = useState([])
   const [fileName, setFileName] = useState('')
   const [parseError, setParseError] = useState('')
@@ -30,7 +36,7 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
     setParseError('')
     setIsReading(true)
     try {
-      setRows(await parseQuestionWorkbook(file))
+      setRows(await (templateType === 'bangla2' ? parseBanglaSecondPaperWorkbook(file) : parseQuestionWorkbook(file)))
     } catch (error) {
       setParseError(error instanceof Error ? error.message : 'Excel ফাইলটি পড়া যায়নি।')
     } finally {
@@ -135,7 +141,9 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
     setIsDownloadingTemplate(true)
     setParseError('')
     try {
-      if (subject?.startsWith('english')) {
+      if (templateType === 'bangla2') {
+        await downloadBanglaSecondPaperTemplate()
+      } else if (subject?.startsWith('english')) {
         await downloadEnglishQuestionTemplate()
       } else {
         await downloadQuestionTemplate()
@@ -154,12 +162,12 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
     <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !isImporting) onClose() }}>
       <section className="question-modal bulk-import-modal" role="dialog" aria-modal="true" aria-labelledby="bulk-import-title">
         <header className="modal-heading">
-          <div><span className="modal-icon"><FileSpreadsheet size={18} /></span><div><h2 id="bulk-import-title">Excel থেকে প্রশ্ন ইমপোর্ট</h2><p>MCQ, সংক্ষিপ্ত, সৃজনশীল ও বর্ণনামূলক প্রশ্ন</p></div></div>
+          <div><span className="modal-icon"><FileSpreadsheet size={18} /></span><div><h2 id="bulk-import-title">Excel থেকে প্রশ্ন ইমপোর্ট</h2><p>{templateType === 'bangla2' ? 'বাংলা ২য় পত্র · ৬টি নির্ধারিত রচনামূলক অংশ' : 'MCQ, সংক্ষিপ্ত, সৃজনশীল ও বর্ণনামূলক প্রশ্ন'}</p></div></div>
           <button type="button" className="icon-button" aria-label="ইমপোর্ট বন্ধ করুন" disabled={isImporting} onClick={onClose}><X size={17} /></button>
         </header>
         <div className="bulk-import-content">
           <div className="bulk-import-help">
-            <p>টেমপ্লেট ডাউনলোড করে প্রশ্ন পূরণ করুন। Excel .xlsx ফাইলের প্রথম worksheet পড়া হবে; সর্বোচ্চ ২০০০টি প্রশ্ন ও ১০ MB পর্যন্ত ফাইল সমর্থিত।</p>
+            <p>{templateType === 'bangla2' ? 'বাংলা ২য় পত্রের আলাদা Excel টেমপ্লেট ডাউনলোড করুন। section, prompt, alternative, marks ও answer পূরণ করে ইমপোর্ট করুন।' : 'টেমপ্লেট ডাউনলোড করে প্রশ্ন পূরণ করুন।'} Excel .xlsx ফাইলের প্রথম worksheet পড়া হবে; সর্বোচ্চ ২০০০টি প্রশ্ন ও ১০ MB পর্যন্ত ফাইল সমর্থিত।</p>
             <button type="button" className="quiet-button" disabled={isDownloadingTemplate || isImporting} onClick={saveTemplate}>
               {isDownloadingTemplate ? <span className="loading-spinner loading-spinner-button" aria-hidden="true" /> : <Download size={15} />}
               {isDownloadingTemplate ? 'টেমপ্লেট তৈরি হচ্ছে…' : 'টেমপ্লেট ডাউনলোড'}

@@ -1,3 +1,5 @@
+import { banglaSecondPaperSections } from './banglaSecondPaper.js'
+
 const maximumFileSize = 10 * 1024 * 1024
 const maximumQuestionRows = 2000
 const builtInFigures = new Set(['triangle', 'circle', 'rectangle'])
@@ -220,6 +222,87 @@ export async function parseQuestionWorkbook(file) {
   return rows
 }
 
+export async function parseBanglaSecondPaperWorkbook(file) {
+  if (file.size > maximumFileSize) throw new Error('ফাইলের আকার সর্বোচ্চ ১০ MB হতে পারবে।')
+  if (!/\.xlsx$/i.test(file.name)) throw new Error('Excel-এর .xlsx ফাইল নির্বাচন করুন।')
+
+  const { default: XLSX } = await import('./excelWorkbook.js')
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+  const firstSheetName = workbook.SheetNames[0]
+  if (!firstSheetName) throw new Error('Excel ফাইলে কোনো worksheet পাওয়া যায়নি।')
+  const worksheet = workbook.Sheets[firstSheetName]
+  const range = worksheet['!ref'] ? XLSX.utils.decode_range(worksheet['!ref']) : null
+  if (!range) throw new Error('Excel worksheet-এ কোনো তথ্য পাওয়া যায়নি।')
+  if (range.e.r > maximumQuestionRows || range.e.c > 100) throw new Error('Excel worksheet-এ অতিরিক্ত সারি বা কলাম রয়েছে।')
+
+  const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false })
+  const headers = new Map()
+  ;(sheetRows[0] ?? []).forEach((header, columnIndex) => {
+    const normalized = normalizeHeader(header)
+    if (['section', 'বিভাগ', 'অংশ', 'প্রশ্নেরঅংশ'].includes(normalized)) headers.set('section', columnIndex)
+    if (['prompt', 'question', 'প্রশ্ন', 'প্রশ্নবিবরণ', 'বিষয়', 'বিষয়', 'নির্দেশনা'].includes(normalized)) headers.set('prompt', columnIndex)
+    if (['alternative', 'option', 'বিকল্প', 'বিকল্পপ্রশ্ন', 'অথবা'].includes(normalized)) headers.set('alternative', columnIndex)
+    if (['marks', 'mark', 'নম্বর', 'মান'].includes(normalized)) headers.set('marks', columnIndex)
+    if (['answer', 'উত্তর', 'উত্তরবিবরণ', 'সমাধান'].includes(normalized)) headers.set('answer', columnIndex)
+  })
+  const missingColumns = ['section', 'prompt', 'marks'].filter((field) => !headers.has(field))
+  if (missingColumns.length) throw new Error('প্রথম সারিতে section, prompt ও marks কলাম থাকতে হবে। বাংলা ২য় পত্রের টেমপ্লেট ডাউনলোড করুন।')
+
+  const rows = []
+  sheetRows.slice(1).forEach((row, index) => {
+    const value = (field) => {
+      const column = headers.get(field)
+      return column === undefined ? '' : cellText(row[column])
+    }
+    const sectionText = value('section')
+    const normalizedSection = normalizeHeader(sectionText)
+    const section = banglaSecondPaperSections.find((item) => [
+      item.id,
+      item.label,
+      ...item.aliases,
+    ].some((alias) => normalizedSection === normalizeHeader(alias)))
+    const prompt = value('prompt')
+    const alternative = value('alternative')
+    const answer = value('answer')
+    const marksText = normalizeDigits(value('marks')).replace(/,/g, '')
+    const marks = Number(marksText)
+    if (![sectionText, prompt, alternative, value('marks')].some(Boolean)) return
+
+    const errors = []
+    if (!section) errors.push('section-এ বাংলা ২য় পত্রের ছয়টি নির্ধারিত অংশের একটি লিখুন।')
+    if (!prompt) errors.push('প্রশ্নের বিবরণ ফাঁকা রাখা যাবে না।')
+    if (!Number.isInteger(marks) || marks < 1 || marks > 100) errors.push('নম্বর ১ থেকে ১০০-এর মধ্যে পূর্ণসংখ্যা হতে হবে।')
+    if (errors.length) {
+      rows.push({ rowNumber: index + 2, errors })
+      return
+    }
+
+    rows.push({
+      rowNumber: index + 2,
+      errors: [],
+      question: {
+        type: section.id,
+        chapter: section.label,
+        prompt: `${prompt}${alternative ? `\n${/^অথবা[、,，]?\s*/.test(alternative) ? alternative : `অথবা, ${alternative}`}` : ''}`,
+        marks,
+        answer,
+        options: [],
+        statements: [],
+        statementQuestion: '',
+        figure: '',
+        equation: '',
+        answerEquation: '',
+        inlineEquations: [],
+        optionEquations: [],
+        optionInlineEquations: [],
+        inlineAnswerEquations: [],
+      },
+    })
+  })
+  if (!rows.length) throw new Error('শিরোনাম সারির পরে কোনো প্রশ্ন পাওয়া যায়নি।')
+  return rows
+}
+
 export async function downloadQuestionTemplate() {
   const { default: XLSX } = await import('./excelWorkbook.js')
   const workbook = XLSX.utils.book_new()
@@ -251,6 +334,42 @@ export async function downloadQuestionTemplate() {
   const link = document.createElement('a')
   link.href = url
   link.download = 'question-ghor-import-template.xlsx'
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+export async function downloadBanglaSecondPaperTemplate() {
+  const { default: XLSX } = await import('./excelWorkbook.js')
+  const workbook = XLSX.utils.book_new()
+  workbook.Props = { Author: 'প্রশ্নঘর', Title: 'বাংলা ২য় পত্র প্রশ্ন ইমপোর্ট টেমপ্লেট' }
+  const questions = XLSX.utils.aoa_to_sheet([
+    ['section', 'prompt', 'alternative', 'marks', 'answer'],
+    ['অনুচ্ছেদ রচনা', 'যেকোনো একটি বিষয়ে অনুচ্ছেদ রচনা কর:\n(ক) পরিবেশ দূষণ;\n(খ) বইমেলা।', '', 10, 'নির্বাচিত বিষয়ের অনুচ্ছেদ লিখুন।'],
+    ['পত্র রচনা', 'যেকোনো একটি বিষয়ে পত্র লেখ:\n(ক) বন্ধুকে পরীক্ষার প্রস্তুতির কথা জানিয়ে একটি পত্র লেখ।', '(খ) বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতা সম্পর্কে বন্ধুকে পত্র লেখ।', 10, 'নির্বাচিত বিষয়ে পত্র লিখুন।'],
+    ['সারাংশ / সারমর্ম', '(ক) সারাংশ লেখ:\nমানুষের জীবনে জ্ঞান অমূল্য সম্পদ। জ্ঞান মানুষকে সত্য ও ন্যায়ের পথে চলতে শেখায়।', '(খ) সারমর্ম লেখ:\nসৎ পথে যে চলে, সে জীবনে সম্মান পায়।', 10, 'অনুচ্ছেদ বা পদ্যের সারাংশ/সারমর্ম লিখুন।'],
+    ['ভাবসম্প্রসারণ', 'যেকোনো একটি ভাবসম্প্রসারণ কর:\n(ক) পরিশ্রম সৌভাগ্যের প্রসূতি।', '(খ) স্বাস্থ্যই সকল সুখের মূল।', 10, 'নির্বাচিত বিষয়ের ভাবসম্প্রসারণ লিখুন।'],
+    ['প্রতিবেদন রচনা', 'যেকোনো একটি বিষয়ে প্রতিবেদন রচনা কর:\n(ক) বিদ্যালয়ের বার্ষিক ক্রীড়া প্রতিযোগিতা নিয়ে প্রতিবেদন লেখ।', '(খ) এলাকার পরিচ্ছন্নতা অভিযান নিয়ে প্রতিবেদন লেখ।', 10, 'নির্বাচিত বিষয়ে প্রতিবেদন লিখুন।'],
+    ['প্রবন্ধ রচনা', 'যেকোনো একটি বিষয়ে প্রবন্ধ রচনা কর:\n(ক) বাংলাদেশের কৃষি;\n(খ) ছাত্রজীবনের দায়িত্ব ও কর্তব্য।', '', 20, 'নির্বাচিত বিষয়ে প্রবন্ধ লিখুন।'],
+  ])
+  XLSX.utils.book_append_sheet(workbook, questions, 'বাংলা ২য় পত্র')
+
+  const instructions = XLSX.utils.aoa_to_sheet([
+    ['বাংলা ২য় পত্র — Excel ইমপোর্ট নির্দেশনা'],
+    ['প্রথম সারির section, prompt, alternative, marks ও answer শিরোনাম অপরিবর্তিত রাখুন।'],
+    ['section-এ অনুচ্ছেদ রচনা, পত্র রচনা, সারাংশ / সারমর্ম, ভাবসম্প্রসারণ, প্রতিবেদন রচনা অথবা প্রবন্ধ রচনা লিখুন।'],
+    ['একই প্রশ্নের একাধিক লাইন prompt cell-এ line break দিয়ে লিখুন। (ক), (খ), (গ) দিয়ে উপপ্রশ্ন শুরু করলে ছাপায় এগুলো মূল নির্দেশনা থেকে ভেতরে align হবে।'],
+    ['প্রতিটি সারিতে একটি প্রশ্ন দিন। বিকল্প প্রশ্ন থাকলে alternative কলামে লিখুন; কাগজে “অথবা,” দিয়ে দেখানো হবে। answer-এ প্রশ্নটির উত্তর লিখুন।'],
+    ['নম্বর পূর্ণসংখ্যা দিন। প্রতিটি অংশে একাধিক প্রশ্ন ইমপোর্ট করা যাবে; প্রশ্নপত্রে প্রতিটি অংশ থেকে একটি বেছে নিন। উত্তরগুলো অন্য বিষয়ের মতো আলাদা উত্তরমালায় ছাপা হবে।'],
+    ['উদাহরণ সারিগুলো নিজের প্রশ্ন দিয়ে প্রতিস্থাপন করুন। সর্বোচ্চ ২০০০টি প্রশ্ন এবং ১০ MB পর্যন্ত .xlsx ফাইল সমর্থিত।'],
+  ])
+  XLSX.utils.book_append_sheet(workbook, instructions, 'নির্দেশনা')
+
+  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'bangla-2nd-paper-template.xlsx'
   link.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

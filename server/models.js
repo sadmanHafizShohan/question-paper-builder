@@ -14,7 +14,7 @@ const isValidFigure = (value) => {
 const questionSchema = new mongoose.Schema({
   subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies','general-science', 'islam','hindu', 'ict' , 'Agriculture', 'HigherMath'], required: true, default: 'math', index: true },
   grade: { type: Number, min: 5, max: 10, required: true, default: 7, index: true },
-  type: { type: String, enum: ['mcq', 'short', 'cq', 'long', 'passage', 'true_false', 'fill_in_the_blanks', 'matching', 'rearrange', 'table_completion', 'synonym_antonym'], required: true },
+  type: { type: String, enum: ['mcq', 'short', 'cq', 'long', 'passage', 'true_false', 'fill_in_the_blanks', 'matching', 'rearrange', 'table_completion', 'synonym_antonym', 'paragraph', 'letter', 'summary', 'expansion', 'report', 'essay'], required: true },
   chapter: { type: String, default: '', trim: true },
   prompt: { type: String, required: true, trim: true },
   equation: { type: String, default: '' },
@@ -46,7 +46,7 @@ const paperSettingsSchema = new mongoose.Schema({
   schoolName: { type: String, default: 'সৃজনশীল প্রাইভেট সেন্টার' },
   schoolSubtitle: { type: String, default: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭' },
   schoolLogo: { type: String, default: '' },
-  paperSetCode: { type: String, default: 'SET-A', trim: true, maxlength: 32, match: /^[A-Za-z0-9_-]+$/ },
+  paperSetCode: { type: String, default: 'SET-A', trim: true, maxlength: 32, match: /^[A-Za-z0-9_\u09E6-\u09EF-]+$/ },
   questionTextColor: { type: String, default: '#26352d', match: /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i },
   showChapters: { type: Boolean, default: true },
   watermark: { type: mongoose.Schema.Types.Mixed, default: () => ({ enabled: false, type: 'text', text: 'সৃজনশীল প্রাইভেট সেন্টার', image: '', color: '#76877d', size: 30, opacity: 0.14, position: 'center' }) },
