@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check, RefreshCw, Shield, ShieldBan, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import { bengaliNumber } from '../../shared/formatting.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 import './AdminUsers.css'
 
@@ -207,9 +208,9 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
       </header>
 
       <div className="admin-user-summary">
-        <div><span className="admin-summary-icon"><UsersRound size={18} /></span><span><small>মোট ব্যবহারকারী</small><strong>{users.length.toLocaleString('bn-BD')}</strong></span></div>
-        <div><span className="admin-summary-icon admin-shield"><Shield size={18} /></span><span><small>Admin</small><strong>{adminCount.toLocaleString('bn-BD')}</strong></span></div>
-        <div><span className="admin-summary-icon"><UsersRound size={18} /></span><span><small>শিক্ষার্থী</small><strong>{studentCount.toLocaleString('bn-BD')}</strong></span></div>
+        <div><span className="admin-summary-icon"><UsersRound size={18} /></span><span><small>মোট ব্যবহারকারী</small><strong>{bengaliNumber(users.length)}</strong></span></div>
+        <div><span className="admin-summary-icon admin-shield"><Shield size={18} /></span><span><small>Admin</small><strong>{bengaliNumber(adminCount)}</strong></span></div>
+        <div><span className="admin-summary-icon"><UsersRound size={18} /></span><span><small>শিক্ষার্থী</small><strong>{bengaliNumber(studentCount)}</strong></span></div>
       </div>
 
       {error && <p className="admin-message admin-message-error" role="alert">{error}</p>}
@@ -217,7 +218,7 @@ export default function AdminUsersPanel({ apiUrl, currentUserId }) {
       <div className="admin-role-help">Student শুধু শ্রেণি ও বিষয় বেছে MCQ পরীক্ষা দিতে এবং সাপ্তাহিক র‍্যাঙ্ক দেখতে পারবেন। Teacher প্রশ্ন ব্যাংক ও প্রশ্নপত্র ব্যবহার করবেন; Admin সব account পরিচালনা করবেন।</div>
 
       <section className="admin-teacher-requests panel" aria-label="Teacher হওয়ার অনুরোধ">
-        <h2>Teacher role-এর অনুরোধ <span>{teacherRequests.length.toLocaleString('bn-BD')}</span></h2>
+        <h2>Teacher role-এর অনুরোধ <span>{bengaliNumber(teacherRequests.length)}</span></h2>
         {requestsLoading ? <div className="admin-table-state">অনুরোধ লোড হচ্ছে…</div>
           : teacherRequests.length === 0 ? <p className="admin-teacher-requests-empty">কোনো অপেক্ষমাণ অনুরোধ নেই।</p>
             : <div className="admin-teacher-request-list">{teacherRequests.map((teacherRequest) => (

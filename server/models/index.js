@@ -1,15 +1,5 @@
 import mongoose from 'mongoose'
-
-const isValidFigure = (value) => {
-  if (['', 'triangle', 'circle', 'rectangle'].includes(value)) return true
-  if (typeof value !== 'string' || value.length > 2048) return false
-  try {
-    const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol)
-  } catch {
-    return false
-  }
-}
+import { isValidFigure } from '../../src/shared/figureValidation.js'
 
 const questionSchema = new mongoose.Schema({
   subject: { type: String, enum: ['math', 'bangla-1', 'bangla-2', 'english-1', 'english-2', 'global-studies','general-science', 'islam','hindu', 'ict' , 'Agriculture', 'HigherMath'], required: true, default: 'math', index: true },

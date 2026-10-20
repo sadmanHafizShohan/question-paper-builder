@@ -13,6 +13,14 @@
 - `server/index.js`: Express API entry point ও route registration।
 - `public/`: সরাসরি serve করা static file; `src/assets/`: frontend bundle-এ import করা asset।
 
+## কোড পরিবর্তনের নিয়ম
+
+- নতুন code লেখার বা পুরোনো code বদলানোর আগে একই কাজের component, helper, constant ও validation logic আছে কি না খুঁজে দেখুন। থাকলে সেটি reuse বা উন্নত করুন; একই উদ্দেশ্যে আরেকটি copy তৈরি করবেন না।
+- একাধিক feature-এ সত্যিই একই আচরণের logic লাগলে উপযুক্ত `src/shared/` বা `src/components/`-এ একবার রাখুন। Feature-নির্দিষ্ট UI ও logic সংশ্লিষ্ট `src/features/<feature>/`-এ রাখুন।
+- দেখতে একই হলেও input, output বা আচরণে পার্থক্য থাকলে অন্ধভাবে এক helper-এ মেশাবেন না। প্রয়োজন হলে আলাদা, স্পষ্টভাবে নামকরণ করা helper রাখুন এবং কেন আলাদা তা যাচাই করুন।
+- কোনো code সরালে পুরোনো copy ও অপ্রয়োজনীয় import সরিয়ে দিন; শুধু নতুন file বানিয়ে পুরোনো implementation রেখে দেবেন না। সব reference নতুন implementation-এ গেছে কি না খুঁজে নিশ্চিত করুন।
+- পরিবর্তনের পর অন্তত `npm run build` চালান; সম্ভব হলে সংশ্লিষ্ট lint/test-ও চালিয়ে ফলাফল জানান। Behavior বদলালে সংশ্লিষ্ট feature পরীক্ষা করুন।
+
 ## শ্রেণি ও বিষয়
 
 শ্রেণি: ৫–১০। বিষয়: গণিত, বাংলা ১ম/২য় পত্র, English 1st/2nd Paper, Global Studies, ইসলাম ও নৈতিক শিক্ষা, এবং তথ্য ও যোগাযোগ প্রযুক্তি। প্রতিটি প্রশ্নে grade, subject, chapter ও type আলাদা metadata হিসেবে MongoDB-তে থাকে; তাই class-wise folder দরকার নেই।

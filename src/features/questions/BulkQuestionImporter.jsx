@@ -7,6 +7,7 @@ import {
   parseQuestionWorkbook,
 } from './questionImport.js'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import { bengaliNumber } from '../../shared/formatting.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 
 const concurrency = 4
@@ -198,7 +199,7 @@ export default function BulkQuestionImporter({ apiUrl, grade, subject, isAdmin, 
           </>}
           {isImporting && <LoadingStatus
             compact
-            label={`সংরক্ষণ হচ্ছে: ${progress.toLocaleString('bn-BD')} / ${validCount.toLocaleString('bn-BD')}টি`}
+            label={`সংরক্ষণ হচ্ছে: ${bengaliNumber(progress)} / ${bengaliNumber(validCount)}টি`}
             detail={isAdmin ? 'প্রশ্নগুলো MongoDB-তে পাঠানো হচ্ছে' : 'প্রশ্নগুলো এই device-এ সংরক্ষণ করা হচ্ছে'}
             progress={validCount ? (progress / validCount) * 100 : 0}
           />}

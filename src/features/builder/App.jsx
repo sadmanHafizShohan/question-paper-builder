@@ -36,6 +36,10 @@ import { signOut } from '@firebase/auth'
 import 'mathlive/fonts.css'
 import 'mathlive/static.css'
 import './App.css'
+import { apiUrl } from '../../shared/api.js'
+import { builtInFigures, isHttpImageUrl } from '../../shared/figureValidation.js'
+import { bengaliNumber, localizedNumber } from '../../shared/formatting.js'
+import { equationMarker } from '../../shared/mathFormatting.js'
 import BulkQuestionImporter from '../questions/BulkQuestionImporter.jsx'
 import DuplicateDetector from '../questions/DuplicateDetector.jsx'
 import FirebaseAuthGate from '../auth/FirebaseAuthGate.jsx'
@@ -46,7 +50,7 @@ import StudentExamPortal from '../student/StudentExamPortal.jsx'
 import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
 import { notifyQuestionBankCountChanged } from '../../shared/questionBankCountEvents.js'
 import { banglaSecondPaperChapter, banglaSecondPaperSections } from '../../shared/banglaSecondPaper.js'
-import { grades, subjects } from '../../shared/academic.js'
+import { getGradeLabel, getSubjectLabel, grades, subjects } from '../../shared/academic.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 import AnimatedNumber from '../../components/ui/AnimatedNumber.jsx'
 import { auth } from '../../shared/firebase.js'
@@ -58,14 +62,7 @@ import {
   QuestionFigure,
   QuestionPrompt,
 } from '../questions/QuestionContent.jsx'
-import {
-  bengaliNumber,
-  builtInFigures,
-  equationMarker,
-  isHttpImageUrl,
-  isMathExpression,
-  promptText,
-} from '../questions/questionFormatting.js'
+import { isMathExpression, promptText } from '../questions/questionFormatting.js'
 import {
   chapterCountTypeLabels,
   optionLabelsFor,
@@ -96,12 +93,7 @@ const randomSample = (items, count) => {
   }
   return shuffled.slice(0, count)
 }
-const gradeLabel = (grade) => ({
-  5: 'পঞ্চম',
-  6: 'ষষ্ঠ',
-  7: 'সপ্তম',
-  8: 'অষ্টম',
-}[grade] ?? (grade >= 9 ? 'নবম-দশম শ্রেণি' : `শ্রেণি ${bengaliNumber(grade)}`))
+const gradeLabel = (grade) => getGradeLabel(grade, { includeClass: true })
 const paperClassLabel = (value) => ({
   'শ্রেণি ৫': 'পঞ্চম',
   'শ্রেণি ৬': 'ষষ্ঠ',
@@ -115,7 +107,7 @@ const paperClassLabel = (value) => ({
   দশম: 'নবম-দশম শ্রেণি',
 }[value] ?? value)
 const questionBankGrade = (grade) => grade === 10 ? 9 : grade
-const subjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
+const subjectLabel = getSubjectLabel
 const optionStyles = [
   { id: 'after-paren', label: 'ক)' },
   { id: 'paren', label: '(ক)' },
@@ -133,7 +125,6 @@ const watermarkPositions = [
   { id: 'bottom-right', label: 'নিচে ডানে' },
 ]
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 const defaultPaperSettings = {
   schoolName: 'সৃজনশীল প্রাইভেট সেন্টার',
   schoolSubtitle: 'পুরাতন শহর, পুলিশ ফাঁড়ি মোড় সংলগ্ন,কুড়িগ্রাম\nমোবাইল ০১৭৭৩৪২৪০৫৭',
@@ -2044,7 +2035,6 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
     questions: answerQuestions.filter((question) => answerQuestionType(question) === type.id && (question.answer?.trim() || question.answerEquation)),
   })).filter((type) => type.questions.length > 0)
 
-  const localNumber = (value) => isEnglish ? String(value) : bengaliNumber(value)
   const marksText = (marks) => isEnglish ? `(${marks} ${marks > 1 ? 'marks' : 'mark'})` : `(${bengaliNumber(marks)} নম্বর)`
 
   return (
@@ -2281,17 +2271,17 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                               <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>
                             </div>
                           : <div>
-                            <span>{localNumber(index + 1)}{question.statements?.length ? '।' : '.'}</span>{' '}
+                            <span>{localizedNumber(index + 1, isEnglish)}{question.statements?.length ? '।' : '.'}</span>{' '}
                             <span className="paper-question-prompt"><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></span>{' '}
                             {question.marks > 0 && <small>{marksText(question.marks)}</small>}
                           </div>}
                         {question.figure && (builtInFigures.includes(question.figure)
                           ? <QuestionFigure figure={question.figure} />
                           : renderEditable(`figure-${question.id}`, <QuestionFigure figure={question.figure} />, 'paper-figure-item'))}
-                        {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? localNumber(statementIndex + 1)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
+                        {question.type === 'mcq' && question.statements?.length > 0 && <div className="paper-statement-body"><div className="paper-statements">{question.statements.map((statement, statementIndex) => <div key={`${question.id}-statement-${statementIndex}`}><span>{statementLabels[statementIndex] ?? localizedNumber(statementIndex + 1, isEnglish)}.</span><span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span></div>)}</div>{question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}</div>}
                         {question.type === 'mcq' && <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>{(shuffledOptionIndexes.get(question.id) ?? question.options.map((_, i) => i)).map((sourceIndex, optionIndex) => {
                           const option = question.options[sourceIndex]
-                          const label = optionLabelsFor(subjectId)[optionIndex] ?? localNumber(optionIndex + 1)
+                          const label = optionLabelsFor(subjectId)[optionIndex] ?? localizedNumber(optionIndex + 1, isEnglish)
                           return <div className="paper-option" key={`${question.id}-${sourceIndex}`}><span className={`paper-option-label option-label-${optionStyle}`}>{optionLabelText(label)}</span>{option && (subjectId === 'math' && isMathExpression(option) && !option.includes(equationMarker) && !option.includes('$') && !option.includes('\\') ? <MathFormula display value={option} /> : <QuestionPrompt prompt={option} equation={question.optionEquations?.[sourceIndex]} inlineEquations={question.optionInlineEquations?.[sourceIndex]} />)}</div>
                         })}</div>}
                       </>, `paper-question paper-question-${question.type}`)}</Fragment>
@@ -2309,7 +2299,7 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
                 <div className="paper-answer-list" data-columns={previewColumns}>
                   {type.questions.map((question, index) => (
                     <div className="paper-answer" key={question.id}>
-                      <strong>{localNumber(index + 1)}.</strong>{' '}
+                      <strong>{localizedNumber(index + 1, isEnglish)}.</strong>{' '}
                       {question.answer && (question.type === 'cq'
                         ? <CreativeQuestionAnswer answer={question.answer} inlineEquations={question.inlineAnswerEquations} />
                         : <QuestionPrompt

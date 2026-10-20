@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-
-const formatNumber = (value) => Math.round(value).toLocaleString('bn-BD')
+import { bengaliNumber } from '../../shared/formatting.js'
 
 export default function AnimatedNumber({ value, active = true }) {
   const target = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0
@@ -36,5 +35,5 @@ export default function AnimatedNumber({ value, active = true }) {
     return () => window.cancelAnimationFrame(animationFrame)
   }, [active, target])
 
-  return <span aria-label={formatNumber(target)}>{formatNumber(active ? displayValue : 0)}</span>
+  return <span aria-label={bengaliNumber(target)}>{bengaliNumber(active ? displayValue : 0)}</span>
 }

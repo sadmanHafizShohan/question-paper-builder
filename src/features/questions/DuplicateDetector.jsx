@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, Check, ChevronDown, ChevronRight, CopyX, Trash2, X } from 'lucide-react'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import { bengaliNumber } from '../../shared/formatting.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 
 const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক' }
-const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
 
 function formatDate(isoString) {
   if (!isoString) return ''

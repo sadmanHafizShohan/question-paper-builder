@@ -3,13 +3,20 @@ import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, GraduationCap, LogOut, M
 import { signOut } from '@firebase/auth'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
+import MathMarkup from '../../components/ui/MathMarkup.jsx'
 import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
 import { auth } from '../../shared/firebase.js'
-import { grades, subjects } from '../../shared/academic.js'
+import { getGradeLabel, getSubjectLabel, grades, subjects } from '../../shared/academic.js'
+import { apiUrl } from '../../shared/api.js'
+import { bengaliNumber } from '../../shared/formatting.js'
+import {
+  equationMarker,
+  examMathTokenPattern,
+  normalizeMathCommands,
+  normalizeMathValue,
+} from '../../shared/mathFormatting.js'
 import './StudentExamPortal.css'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
-const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
 const examDurationLabel = (seconds) => {
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
@@ -17,65 +24,21 @@ const examDurationLabel = (seconds) => {
     .filter(Boolean)
     .join(' ')
 }
-const subjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
-const gradeLabel = (grade) => ({
-  5: 'পঞ্চম',
-  6: 'ষষ্ঠ',
-  7: 'সপ্তম',
-  8: 'অষ্টম',
-  9: 'নবম-দশম',
-  10: 'নবম-দশম',
-}[grade] ?? `শ্রেণি ${bengaliNumber(grade)}`)
-const equationMarker = '[[সূত্র]]'
-const mathTokenPattern = /(\[\[সূত্র\]\]|\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+\$|\\\([\s\S]+?\\\)|(?:[A-Za-z0-9]+(?:\^\{[^{}\n]+\}|_\{[^{}\n]+\}|\^\d+|_\d+)(?:\s*\\(?:times|cdot|div|pm|mp|leq|geq|neq|approx|equiv|to|rightarrow|leftarrow)\s*[A-Za-z0-9]+(?:\^\{[^{}\n]+\}|_\{[^{}\n]+\}|\^\d+|_\d+))+(?:\s*=\s*[A-Za-z0-9]+(?:\^\{[^{}\n]+\}|_\{[^{}\n]+\}|\^\d+|_\d+))?|[A-Za-z0-9]+(?:\^\{[^{}\n]+\}|_\{[^{}\n]+\}|\^\d+|_\d+))|\\(?:frac|dfrac|tfrac|binom)\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\}(?:\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\})?|\\sqrt\s*(?:\[[^\]\n]*\]\s*)?\{(?:[^{}\n]|\{[^{}\n]*\})*\}|\\(?:sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|theta|alpha|beta|gamma|delta|pi|omega|times|cdot|div|pm|mp|leq|geq|neq|approx|equiv|to|rightarrow|leftarrow|text|mathrm|mathbf)\b(?:\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\})?)/g
-
-function normalizeMathCommands(value = '') {
-  return String(value ?? '')
-    .replace(/\\timesimes\b/g, '\\times')
-    .replace(/\t+imes(?:imes)?\b/g, '\\times')
-    .replace(/\btimesimes\b/g, '\\times')
-}
-
-function normalizeMathValue(value = '') {
-  const text = normalizeMathCommands(value).trim()
-  const withoutMarkers = text
-    .replace(/^\$\$([\s\S]*?)\$\$$/, '$1')
-    .replace(/^\$([^$]+)\$$/, '$1')
-    .replace(/^\\\(([\s\S]*)\\\)$/, '$1')
-    .replace(/^\\\[([\s\S]*)\\\]$/, '$1')
-    .trim()
-
-  if (!withoutMarkers) return ''
-
-  const leadingCommandPattern = /^(frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom|left|right|cdot|times|div|pm|mp|theta|alpha|beta|gamma|delta|pi|omega|root|text|mathrm|mathbf|overline|bar|vec|begin|displaystyle)/i
-  if (leadingCommandPattern.test(withoutMarkers)) {
-    return withoutMarkers.startsWith('\\') ? withoutMarkers : `\\${withoutMarkers}`
-  }
-
-  return withoutMarkers
-}
-
+const subjectLabel = getSubjectLabel
+const gradeLabel = getGradeLabel
 function ExamFormula({ value, display = false }) {
-  const [markup, setMarkup] = useState('')
-  useEffect(() => {
-    let active = true
-    import('mathlive').then(({ convertLatexToMarkup }) => {
-      const latex = display ? `\\displaystyle ${value}` : value
-      if (active) setMarkup(convertLatexToMarkup(latex, { defaultMode: 'math' }))
-    }).catch((error) => {
-      console.error('Could not render an exam equation', error)
-      if (active) setMarkup('')
-    })
-    return () => { active = false }
-  }, [value, display])
-  return markup
-    ? <span className={`student-math ${display ? 'student-math-display' : ''}`} dangerouslySetInnerHTML={{ __html: markup }} />
-    : <span className={`student-math-fallback ${display ? 'student-math-display' : ''}`}>{value}</span>
+  const displayClass = display ? 'student-math-display' : ''
+  return <MathMarkup
+    value={value}
+    displayMode={display}
+    className={`student-math ${displayClass}`}
+    fallbackClassName={`student-math-fallback ${displayClass}`}
+  />
 }
 
 function ExamText({ value = '', equation = '', equations = [] }) {
   const normalizedText = normalizeMathCommands(value)
-  const tokens = normalizedText.split(mathTokenPattern)
+  const tokens = normalizedText.split(examMathTokenPattern)
   let markerIndex = 0
   const hasEquationMarker = normalizedText.includes(equationMarker)
   return <>{tokens.map((token, index) => {

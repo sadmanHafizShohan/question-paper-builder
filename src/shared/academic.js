@@ -1,3 +1,5 @@
+import { bengaliNumber } from './formatting.js'
+
 export const grades = [5, 6, 7, 8, 9, 10]
 
 export const subjects = [
@@ -14,3 +16,22 @@ export const subjects = [
   { id: 'Agriculture', label: 'কৃষিশিক্ষা' },
   { id: 'HigherMath', label: 'উচ্চতর গণিত' },
 ]
+
+const gradeLabels = {
+  5: 'পঞ্চম',
+  6: 'ষষ্ঠ',
+  7: 'সপ্তম',
+  8: 'অষ্টম',
+}
+
+export const getSubjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
+
+export function getGradeLabel(grade, {
+  combinedLabel = 'নবম-দশম',
+  includeClass = false,
+  localizedFallback = true,
+} = {}) {
+  if (gradeLabels[grade]) return gradeLabels[grade]
+  if (grade >= 9) return `${combinedLabel}${includeClass ? ' শ্রেণি' : ''}`
+  return `শ্রেণি ${localizedFallback ? bengaliNumber(grade) : grade}`
+}

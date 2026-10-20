@@ -8,8 +8,7 @@ import {
 import { BookOpen, LockKeyhole } from 'lucide-react'
 import { auth } from '../../shared/firebase.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
-
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+import { apiUrl } from '../../shared/api.js'
 
 const authErrorMessages = {
   'auth/account-exists-with-different-credential': 'এই ইমেইলে অন্য sign-in পদ্ধতিতে account আছে। Admin-এর সঙ্গে যোগাযোগ করে Google sign-in link করুন।',

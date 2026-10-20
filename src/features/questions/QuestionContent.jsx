@@ -1,39 +1,18 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
+import MathMarkup from '../../components/ui/MathMarkup.jsx'
+import { builtInFigures, isHttpImageUrl } from '../../shared/figureValidation.js'
+import { bengaliNumber, localizedNumber } from '../../shared/formatting.js'
 import {
-  bengaliNumber,
-  builtInFigures,
   equationMarker,
-  isHttpImageUrl,
-  isMathExpression,
-  mathTokenPattern,
-} from './questionFormatting.js'
+  normalizeMathValue,
+  questionMathTokenPattern,
+} from '../../shared/mathFormatting.js'
+import { isMathExpression } from './questionFormatting.js'
 import { optionLabelsFor, statementLabels, typeLabel } from './questionTypes.js'
-
-function normalizeMathValue(value = '') {
-  const text = String(value ?? '').trim()
-  if (!text) return ''
-
-  const withoutMarkers = text
-    .replace(/^\$\$([\s\S]*?)\$\$$/, '$1')
-    .replace(/^\$([^$]+)\$$/, '$1')
-    .replace(/^\\\(([\s\S]*)\\\)$/, '$1')
-    .replace(/^\\\[([\s\S]*)\\\]$/, '$1')
-    .replace(/^\\\s*/, '')
-    .trim()
-
-  if (!withoutMarkers) return ''
-
-  const leadingCommandPattern = /^(frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom|left|right|cdot|times|div|pm|mp|theta|alpha|beta|gamma|delta|pi|omega|root)/i
-  if (leadingCommandPattern.test(withoutMarkers)) {
-    return withoutMarkers.startsWith('\\') ? withoutMarkers : `\\${withoutMarkers}`
-  }
-
-  return withoutMarkers
-}
 
 export function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
   const sourceText = prompt ?? ''
-  const mathTokens = sourceText.split(mathTokenPattern)
+  const mathTokens = sourceText.split(questionMathTokenPattern)
   const hasEquationMarker = sourceText.includes(equationMarker)
 
   return (
@@ -142,12 +121,11 @@ export function QuestionBankPreview({ id, question, subject, number }) {
 
 export function CreativeQuestionPrompt({ question, number, isEnglish }) {
   const lines = question.prompt.split(/\r?\n/)
-  const localNumber = (value) => isEnglish ? String(value) : bengaliNumber(value)
   const marksText = (marks) => isEnglish ? `(${marks} marks)` : `(${bengaliNumber(marks)} নম্বর)`
 
   return (
     <div className="paper-cq-prompt">
-      <span>{localNumber(number)}.</span>
+      <span>{localizedNumber(number, isEnglish)}.</span>
       <div>
         {lines.map((line, index) => {
           const equationCount = line.split(equationMarker).length - 1
@@ -255,7 +233,12 @@ export function MathFormula({ value, onChange, placeholder, compact = false, dis
     }
   }, [safeValue])
 
-  if (display) return safeValue ? <StaticMathFormula value={safeValue} displayMode={displayMode} /> : null
+  if (display) return safeValue ? <MathMarkup
+    value={safeValue}
+    displayMode={displayMode}
+    className={`math-static-display ${displayMode ? 'math-static-display-block' : ''}`}
+    fallbackClassName={`math-fallback-display ${displayMode ? 'math-static-display-block' : ''}`}
+  /> : null
   if (!mathLiveReady) return <input className={`math-field math-field-fallback ${compact ? 'math-field-compact' : ''}`} aria-label="গাণিতিক রাশি লিখুন" value={safeValue} onChange={(event) => onChangeRef.current?.(event.target.value)} placeholder={placeholder} />
   return (
     <math-field
@@ -266,20 +249,4 @@ export function MathFormula({ value, onChange, placeholder, compact = false, dis
       virtual-keyboard-mode={display ? 'manual' : 'onfocus'}
     />
   )
-}
-
-function StaticMathFormula({ value, displayMode = false }) {
-  const [markup, setMarkup] = useState('')
-
-  useEffect(() => {
-    let active = true
-    import('mathlive').then(({ convertLatexToMarkup }) => {
-      const latex = displayMode ? `\\displaystyle ${value}` : value
-      if (active) setMarkup(convertLatexToMarkup(latex, { defaultMode: 'math' }))
-    }).catch(() => setMarkup(''))
-    return () => { active = false }
-  }, [value, displayMode])
-
-  if (!markup) return <span className={`math-fallback-display ${displayMode ? 'math-static-display-block' : ''}`}>{value}</span>
-  return <span className={`math-static-display ${displayMode ? 'math-static-display-block' : ''}`} dangerouslySetInnerHTML={{ __html: markup }} />
 }

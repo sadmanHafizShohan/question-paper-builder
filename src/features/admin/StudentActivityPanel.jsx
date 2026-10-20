@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Activity, MessageSquareText, Send } from 'lucide-react'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
-import { subjects } from '../../shared/academic.js'
+import { getGradeLabel, getSubjectLabel } from '../../shared/academic.js'
+import { bengaliNumber } from '../../shared/formatting.js'
 import './StudentActivityPanel.css'
 
 async function readResponse(response) {
@@ -18,13 +19,8 @@ async function readResponse(response) {
   return result
 }
 
-const subjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
-const gradeLabel = (grade) => grade >= 9 ? 'নবম-দশম' : ({
-  5: 'পঞ্চম',
-  6: 'ষষ্ঠ',
-  7: 'সপ্তম',
-  8: 'অষ্টম',
-}[grade] ?? `শ্রেণি ${grade}`)
+const subjectLabel = getSubjectLabel
+const gradeLabel = (grade) => getGradeLabel(grade, { localizedFallback: false })
 const formatDate = (value) => new Intl.DateTimeFormat('bn-BD', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -36,7 +32,7 @@ const formatDuration = (start, end, durationMinutes) => {
   )
   const minutes = Math.floor(elapsedSeconds / 60)
   const seconds = elapsedSeconds % 60
-  return `${minutes.toLocaleString('bn-BD')} মিনিট ${seconds.toLocaleString('bn-BD')} সেকেন্ড`
+  return `${bengaliNumber(minutes)} মিনিট ${bengaliNumber(seconds)} সেকেন্ড`
 }
 
 export default function StudentActivityPanel({ apiUrl }) {
