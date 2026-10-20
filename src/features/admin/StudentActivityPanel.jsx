@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Activity, MessageSquareText, Send } from 'lucide-react'
-import authenticatedFetch from './authenticatedFetch.js'
-import LoadingStatus from './LoadingStatus.jsx'
-import { subjects } from './academic.js'
+import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
+import { subjects } from '../../shared/academic.js'
 import './StudentActivityPanel.css'
 
 async function readResponse(response) {

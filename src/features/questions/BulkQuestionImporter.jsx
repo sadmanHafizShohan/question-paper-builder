@@ -6,8 +6,8 @@ import {
   parseBanglaSecondPaperWorkbook,
   parseQuestionWorkbook,
 } from './questionImport.js'
-import authenticatedFetch from './authenticatedFetch.js'
-import LoadingStatus from './LoadingStatus.jsx'
+import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 
 const concurrency = 4
 const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক', passage: 'Reading Text', true_false: 'True/False', fill_in_the_blanks: 'Fill in the blanks', matching: 'Matching', rearrange: 'Rearrange', table_completion: 'Table Completion', synonym_antonym: 'Synonym/Antonym', paragraph: 'অনুচ্ছেদ রচনা', letter: 'পত্র রচনা', summary: 'সারাংশ / সারমর্ম', expansion: 'ভাবসম্প্রসারণ', report: 'প্রতিবেদন রচনা', essay: 'প্রবন্ধ রচনা' }

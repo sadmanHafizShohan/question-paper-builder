@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getIdTokenResult, onIdTokenChanged } from '@firebase/auth'
-import { auth, isFirebaseConfigured } from './firebase.js'
+import { auth, isFirebaseConfigured } from '../../shared/firebase.js'
 import FirebaseAuthScreen from './FirebaseAuthScreen.jsx'
-import LoadingStatus from './LoadingStatus.jsx'
-import PublicLandingPage from './PublicLandingPage.jsx'
+import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
+import PublicLandingPage from '../landing/PublicLandingPage.jsx'
 import './Auth.css'
 
 export default function FirebaseAuthGate({ children }) {

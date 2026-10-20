@@ -1,4 +1,4 @@
-import { banglaSecondPaperSections } from './banglaSecondPaper.js'
+import { banglaSecondPaperSections } from '../../shared/banglaSecondPaper.js'
 
 const maximumFileSize = 10 * 1024 * 1024
 const maximumQuestionRows = 2000

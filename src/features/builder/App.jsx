@@ -36,54 +36,48 @@ import { signOut } from '@firebase/auth'
 import 'mathlive/fonts.css'
 import 'mathlive/static.css'
 import './App.css'
-import BulkQuestionImporter from './BulkQuestionImporter.jsx'
-import DuplicateDetector from './DuplicateDetector.jsx'
-import FirebaseAuthGate from './FirebaseAuthGate.jsx'
-import authenticatedFetch from './authenticatedFetch.js'
-import AdminUsersPanel from './AdminUsersPanel.jsx'
-import StudentActivityPanel from './StudentActivityPanel.jsx'
-import StudentExamPortal from './StudentExamPortal.jsx'
-import QuestionBankTotal from './QuestionBankTotal.jsx'
-import { notifyQuestionBankCountChanged } from './questionBankCountEvents.js'
-import { banglaSecondPaperChapter, banglaSecondPaperSections } from './banglaSecondPaper.js'
-import { grades, subjects } from './academic.js'
-import LoadingStatus from './LoadingStatus.jsx'
-import AnimatedNumber from './AnimatedNumber.jsx'
-import { auth } from './firebase.js'
+import BulkQuestionImporter from '../questions/BulkQuestionImporter.jsx'
+import DuplicateDetector from '../questions/DuplicateDetector.jsx'
+import FirebaseAuthGate from '../auth/FirebaseAuthGate.jsx'
+import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import AdminUsersPanel from '../admin/AdminUsersPanel.jsx'
+import StudentActivityPanel from '../admin/StudentActivityPanel.jsx'
+import StudentExamPortal from '../student/StudentExamPortal.jsx'
+import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
+import { notifyQuestionBankCountChanged } from '../../shared/questionBankCountEvents.js'
+import { banglaSecondPaperChapter, banglaSecondPaperSections } from '../../shared/banglaSecondPaper.js'
+import { grades, subjects } from '../../shared/academic.js'
+import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
+import AnimatedNumber from '../../components/ui/AnimatedNumber.jsx'
+import { auth } from '../../shared/firebase.js'
+import {
+  CreativeQuestionAnswer,
+  CreativeQuestionPrompt,
+  MathFormula,
+  QuestionBankPreview,
+  QuestionFigure,
+  QuestionPrompt,
+} from '../questions/QuestionContent.jsx'
+import {
+  bengaliNumber,
+  builtInFigures,
+  equationMarker,
+  isHttpImageUrl,
+  isMathExpression,
+  promptText,
+} from '../questions/questionFormatting.js'
+import {
+  chapterCountTypeLabels,
+  optionLabelsFor,
+  questionTypes,
+  statementLabels,
+  statementOptionTexts,
+  typeHeading,
+  typeLabel,
+} from '../questions/questionTypes.js'
 
 const selectableGrades = grades.filter((item) => item !== 10)
-const questionTypes = [
-  { id: 'passage', label: 'Reading Text', labelBn: 'প্যাসেজ', labelEn: 'Reading Text', headingBn: 'প্যাসেজ', headingEn: 'Reading Text / Passage' },
-  { id: 'mcq', label: 'MCQ', labelBn: 'বহুনির্বাচনি প্রশ্ন', labelEn: 'Multiple Choice Questions', headingBn: 'বহুনির্বাচনি প্রশ্ন', headingEn: 'Multiple Choice Questions' },
-  { id: 'short', label: 'সংক্ষিপ্ত', labelBn: 'সংক্ষিপ্ত প্রশ্ন', labelEn: 'Short Answer Questions', headingBn: 'সংক্ষিপ্ত প্রশ্ন', headingEn: 'Short Answer Questions' },
-  { id: 'true_false', label: 'True/False', labelBn: 'সত্য/মিথ্যা', labelEn: 'True/False', headingBn: 'সত্য/মিথ্যা', headingEn: 'True or False' },
-  { id: 'fill_in_the_blanks', label: 'Fill in the blanks', labelBn: 'শূন্যস্থান পূরণ', labelEn: 'Fill in the blanks', headingBn: 'শূন্যস্থান পূরণ', headingEn: 'Complete the passage' },
-  { id: 'matching', label: 'Matching', labelBn: 'মেলাও', labelEn: 'Matching', headingBn: 'মেলাও', headingEn: 'Matching (Column A & B)' },
-  { id: 'rearrange', label: 'Rearrange', labelBn: 'পুনর্বিন্যাস', labelEn: 'Rearrange', headingBn: 'পুনর্বিন্যাস', headingEn: 'Rearrange Sentences' },
-  { id: 'table_completion', label: 'Table Completion', labelBn: 'টেবিল পূরণ', labelEn: 'Table Completion', headingBn: 'টেবিল পূরণ', headingEn: 'Complete the table' },
-  { id: 'synonym_antonym', label: 'Synonym/Antonym', labelBn: 'সমার্থক/বিপরীতার্থক', labelEn: 'Synonym/Antonym', headingBn: 'সমার্থক/বিপরীতার্থক', headingEn: 'Synonyms and Antonyms' },
-  { id: 'cq', label: 'সৃজনশীল', labelBn: 'সৃজনশীল প্রশ্ন', labelEn: 'Creative Questions', headingBn: 'সৃজনশীল প্রশ্ন', headingEn: 'Creative Questions' },
-  { id: 'long', label: 'বর্ণনামূলক', labelBn: 'বর্ণনামূলক প্রশ্ন', labelEn: 'Writing', headingBn: 'বর্ণনামূলক প্রশ্ন', headingEn: 'Writing' },
-  ...banglaSecondPaperSections.map((section) => ({
-    id: section.id,
-    label: section.label,
-    labelBn: section.label,
-    labelEn: section.label,
-    headingBn: section.label,
-    headingEn: section.label,
-  })),
-]
-const chapterCountTypeLabels = { mcq: 'MCQ', cq: 'CQ', short: 'SQ', long: 'বর্ণনামূলক' }
-const builtInFigures = ['triangle', 'circle', 'rectangle']
 const createSetCode = () => `SET-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
-const isHttpImageUrl = (value) => {
-  try {
-    const url = new URL(value)
-    return value.length <= 2048 && ['http:', 'https:'].includes(url.protocol)
-  } catch {
-    return false
-  }
-}
 function readWorkspaceState() {
   try {
     const saved = JSON.parse(sessionStorage.getItem('question-builder-workspace') || '{}')
@@ -92,15 +86,6 @@ function readWorkspaceState() {
     return {}
   }
 }
-const typeLabel = (id, subject) => {
-  const type = questionTypes.find((item) => item.id === id)
-  return type ? (subject?.startsWith('english-') ? type.labelEn : type.labelBn) : id
-}
-const typeHeading = (id, subject) => {
-  const type = questionTypes.find((item) => item.id === id)
-  return type ? (subject?.startsWith('english-') ? type.headingEn : type.headingBn) : id
-}
-const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')
 const randomSample = (items, count) => {
   const shuffled = [...items]
   for (let index = shuffled.length - 1; index > 0; index--) {
@@ -131,15 +116,6 @@ const paperClassLabel = (value) => ({
 }[value] ?? value)
 const questionBankGrade = (grade) => grade === 10 ? 9 : grade
 const subjectLabel = (id) => subjects.find((subject) => subject.id === id)?.label ?? id
-const optionLabelsFor = (subject) => subject.startsWith('english-')
-  ? ['a', 'b', 'c', 'd']
-  : ['ক', 'খ', 'গ', 'ঘ']
-const statementLabels = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
-const statementOptionIndexes = [[0, 2], [0, 1], [1, 2], [0, 1, 2]]
-const statementOptionTexts = () => statementOptionIndexes.map((indexes) => {
-  const labels = indexes.map((index) => statementLabels[index])
-  return labels.length === 3 ? `${labels[0]}, ${labels[1]} ও ${labels[2]}` : `${labels[0]} ও ${labels[1]}`
-})
 const optionStyles = [
   { id: 'after-paren', label: 'ক)' },
   { id: 'paren', label: '(ক)' },
@@ -149,10 +125,6 @@ const optionStyles = [
   { id: 'circle', label: 'বৃত্তে ক' },
   { id: 'bullet', label: 'গোল বিন্দু' },
 ]
-const isMathExpression = (value) => /[\^_=+*/√]|[a-zA-Z]\d/.test(value)
-const equationMarker = '[[সূত্র]]'
-const mathTokenPattern = /(\[\[সূত্র\]\]|\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+\$|\\\([\s\S]+?\\\)|\\(?:frac|dfrac|tfrac|binom)\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\}(?:\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\})?|\\sqrt\s*(?:\[[^\]\n]*\]\s*)?\{(?:[^{}\n]|\{[^{}\n]*\})*\}|\\(?:sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|theta|alpha|beta|gamma|delta|pi|omega)\b(?:\s*\{(?:[^{}\n]|\{[^{}\n]*\})*\})?)/g
-const promptText = (value = '') => value.split(equationMarker).join('').replace(/\s+/g, ' ').trim()
 const watermarkPositions = [
   { id: 'center', label: 'মাঝখানে' },
   { id: 'top-left', label: 'উপরে বামে' },
@@ -2356,281 +2328,6 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
       </section>
     </div>
   )
-}
-
-function normalizeMathValue(value = '') {
-  const text = String(value ?? '').trim()
-  if (!text) return ''
-
-  const withoutMarkers = text
-    .replace(/^\$\$([\s\S]*?)\$\$$/, '$1')
-    .replace(/^\$([^$]+)\$$/, '$1')
-    .replace(/^\\\(([\s\S]*)\\\)$/, '$1')
-    .replace(/^\\\[([\s\S]*)\\\]$/, '$1')
-    .replace(/^\\\s*/, '')
-    .trim()
-
-  if (!withoutMarkers) return ''
-
-  const leadingCommandPattern = /^(frac|sqrt|sin|cos|tan|log|ln|csc|sec|cot|sum|prod|int|lim|dfrac|tfrac|binom|left|right|cdot|times|div|pm|mp|theta|alpha|beta|gamma|delta|pi|omega|root)/i
-  if (leadingCommandPattern.test(withoutMarkers)) {
-    return withoutMarkers.startsWith('\\') ? withoutMarkers : `\\${withoutMarkers}`
-  }
-
-  return withoutMarkers
-}
-
-function QuestionPrompt({ prompt, equation, inlineEquations = [] }) {
-  const sourceText = prompt ?? ''
-  const mathTokens = sourceText.split(mathTokenPattern)
-  const hasEquationMarker = sourceText.includes(equationMarker)
-
-  return (
-    <Fragment>
-      {mathTokens.map((token, index) => {
-        if (!token) return null
-
-        if (token === equationMarker) {
-          const currentEquationIndex = mathTokens.slice(0, index).filter((previousToken) => previousToken === equationMarker).length
-          const resolvedEquation = inlineEquations[currentEquationIndex] ?? equation ?? ''
-          return resolvedEquation ? <MathFormula key={`${index}-${currentEquationIndex}`} display value={normalizeMathValue(resolvedEquation)} /> : null
-        }
-
-        if (token.startsWith('$$') && token.endsWith('$$')) {
-          return <MathFormula key={`${index}-raw-double`} display displayMode value={normalizeMathValue(token.slice(2, -2))} />
-        }
-
-        if (token.startsWith('\\[') && token.endsWith('\\]')) {
-          return <MathFormula key={`${index}-raw-bracket`} display displayMode value={normalizeMathValue(token)} />
-        }
-
-        if (token.startsWith('$') && token.endsWith('$')) {
-          return <MathFormula key={`${index}-raw-single`} display value={normalizeMathValue(token)} />
-        }
-
-        if (token.startsWith('\\(') && token.endsWith('\\)')) {
-          return <MathFormula key={`${index}-raw-paren`} display value={normalizeMathValue(token)} />
-        }
-
-        if (token.startsWith('\\')) {
-          return <MathFormula key={`${index}-raw-latex`} display value={normalizeMathValue(token)} />
-        }
-
-        return <Fragment key={`${index}-text`}>{token}</Fragment>
-      })}
-      {equation && !hasEquationMarker && <MathFormula display displayMode value={normalizeMathValue(equation)} />}
-    </Fragment>
-  )
-}
-
-function QuestionBankPreview({ id, question, subject, number }) {
-  const answer = question.answer ?? ''
-  const questionNumber = subject.startsWith('english-') ? String(number) : bengaliNumber(number)
-
-  return (
-    <div id={id} className="bank-question-preview">
-      <article className="bank-question-preview-paper">
-        <header className="bank-question-preview-meta">
-          <span>{typeLabel(question.type, subject)}</span>
-          <span>{bengaliNumber(question.marks)} নম্বর</span>
-        </header>
-        <div className="bank-question-preview-prompt">
-          <span className="bank-question-preview-number">{questionNumber}.</span>
-          <div><QuestionPrompt prompt={question.prompt} equation={question.equation} inlineEquations={question.inlineEquations} /></div>
-        </div>
-        {question.figure && <QuestionFigure figure={question.figure} />}
-        {question.type === 'mcq' && question.statements?.length > 0 && (
-          <div className="paper-statement-body">
-            <div className="paper-statements">
-              {question.statements.map((statement, index) => (
-                <div key={`${question.id}-preview-statement-${index}`}>
-                  <span>{statementLabels[index] ?? bengaliNumber(index + 1)}.</span>
-                  <span className="paper-statement-copy"><QuestionPrompt prompt={statement} /></span>
-                </div>
-              ))}
-            </div>
-            {question.statementQuestion && <div className="paper-statement-question"><QuestionPrompt prompt={question.statementQuestion} /></div>}
-          </div>
-        )}
-        {question.type === 'mcq' && (
-          <div className={`paper-options ${question.statements?.length ? 'paper-options-statements' : ''}`}>
-            {(question.options ?? []).map((option, index) => {
-              const optionText = option ?? ''
-              const label = optionLabelsFor(subject)[index] ?? bengaliNumber(index + 1)
-              const isMathOption = subject === 'math' && isMathExpression(optionText) && !optionText.includes(equationMarker) && !optionText.includes('$') && !optionText.includes('\\')
-              return (
-                <div className="paper-option" key={`${question.id}-preview-option-${index}`}>
-                  <span className="paper-option-label option-label-period">{`${label}.`}</span>
-                  {optionText && (isMathOption
-                    ? <MathFormula display value={optionText} />
-                    : <QuestionPrompt prompt={optionText} equation={question.optionEquations?.[index]} inlineEquations={question.optionInlineEquations?.[index]} />)}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </article>
-      <section className={`bank-question-preview-answer${answer || question.answerEquation ? '' : ' is-missing'}`} aria-label="প্রশ্নের উত্তর">
-        <strong>উত্তর</strong>
-        {answer || question.answerEquation
-          ? <div>
-              {answer && (question.type === 'cq'
-                ? <CreativeQuestionAnswer answer={answer} inlineEquations={question.inlineAnswerEquations} />
-                : <QuestionPrompt
-                    prompt={answer}
-                    equation={question.type === 'short' && answer.split(equationMarker).length === 2 ? question.answerEquation : ''}
-                    inlineEquations={question.inlineAnswerEquations}
-                  />)}
-              {question.answerEquation && !(question.type === 'short' && answer.split(equationMarker).length === 2) && <MathFormula display value={question.answerEquation} />}
-            </div>
-          : <span>এই প্রশ্নের উত্তর সংরক্ষিত নেই</span>}
-      </section>
-    </div>
-  )
-}
-
-function CreativeQuestionPrompt({ question, number, isEnglish }) {
-  const lines = question.prompt.split(/\r?\n/)
-  const localNumber = (value) => isEnglish ? String(value) : bengaliNumber(value)
-  const marksText = (marks) => isEnglish ? `(${marks} marks)` : `(${bengaliNumber(marks)} নম্বর)`
-
-  return (
-    <div className="paper-cq-prompt">
-      <span>{localNumber(number)}.</span>
-      <div>
-        {lines.map((line, index) => {
-          const equationCount = line.split(equationMarker).length - 1
-          const equationIndex = lines.slice(0, index).reduce((count, previousLine) => count + previousLine.split(equationMarker).length - 1, 0)
-          const inlineEquations = question.inlineEquations?.slice(equationIndex, equationIndex + equationCount) ?? []
-          return (
-            <div className="paper-cq-prompt-line" key={index}>
-              <QuestionPrompt prompt={line} equation={index === 0 ? question.equation : ''} inlineEquations={inlineEquations} />
-              {index === 0 && <small>{marksText(question.marks)}</small>}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function CreativeQuestionAnswer({ answer, inlineEquations = [] }) {
-  const parts = answer.split(/(?=\([কখগঘa-d]\)\s*)/).filter((part) => part.trim())
-  return (
-    <div className="paper-cq-answer">
-      {parts.map((part, index) => {
-        const equationIndex = parts.slice(0, index).reduce((count, previousPart) => count + previousPart.split(equationMarker).length - 1, 0)
-        const equationCount = part.split(equationMarker).length - 1
-        return (
-          <div className="paper-cq-answer-part" key={index}>
-            <QuestionPrompt prompt={part.trim()} inlineEquations={inlineEquations.slice(equationIndex, equationIndex + equationCount)} />
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function QuestionFigure({ figure }) {
-  if (!figure) return null
-  if (!builtInFigures.includes(figure)) {
-    return isHttpImageUrl(figure) ? <ImageFigure key={figure} src={figure} /> : null
-  }
-  const shared = { fill: 'none', stroke: 'currentColor', strokeWidth: 2 }
-  return (
-    <figure className={`question-figure figure-${figure}`}>
-      <svg viewBox="0 0 180 120" role="img" aria-label={`${figure === 'triangle' ? 'ত্রিভুজ' : figure === 'circle' ? 'বৃত্ত' : 'আয়তক্ষেত্র'} চিত্র`}>
-        {figure === 'triangle' && <><path d="M90 14 20 104h140L90 14Z" {...shared} /><text x="84" y="12">A</text><text x="8" y="116">B</text><text x="161" y="116">C</text><text x="35" y="65">৫</text><text x="132" y="65">৪</text><text x="83" y="114">৩ সেমি</text></>}
-        {figure === 'circle' && <><circle cx="82" cy="60" r="43" {...shared} /><circle cx="82" cy="60" r="2.5" fill="currentColor" /><path d="M82 60h43" {...shared} /><text x="72" y="55">O</text><text x="99" y="52">৭ সেমি</text></>}
-        {figure === 'rectangle' && <><rect x="27" y="22" width="126" height="76" {...shared} /><text x="75" y="17">৮ সেমি</text><text x="156" y="64">৫ সেমি</text></>}
-      </svg>
-    </figure>
-  )
-}
-
-function ImageFigure({ src }) {
-  const [loadFailed, setLoadFailed] = useState(false)
-  return (
-    <figure className="question-figure question-figure-image">
-      {loadFailed
-        ? <figcaption role="alert">ছবিটি লোড হয়নি। ImageBB থেকে সরাসরি image link (i.ibb.co/...) কপি করে দিন। <a href={src} target="_blank" rel="noreferrer">লিংক খুলুন</a></figcaption>
-        : <img src={src} alt="প্রশ্নের চিত্র" referrerPolicy="no-referrer" onError={() => setLoadFailed(true)} />}
-    </figure>
-  )
-}
-
-function MathFormula({ value, onChange, placeholder, compact = false, display = false, displayMode = false }) {
-  const safeValue = normalizeMathValue(value)
-  const mathfieldRef = useRef(null)
-  const valueRef = useRef(safeValue)
-  const onChangeRef = useRef(onChange)
-  const [mathLiveReady, setMathLiveReady] = useState(() => Boolean(customElements.get('math-field')))
-
-  useEffect(() => {
-    valueRef.current = safeValue
-  }, [safeValue])
-
-  useEffect(() => {
-    onChangeRef.current = onChange
-  }, [onChange])
-
-  useEffect(() => {
-    if (display) return undefined
-    let active = true
-    let removeInputListener = () => {}
-    import('mathlive').then(() => {
-      if (!active) return
-      setMathLiveReady(true)
-      const mathfield = mathfieldRef.current
-      if (!mathfield) return
-      mathfield.value = valueRef.current ?? ''
-      if (display) mathfield.readOnly = true
-      if (onChangeRef.current) {
-        const handleInput = () => onChangeRef.current?.(mathfield.value)
-        mathfield.addEventListener('input', handleInput)
-        removeInputListener = () => mathfield.removeEventListener('input', handleInput)
-      }
-    }).catch(() => setMathLiveReady(false))
-    return () => {
-      active = false
-      removeInputListener()
-    }
-  }, [display, mathLiveReady])
-
-  useEffect(() => {
-    const mathfield = mathfieldRef.current
-    if (mathfield && customElements.get('math-field') && mathfield.value !== safeValue) {
-      mathfield.value = safeValue
-    }
-  }, [safeValue])
-
-  if (display) return safeValue ? <StaticMathFormula value={safeValue} displayMode={displayMode} /> : null
-  if (!mathLiveReady) return <input className={`math-field math-field-fallback ${compact ? 'math-field-compact' : ''}`} aria-label="গাণিতিক রাশি লিখুন" value={safeValue} onChange={(event) => onChangeRef.current?.(event.target.value)} placeholder={placeholder} />
-  return (
-    <math-field
-      ref={mathfieldRef}
-      className={`math-field ${compact ? 'math-field-compact' : ''} ${display ? 'math-field-display' : ''}`}
-      aria-label={display ? 'গাণিতিক রাশি' : 'গাণিতিক রাশি লিখুন'}
-      placeholder={placeholder}
-      virtual-keyboard-mode={display ? 'manual' : 'onfocus'}
-    />
-  )
-}
-
-function StaticMathFormula({ value, displayMode = false }) {
-  const [markup, setMarkup] = useState('')
-
-  useEffect(() => {
-    let active = true
-    import('mathlive').then(({ convertLatexToMarkup }) => {
-      const latex = displayMode ? `\\displaystyle ${value}` : value
-      if (active) setMarkup(convertLatexToMarkup(latex, { defaultMode: 'math' }))
-    }).catch(() => setMarkup(''))
-    return () => { active = false }
-  }, [value, displayMode])
-
-  if (!markup) return <span className={`math-fallback-display ${displayMode ? 'math-static-display-block' : ''}`}>{value}</span>
-  return <span className={`math-static-display ${displayMode ? 'math-static-display-block' : ''}`} dangerouslySetInnerHTML={{ __html: markup }} />
 }
 
 export default function App() {

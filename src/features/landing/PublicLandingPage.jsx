@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import './PublicLandingPage.css'
-import QuestionBankTotal from './QuestionBankTotal.jsx'
+import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 const features = [

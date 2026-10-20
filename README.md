@@ -2,6 +2,17 @@
 
 পঞ্চম থেকে দশম শ্রেণির প্রশ্ন ব্যাংক ও প্রশ্নপত্র তৈরির অ্যাপ। প্রশ্ন MongoDB-তে সংরক্ষিত হয় এবং MongoDB সংযোগ না থাকলে কোনো default বা local question দেখানো হয় না। প্রশ্নপত্রের বিন্যাস browser-এর localStorage-এ fallback হিসেবে থাকে।
 
+## কোডের বিন্যাস
+
+- `src/features/`: builder, questions, student, admin, auth ও landing page-এর feature-ভিত্তিক UI এবং logic।
+- `src/components/`: একাধিক feature-এ ব্যবহৃত সাধারণ UI component।
+- `src/shared/`: frontend-এর shared API, Firebase, academic data ও event helper।
+- `src/styles/`: application-wide stylesheet; feature/component-এর stylesheet সংশ্লিষ্ট folder-এ থাকে।
+- `server/config/`, `server/models/`: backend credentials/configuration এবং MongoDB model।
+- `server/scripts/`: backend-এর administrative command-line script।
+- `server/index.js`: Express API entry point ও route registration।
+- `public/`: সরাসরি serve করা static file; `src/assets/`: frontend bundle-এ import করা asset।
+
 ## শ্রেণি ও বিষয়
 
 শ্রেণি: ৫–১০। বিষয়: গণিত, বাংলা ১ম/২য় পত্র, English 1st/2nd Paper, Global Studies, ইসলাম ও নৈতিক শিক্ষা, এবং তথ্য ও যোগাযোগ প্রযুক্তি। প্রতিটি প্রশ্নে grade, subject, chapter ও type আলাদা metadata হিসেবে MongoDB-তে থাকে; তাই class-wise folder দরকার নেই।
@@ -89,4 +100,4 @@ Mongo mode-এ app চালু হলে নির্বাচিত class ও 
 - `GET /api/settings/:subject/:grade` এবং `PUT /api/settings/:subject/:grade`: প্রশ্নপত্রের format পড়া/সংরক্ষণ।
 - `GET /api/health`: API ও Mongo connection status।
 
-নতুন subject যোগ করলে frontend-এর subject catalog এবং `server/models.js`-এর allowed subject list—দুটোতেই একই ID যোগ করতে হবে। Public deployment-এর আগে API authentication, per-user authorization এবং production CORS policy যোগ করতে হবে।
+নতুন subject যোগ করলে `src/shared/academic.js`-এর frontend subject catalog এবং `server/models/index.js` ও `server/index.js`-এর allowed subject list—সবখানে একই ID যোগ করতে হবে। API-তে Firebase ID token যাচাই ও role-based authorization আছে; production deployment-এ HTTPS এবং নির্দিষ্ট `CLIENT_ORIGIN` ব্যবহার করুন।

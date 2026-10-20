@@ -1,5 +1,5 @@
 import process from 'node:process'
-import { firebaseAdminAuth } from './firebaseAdmin.js'
+import { firebaseAdminAuth } from './config/firebaseAdmin.js'
 
 const [email, role] = process.argv.slice(2)
 

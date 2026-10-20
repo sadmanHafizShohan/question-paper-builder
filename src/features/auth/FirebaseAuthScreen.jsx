@@ -6,8 +6,8 @@ import {
   signInWithPopup,
 } from '@firebase/auth'
 import { BookOpen, LockKeyhole } from 'lucide-react'
-import { auth } from './firebase.js'
-import LoadingStatus from './LoadingStatus.jsx'
+import { auth } from '../../shared/firebase.js'
+import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 

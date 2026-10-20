@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check, RefreshCw, Shield, ShieldBan, ShieldCheck, Trash2, UsersRound } from 'lucide-react'
-import authenticatedFetch from './authenticatedFetch.js'
-import LoadingStatus from './LoadingStatus.jsx'
+import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 import './AdminUsers.css'
 
 async function readResponse(response) {

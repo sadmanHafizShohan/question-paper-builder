@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BookOpen } from 'lucide-react'
-import { countChangedEvent } from './questionBankCountEvents.js'
+import { countChangedEvent } from '../../shared/questionBankCountEvents.js'
 import './QuestionBankTotal.css'
 
 const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')

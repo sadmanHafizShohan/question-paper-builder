@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, Check, ChevronDown, ChevronRight, CopyX, Trash2, X } from 'lucide-react'
-import authenticatedFetch from './authenticatedFetch.js'
-import LoadingStatus from './LoadingStatus.jsx'
+import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 
 const questionTypeLabels = { mcq: 'MCQ', short: 'সংক্ষিপ্ত', cq: 'সৃজনশীল', long: 'বর্ণনামূলক' }
 const bengaliNumber = (value) => Number(value).toLocaleString('bn-BD')

@@ -4,8 +4,8 @@ import express from 'express'
 import { Buffer } from 'node:buffer'
 import mongoose from 'mongoose'
 import process from 'node:process'
-import { firebaseAdminAuth } from './firebaseAdmin.js'
-import { PaperSettings, Question, StudentExamAttempt, TeacherRoleRequest } from './models.js'
+import { firebaseAdminAuth } from './config/firebaseAdmin.js'
+import { PaperSettings, Question, StudentExamAttempt, TeacherRoleRequest } from './models/index.js'
 
 dotenv.config()
 
