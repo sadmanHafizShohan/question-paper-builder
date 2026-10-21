@@ -645,6 +645,11 @@
 	animation: student-card-in .55s cubic-bezier(.2, .8, .2, 1) both;
 }
 
+.student-portal .student-panel:has(.kid-select.is-open) {
+	position: relative;
+	z-index: 5;
+}
+
 .student-portal .student-panel:nth-of-type(2) { animation-delay: .05s; }
 .student-portal .student-panel:nth-of-type(3) { animation-delay: .12s; }
 .student-portal .student-panel:nth-of-type(4) { animation-delay: .19s; }
