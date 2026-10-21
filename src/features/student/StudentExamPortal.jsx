@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, Building2, GraduationCap, LogOut, Medal, MessageSquareText, Moon, RotateCcw, Send, Sun, Volume2, VolumeX } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Building2, CheckCircle2, ClipboardList, FileSpreadsheet, GraduationCap, LogOut, Medal, MessageSquareText, Moon, Printer, RotateCcw, Search, Send, Sun, X, Volume2, VolumeX } from 'lucide-react'
 import { signOut } from '@firebase/auth'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import { useThemeMode } from '../../shared/theme.js'
@@ -141,6 +141,8 @@ export default function StudentExamPortal({ user }) {
   const [feedbackError, setFeedbackError] = useState('')
   const [teacherRequestStatus, setTeacherRequestStatus] = useState('loading')
   const [teacherRequestBusy, setTeacherRequestBusy] = useState(false)
+  const [teacherRequestOpen, setTeacherRequestOpen] = useState(false)
+  const [teacherRequestError, setTeacherRequestError] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [clockNow, setClockNow] = useState(0)
@@ -152,13 +154,27 @@ export default function StudentExamPortal({ user }) {
   const [reduceMotion, setReduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [launching, setLaunching] = useState(false)
+  const [birdFlyingAway, setBirdFlyingAway] = useState(false)
   const autoSubmitAttemptId = useRef('')
+  const audioContextRef = useRef(null)
+  const birdPathRef = useRef(null)
+  const birdFlightAttemptRef = useRef('')
+  const birdFlightTimerRef = useRef(0)
   const googlePhotoURL = user.photoURL
     || user.providerData?.find((provider) => provider.providerId === 'google.com')?.photoURL
     || ''
 
   const selectedCount = Object.keys(answers).length
   const currentQuestion = attempt?.questions[questionIndex]
+  let birdStep = 0
+  if (attempt) {
+    while (birdStep < attempt.questions.length && answers[attempt.questions[birdStep].id] !== undefined) {
+      birdStep += 1
+    }
+  }
+  const birdProgress = attempt?.questions.length > 1
+    ? Math.min(birdStep, attempt.questions.length - 1) / (attempt.questions.length - 1) * 100
+    : birdStep > 0 ? 100 : 0
   const remainingSeconds = attempt?.expiresAt
     ? Math.max(0, Math.ceil((new Date(attempt.expiresAt).getTime() - clockNow - clockOffsetMs) / 1000))
     : durationMinutes * 60
@@ -171,26 +187,105 @@ export default function StudentExamPortal({ user }) {
     window.localStorage.setItem(gameStatsKey, JSON.stringify(gameStats))
   }, [gameStats, gameStatsKey])
 
-  function playUiTone(frequency) {
+  function playUiSound(sound) {
     if (!soundEnabled || typeof window.AudioContext !== 'function') return
+    const soundNotes = {
+      select: [
+        { frequency: 660, delay: 0, duration: 0.09, waveform: 'sine', volume: 0.035 },
+        { frequency: 880, delay: 0.07, duration: 0.11, waveform: 'sine', volume: 0.03 },
+      ],
+      launch: [
+        { frequency: 392, delay: 0, duration: 0.14, waveform: 'triangle', volume: 0.035 },
+        { frequency: 523, delay: 0.09, duration: 0.14, waveform: 'triangle', volume: 0.04 },
+        { frequency: 659, delay: 0.18, duration: 0.15, waveform: 'triangle', volume: 0.04 },
+        { frequency: 784, delay: 0.28, duration: 0.24, waveform: 'triangle', volume: 0.045 },
+      ],
+      next: [
+        { frequency: 440, endFrequency: 740, delay: 0, duration: 0.16, waveform: 'sine', volume: 0.035 },
+        { frequency: 880, delay: 0.13, duration: 0.1, waveform: 'sine', volume: 0.025 },
+      ],
+      submit: [
+        { frequency: 523, delay: 0, duration: 0.15, waveform: 'triangle', volume: 0.035 },
+        { frequency: 659, delay: 0.12, duration: 0.15, waveform: 'triangle', volume: 0.04 },
+        { frequency: 784, delay: 0.24, duration: 0.2, waveform: 'triangle', volume: 0.04 },
+      ],
+      celebrate: [
+        { frequency: 659, delay: 0, duration: 0.16, waveform: 'triangle', volume: 0.04 },
+        { frequency: 784, delay: 0.12, duration: 0.16, waveform: 'triangle', volume: 0.04 },
+        { frequency: 988, delay: 0.24, duration: 0.18, waveform: 'triangle', volume: 0.045 },
+        { frequency: 1318, delay: 0.38, duration: 0.36, waveform: 'sine', volume: 0.045 },
+      ],
+      encourage: [
+        { frequency: 587, delay: 0, duration: 0.2, waveform: 'sine', volume: 0.035 },
+        { frequency: 698, delay: 0.16, duration: 0.3, waveform: 'triangle', volume: 0.035 },
+      ],
+      flyAway: [
+        { frequency: 523, endFrequency: 784, delay: 0, duration: 0.3, waveform: 'sine', volume: 0.035 },
+        { frequency: 659, endFrequency: 1047, delay: 0.17, duration: 0.4, waveform: 'triangle', volume: 0.035 },
+        { frequency: 1047, endFrequency: 1568, delay: 0.39, duration: 0.55, waveform: 'sine', volume: 0.04 },
+      ],
+    }
+    const notes = soundNotes[sound]
+    if (!notes) return
+
     try {
-      const audioContext = new window.AudioContext()
-      const oscillator = audioContext.createOscillator()
-      const volume = audioContext.createGain()
-      oscillator.type = 'sine'
-      oscillator.frequency.value = frequency
-      volume.gain.setValueAtTime(0.001, audioContext.currentTime)
-      volume.gain.exponentialRampToValueAtTime(0.045, audioContext.currentTime + 0.025)
-      volume.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.18)
-      oscillator.connect(volume)
-      volume.connect(audioContext.destination)
-      oscillator.onended = () => { void audioContext.close() }
-      oscillator.start()
-      oscillator.stop(audioContext.currentTime + 0.18)
+      const audioContext = audioContextRef.current || new window.AudioContext()
+      audioContextRef.current = audioContext
+      if (audioContext.state === 'suspended') void audioContext.resume()
+
+      notes.forEach(({ frequency, endFrequency, delay, duration, waveform, volume: peakVolume }) => {
+        const oscillator = audioContext.createOscillator()
+        const volume = audioContext.createGain()
+        const startAt = audioContext.currentTime + delay
+        oscillator.type = waveform
+        oscillator.frequency.setValueAtTime(frequency, startAt)
+        if (endFrequency) oscillator.frequency.exponentialRampToValueAtTime(endFrequency, startAt + duration)
+        volume.gain.setValueAtTime(0.0001, startAt)
+        volume.gain.exponentialRampToValueAtTime(peakVolume, startAt + 0.018)
+        volume.gain.exponentialRampToValueAtTime(0.0001, startAt + duration)
+        oscillator.connect(volume)
+        volume.connect(audioContext.destination)
+        oscillator.start(startAt)
+        oscillator.stop(startAt + duration)
+      })
     } catch (audioError) {
       console.warn('Student sound effect could not be played', audioError)
     }
   }
+
+  useEffect(() => () => {
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      void audioContextRef.current.close()
+    }
+    window.clearTimeout(birdFlightTimerRef.current)
+  }, [])
+
+  useEffect(() => {
+    const bird = birdPathRef.current?.querySelector('.student-bird-runner')
+    if (bird) bird.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduceMotion ? 'instant' : 'smooth' })
+  }, [attempt, birdStep, reduceMotion])
+
+  function selectExamAnswer(optionIndex) {
+    const nextAnswers = { ...answers, [currentQuestion.id]: optionIndex }
+    setAnswers(nextAnswers)
+    playUiSound('select')
+    const hasAllAnswers = attempt.questions.every((question) => nextAnswers[question.id] !== undefined)
+    if (!hasAllAnswers || birdFlightAttemptRef.current === attempt.attemptId) return
+
+    birdFlightAttemptRef.current = attempt.attemptId
+    setBirdFlyingAway(true)
+    playUiSound('flyAway')
+    birdFlightTimerRef.current = window.setTimeout(() => setBirdFlyingAway(false), reduceMotion ? 450 : 2500)
+  }
+
+  useEffect(() => {
+    if (!teacherRequestOpen) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setTeacherRequestOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [teacherRequestOpen])
 
   useEffect(() => {
     const welcomeTimer = window.setTimeout(() => setWelcomeVisible(false), 2600)
@@ -211,14 +306,14 @@ export default function StudentExamPortal({ user }) {
       .catch((loadError) => {
         if (!active) return
         setTeacherRequestStatus(null)
-        setError(loadError instanceof Error ? loadError.message : 'Teacher অনুরোধের অবস্থা লোড করা যায়নি।')
+        setTeacherRequestError(loadError instanceof Error ? loadError.message : 'Teacher অনুরোধের অবস্থা লোড করা যায়নি।')
       })
     return () => { active = false }
   }, [])
 
   async function requestTeacherRole() {
     setTeacherRequestBusy(true)
-    setError('')
+    setTeacherRequestError('')
     try {
       const response = await authenticatedFetch(`${apiUrl}/student/teacher-request`, {
         method: 'POST',
@@ -226,7 +321,7 @@ export default function StudentExamPortal({ user }) {
       const requestStatus = await readResult(response)
       setTeacherRequestStatus(requestStatus.status)
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Teacher হওয়ার অনুরোধ পাঠানো যায়নি।')
+      setTeacherRequestError(requestError instanceof Error ? requestError.message : 'Teacher হওয়ার অনুরোধ পাঠানো যায়নি।')
     } finally {
       setTeacherRequestBusy(false)
     }
@@ -285,6 +380,10 @@ export default function StudentExamPortal({ user }) {
   }, [grade, subject])
 
   async function startExam() {
+    playUiSound('launch')
+    window.clearTimeout(birdFlightTimerRef.current)
+    birdFlightAttemptRef.current = ''
+    setBirdFlyingAway(false)
     setBusy(true)
     setError('')
     setResult(null)
@@ -334,7 +433,7 @@ export default function StudentExamPortal({ user }) {
         || examResult.elapsedSeconds < 0) {
         throw new Error('সার্ভারের পুরনো version চলছে, তাই সঠিক উত্তর বা সময়ের তথ্য আসেনি। API server বন্ধ করে `npm run server` দিয়ে আবার চালান।')
       }
-      playUiTone(examResult.percentage >= 80 ? 880 : 620)
+      playUiSound(examResult.percentage >= 80 ? 'celebrate' : 'encourage')
       setAnswerReview({
         questions: attempt.questions,
         selectedAnswers: attempt.questions.map((question) => answers[question.id] ?? -1),
@@ -409,8 +508,31 @@ export default function StudentExamPortal({ user }) {
       </div>}
       {!attempt && <header className="student-header">
         <div className="student-brand"><span><BookOpen size={21} /></span><div><strong>প্রশ্নঘর</strong><small>শিক্ষার্থী পোর্টাল</small></div></div>
-        <div className="student-account"><span className="student-profile-avatar student-avatar-glow" title={accountName}>{accountName.trim().charAt(0)}{googlePhotoURL && <img src={googlePhotoURL} alt={`${accountName} profile`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" onClick={() => { window.location.hash = '#/coaching' }}><Building2 size={15} /> কোচিং</button><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" className="student-motion-toggle" aria-pressed={reduceMotion} onClick={() => setReduceMotion((current) => !current)}>{reduceMotion ? '✨ গতি চালু' : '🐢 কম গতি'}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
+        <div className="student-account"><span className="student-profile-avatar student-avatar-glow" title={accountName}>{accountName.trim().charAt(0)}{googlePhotoURL && <img src={googlePhotoURL} alt={`${accountName} profile`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" onClick={() => { window.location.hash = '#/coaching' }}><Building2 size={15} /> কোচিং</button><button type="button" aria-label="Teacher হওয়ার অনুরোধ" title="Teacher হওয়ার অনুরোধ" className={`student-teacher-nav-button${teacherRequestStatus === 'pending' ? ' is-pending' : ''}`} onClick={() => { setTeacherRequestError(''); setTeacherRequestOpen(true) }}><GraduationCap size={16} /><span className="student-teacher-nav-label">Teacher হওয়ার অনুরোধ</span>{teacherRequestStatus === 'pending' && <span className="student-teacher-nav-dot" aria-label="অনুরোধ অপেক্ষমাণ" />}</button><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" className="student-motion-toggle" aria-pressed={reduceMotion} onClick={() => setReduceMotion((current) => !current)}>{reduceMotion ? '✨ গতি চালু' : '🐢 কম গতি'}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
       </header>}
+      {!attempt && teacherRequestOpen && <div className="student-teacher-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) setTeacherRequestOpen(false) }}>
+        <section className="student-teacher-modal" role="dialog" aria-modal="true" aria-labelledby="student-teacher-modal-title">
+          <button type="button" className="student-teacher-modal-close" aria-label="বন্ধ করুন" onClick={() => setTeacherRequestOpen(false)}><X size={20} /></button>
+          <div className="student-teacher-modal-heading">
+            <span className="student-teacher-modal-icon" aria-hidden="true">👩‍🏫</span>
+            <div><p>শেখাও, তৈরি করো, অনুপ্রেরণা দাও</p><h2 id="student-teacher-modal-title">Teacher হলে কী কী করতে পারবেন?</h2></div>
+          </div>
+          <div className="student-teacher-benefits">
+            <article><span><Search size={19} /></span><div><strong>প্রশ্ন ব্যাংক ব্যবহার</strong><p>শ্রেণি, বিষয় ও অধ্যায় অনুযায়ী প্রশ্ন খুঁজুন, দেখুন এবং বাছাই করুন।</p></div></article>
+            <article><span><FileSpreadsheet size={19} /></span><div><strong>নিজের প্রশ্ন তৈরি</strong><p>প্রশ্ন যোগ, সম্পাদনা বা মুছুন; Excel ফাইল থেকেও একসঙ্গে প্রশ্ন ইমপোর্ট করুন।</p></div></article>
+            <article><span><ClipboardList size={19} /></span><div><strong>প্রশ্নপত্র সাজানো</strong><p>বাছাই করা প্রশ্ন দিয়ে প্রশ্নপত্র তৈরি করুন এবং প্রিভিউতে বিন্যাস ঠিক করুন।</p></div></article>
+            <article><span><Printer size={19} /></span><div><strong>PDF ও প্রিন্ট</strong><p>তৈরি প্রশ্নপত্র প্রিন্ট করুন বা PDF হিসেবে সংরক্ষণ করুন।</p></div></article>
+            <article><span><Send size={19} /></span><div><strong>প্রশ্ন শেয়ারের অনুরোধ</strong><p>নিজের তৈরি প্রশ্ন মূল প্রশ্ন ব্যাংকে প্রকাশের জন্য Admin-এর কাছে পাঠাতে পারবেন।</p></div></article>
+          </div>
+          <p className="student-teacher-note"><CheckCircle2 size={16} /> ব্যক্তিগত প্রশ্ন আপনার browser-এ থাকবে; মূল প্রশ্ন ব্যাংকে প্রকাশের আগে Admin-এর অনুমোদন লাগবে।</p>
+          {teacherRequestError && <p className="student-teacher-modal-error" role="alert">{teacherRequestError}</p>}
+          {teacherRequestStatus === 'pending'
+            ? <div className="student-teacher-pending"><span aria-hidden="true">⏳</span><div><strong>আপনার অনুরোধ অপেক্ষমাণ</strong><p>Admin পর্যালোচনা করলে আপনার account-এর role আপডেট হবে।</p></div></div>
+            : <button type="button" className="student-teacher-submit" onClick={requestTeacherRole} disabled={teacherRequestBusy || teacherRequestStatus === 'loading'}>
+              {teacherRequestBusy ? <><span className="loading-spinner" aria-hidden="true" /> অনুরোধ পাঠানো হচ্ছে…</> : teacherRequestStatus === 'loading' ? 'অনুরোধের অবস্থা দেখা হচ্ছে…' : <><GraduationCap size={19} /> Teacher হওয়ার অনুরোধ পাঠান</>}
+            </button>}
+        </section>
+      </div>}
 
       <div className={`student-content${attempt ? ' student-content-exam-active' : ''}`}>
         <QuestionBankTotal apiUrl={apiUrl} className="student-question-bank-total" />
@@ -424,14 +546,6 @@ export default function StudentExamPortal({ user }) {
           <div className="student-hero-companion"><div className="student-speech-bubble" key={motivationIndex}>{motivationLines[motivationIndex]}</div><Mascot /></div>
           </section>
 
-          <section className="student-teacher-request" aria-label="Teacher হওয়ার অনুরোধ">
-          <div><strong>Teacher account-এ কী করতে পারবেন?</strong><p>Shared question bank দেখতে পারবেন; নিজের প্রশ্ন যোগ, সম্পাদনা/মুছুন, Excel import, প্রশ্নপত্র তৈরি ও PDF/প্রিন্ট করতে পারবেন। নিজের পরিবর্তন এই browser-এ সংরক্ষিত থাকবে।</p></div>
-          {teacherRequestStatus === 'pending'
-            ? <span className="student-request-pending">অনুরোধ অপেক্ষমাণ</span>
-            : <button type="button" onClick={requestTeacherRole} disabled={teacherRequestBusy || teacherRequestStatus === 'loading'}>
-              {teacherRequestBusy ? 'পাঠানো হচ্ছে…' : 'Teacher হওয়ার অনুরোধ'}
-            </button>}
-          </section>
         </>}
 
         <section className="student-panel student-exam-panel">
@@ -461,15 +575,25 @@ export default function StudentExamPortal({ user }) {
                   <button type="button" aria-pressed={soundEnabled} onClick={() => setSoundEnabled((enabled) => !enabled)}>{soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}{soundEnabled ? 'শব্দ চালু' : 'শব্দ বন্ধ'}</button>
                   <button type="button" aria-pressed={reduceMotion} onClick={() => setReduceMotion((current) => !current)}>{reduceMotion ? '✨ গতি চালু' : '🐢 কম গতি'}</button>
                 </div>
-                <div className="student-exam-path" role="progressbar" aria-label="পরীক্ষার অগ্রগতি" aria-valuemin="0" aria-valuemax={attempt.questions.length} aria-valuenow={questionIndex + 1}>{attempt.questions.map((question, index) => <span className={index <= questionIndex ? 'reached' : ''} key={question.id}>{index === questionIndex ? '🦉' : '⭐'}</span>)}</div>
+                <div className="student-exam-path" ref={birdPathRef} role="progressbar" aria-label="পরীক্ষার অগ্রগতি" aria-valuemin="0" aria-valuemax={attempt.questions.length} aria-valuenow={birdStep}>
+                  <div className="student-exam-path-track" style={{ '--student-path-count': attempt.questions.length }}>
+                    {attempt.questions.map((question, index) => <span className={index < birdStep ? 'reached' : ''} key={question.id} aria-hidden="true">⭐</span>)}
+                    {!birdFlyingAway && <span className={`student-bird-runner${birdProgress >= 100 ? ' is-near-flight' : ''}`} style={{ '--student-bird-left': `${birdProgress}%` }} aria-label={`${bengaliNumber(birdStep)}টি প্রশ্নের উত্তর দেওয়া হয়েছে`}>🦉</span>}
+                  </div>
+                </div>
               </div>
+              {birdFlyingAway && <div className="student-bird-flight-overlay" role="status" aria-live="polite">
+                <div className="student-flight-sky" aria-hidden="true"><span>☁️</span><span>✨</span><span>⭐</span><span>☁️</span><span>🌈</span><span>✨</span></div>
+                <span className="student-flight-bird" aria-hidden="true">🦉</span>
+                <div className="student-flight-message"><strong>সব প্রশ্নের উত্তর দিয়েছ!</strong><span>পেঁচু এবার আকাশে উড়ে গেল! 🎉</span></div>
+              </div>}
               <fieldset className="student-question" key={currentQuestion.id}>
                   <legend><span className="student-question-number">{bengaliNumber(questionIndex + 1)}.</span> <ExamText value={currentQuestion.prompt} equation={currentQuestion.equation} equations={currentQuestion.inlineEquations} /></legend>
                   {currentQuestion.statements?.length > 0 && <ol className="student-statements" type="i">{currentQuestion.statements.map((statement, index) => <li key={index}><ExamText value={statement} /></li>)}</ol>}
                   {currentQuestion.statementQuestion && <p className="student-statement-question"><ExamText value={currentQuestion.statementQuestion} /></p>}
                   <div className="student-options">{currentQuestion.options.map((option, optionIndex) => (
                     <label className={answers[currentQuestion.id] === optionIndex ? 'selected' : ''} key={optionIndex}>
-                      <input type="radio" name={currentQuestion.id} value={optionIndex} checked={answers[currentQuestion.id] === optionIndex} onChange={() => { setAnswers((current) => ({ ...current, [currentQuestion.id]: optionIndex })); playUiTone(520) }} />
+                      <input type="radio" name={currentQuestion.id} value={optionIndex} checked={answers[currentQuestion.id] === optionIndex} onChange={() => selectExamAnswer(optionIndex)} />
                       <span className="student-option-letter">{String.fromCharCode(0x0995 + optionIndex)}</span>
                       <span className="student-option-copy"><ExamText value={option} equations={currentQuestion.optionInlineEquations?.[optionIndex]} />{currentQuestion.optionEquations?.[optionIndex] && <ExamFormula value={normalizeMathValue(currentQuestion.optionEquations[optionIndex])} display />}</span>
                     </label>
@@ -479,8 +603,8 @@ export default function StudentExamPortal({ user }) {
                 <button type="button" className="student-previous-button" disabled={questionIndex === 0} onClick={() => setQuestionIndex((current) => current - 1)}><ArrowLeft size={16} /> আগের প্রশ্ন</button>
                 <span>{bengaliNumber(selectedCount)} / {bengaliNumber(attempt.questions.length)}টি উত্তর দেওয়া হয়েছে</span>
                 {questionIndex < attempt.questions.length - 1 && !timeExpired
-                  ? <button type="button" className="student-primary-button" disabled={busy || timeExpired || answers[currentQuestion.id] === undefined} onClick={() => setQuestionIndex((current) => current + 1)}>পরের প্রশ্ন <ArrowRight size={16} /></button>
-                  : <button type="button" className="student-primary-button" disabled={busy || (!timeExpired && selectedCount !== attempt.questions.length)} onClick={() => submitExam(timeExpired)}>{busy ? <><span className="loading-spinner" aria-hidden="true" /> উত্তর জমা হচ্ছে…</> : timeExpired ? <><Send size={16} /> সময় শেষ—জমা দিন</> : <><Send size={16} /> পরীক্ষা জমা দিন</>}</button>}
+                  ? <button type="button" className="student-primary-button" disabled={busy || timeExpired || answers[currentQuestion.id] === undefined} onClick={() => { playUiSound('next'); setQuestionIndex((current) => current + 1) }}>পরের প্রশ্ন <ArrowRight size={16} /></button>
+                  : <button type="button" className="student-primary-button" disabled={busy || (!timeExpired && selectedCount !== attempt.questions.length)} onClick={() => { playUiSound('submit'); void submitExam(timeExpired) }}>{busy ? <><span className="loading-spinner" aria-hidden="true" /> উত্তর জমা হচ্ছে…</> : timeExpired ? <><Send size={16} /> সময় শেষ—জমা দিন</> : <><Send size={16} /> পরীক্ষা জমা দিন</>}</button>}
               </div>
             </div>
           )}

@@ -106,6 +106,252 @@
 	white-space: nowrap;
 }
 
+.student-portal .student-account .student-teacher-nav-button {
+	gap: 7px;
+	border-color: #bce8d0;
+	background: linear-gradient(145deg, #edfff4, #fff);
+	box-shadow: 0 3px 0 #d3efdf;
+	color: #397c58;
+	white-space: nowrap;
+}
+
+.student-portal .student-account .student-teacher-nav-button:hover {
+	border-color: #9bd9b6;
+	background: #e8fff1;
+	box-shadow: 0 5px 0 #c7e8d3;
+	color: #2e704c;
+}
+
+.student-portal .student-account .student-teacher-nav-button.is-pending {
+	border-color: #f0d991;
+	background: #fff8dd;
+	box-shadow: 0 3px 0 #eee2b7;
+	color: #876923;
+}
+
+.student-portal .student-teacher-nav-dot {
+	width: 8px;
+	height: 8px;
+	flex: 0 0 8px;
+	border-radius: 50%;
+	background: #e6ad39;
+	box-shadow: 0 0 0 3px #f8e9b9;
+}
+
+.student-portal .student-teacher-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-items: center;
+	padding: 20px;
+	background: rgb(43 30 69 / 48%);
+	backdrop-filter: blur(5px);
+	animation: student-overlay-in .2s ease both;
+}
+
+.student-portal .student-teacher-modal {
+	position: relative;
+	width: min(620px, 100%);
+	max-height: min(88vh, 820px);
+	padding: clamp(21px, 4vw, 32px);
+	overflow: auto;
+	border: 2px solid #e7dcf7;
+	border-radius: 28px;
+	background: linear-gradient(145deg, #fff, #faf6ff);
+	box-shadow: 0 8px 0 #ddcff0, 0 24px 65px #2817443d;
+	animation: student-welcome-pop .35s cubic-bezier(.16, 1.1, .35, 1) both;
+}
+
+.student-portal .student-teacher-modal-close {
+	position: absolute;
+	top: 15px;
+	right: 15px;
+	display: grid;
+	width: 44px;
+	height: 44px;
+	place-items: center;
+	border: 1px solid #e7def3;
+	border-radius: 14px;
+	background: #fff;
+	color: #76658f;
+	cursor: pointer;
+}
+
+.student-portal .student-teacher-modal-heading {
+	display: flex;
+	align-items: center;
+	gap: 15px;
+	padding-right: 40px;
+}
+
+.student-portal .student-teacher-modal-icon {
+	display: grid;
+	width: 60px;
+	height: 60px;
+	flex: 0 0 60px;
+	place-items: center;
+	border-radius: 20px;
+	background: #fff0c9;
+	box-shadow: 0 4px 0 #f0dfad;
+	font-size: 32px;
+}
+
+.student-portal .student-teacher-modal-heading p {
+	margin: 0 0 3px;
+	color: #8b70be;
+	font-size: 12px;
+	font-weight: 800;
+}
+
+.student-portal .student-teacher-modal-heading h2 {
+	margin: 0;
+	color: #49366d;
+	font-size: clamp(20px, 3vw, 26px);
+	font-weight: 800;
+	line-height: 1.35;
+}
+
+.student-portal .student-teacher-benefits {
+	display: grid;
+	gap: 9px;
+	margin-top: 23px;
+}
+
+.student-portal .student-teacher-benefits article {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px 14px;
+	border: 1px solid #e9e0f4;
+	border-radius: 17px;
+	background: linear-gradient(110deg, #fff, #fcfaff);
+	box-shadow: 0 3px 0 #f0eaf6;
+}
+
+.student-portal .student-teacher-benefits article > span {
+	display: grid;
+	width: 38px;
+	height: 38px;
+	flex: 0 0 38px;
+	place-items: center;
+	border-radius: 13px;
+	background: #efe7ff;
+	color: #704bc4;
+}
+
+.student-portal .student-teacher-benefits article:nth-child(2) > span { background: #e2f7e9; color: #39784b; }
+.student-portal .student-teacher-benefits article:nth-child(3) > span { background: #dff5ff; color: #28728f; }
+.student-portal .student-teacher-benefits article:nth-child(4) > span { background: #fff0c6; color: #8b6821; }
+.student-portal .student-teacher-benefits article:nth-child(5) > span { background: #ffe6e2; color: #9c5148; }
+
+.student-portal .student-teacher-benefits strong {
+	display: block;
+	margin: 0 0 2px;
+	color: #4b3b66;
+	font-size: 14px;
+	font-weight: 800;
+}
+
+.student-portal .student-teacher-benefits p {
+	margin: 0;
+	color: #7a6d8e;
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.student-portal .student-teacher-note {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 14px 0 0;
+	padding: 10px 12px;
+	border: 1px solid #cdebd9;
+	border-radius: 15px;
+	background: #f0fff5;
+	color: #4c755c;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.student-portal .student-teacher-note svg {
+	flex: 0 0 16px;
+	margin-top: 1px;
+	color: #48a66d;
+}
+
+.student-portal .student-teacher-submit {
+	display: flex;
+	width: 100%;
+	min-height: 52px;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 16px;
+	border: 0;
+	border-radius: 16px;
+	background: linear-gradient(145deg, #57c58d, #3ca976);
+	box-shadow: 0 5px 0 #2e8b5e;
+	color: white;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 800;
+	transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.student-portal .student-teacher-submit:hover:not(:disabled) {
+	transform: translateY(-2px);
+	box-shadow: 0 7px 0 #2e8b5e;
+}
+
+.student-portal .student-teacher-submit:active:not(:disabled) {
+	transform: translateY(3px);
+	box-shadow: 0 2px 0 #2e8b5e;
+}
+
+.student-portal .student-teacher-submit:disabled {
+	cursor: not-allowed;
+	opacity: .65;
+}
+
+.student-portal .student-teacher-pending {
+	display: flex;
+	align-items: flex-start;
+	gap: 11px;
+	margin-top: 15px;
+	padding: 13px 15px;
+	border: 1px solid #f0dfab;
+	border-radius: 16px;
+	background: #fff9e5;
+	color: #826a31;
+}
+
+.student-portal .student-teacher-pending > span {
+	font-size: 22px;
+}
+
+.student-portal .student-teacher-pending strong {
+	font-size: 14px;
+}
+
+.student-portal .student-teacher-pending p {
+	margin: 2px 0 0;
+	color: #917c4d;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.student-portal .student-teacher-modal-error {
+	margin: 12px 0 0;
+	padding: 10px 12px;
+	border: 1px solid #f0c5bd;
+	border-radius: 13px;
+	background: #fff4f0;
+	color: #a25347;
+	font-size: 13px;
+}
+
 .student-portal .student-content {
 	width: min(1080px, calc(100% - 40px));
 	margin: 30px auto 68px;
@@ -651,10 +897,9 @@
 }
 
 .student-portal .student-exam-path {
-	display: flex;
+	position: relative;
+	display: block;
 	grid-column: 1 / -1;
-	align-items: center;
-	gap: 7px;
 	padding: 11px 13px;
 	overflow-x: auto;
 	border: 1px solid #f0e4c3;
@@ -663,33 +908,179 @@
 	scrollbar-width: thin;
 }
 
-.student-portal .student-exam-path > span {
+.student-portal .student-exam-path-track {
 	position: relative;
+	display: grid;
+	width: 100%;
+	min-width: max(100%, 580px);
+	grid-template-columns: repeat(var(--student-path-count), minmax(24px, 1fr));
+	align-items: center;
+	padding: 0 18px;
+}
+
+.student-portal .student-exam-path-track::before {
+	position: absolute;
+	top: 50%;
+	right: 18px;
+	left: 18px;
+	border-top: 3px dashed #ead58e;
+	content: '';
+	transform: translateY(-50%);
+}
+
+.student-portal .student-exam-path-track > span:not(.student-bird-runner) {
+	position: relative;
+	z-index: 1;
 	display: grid;
 	width: 36px;
 	height: 36px;
-	flex: 0 0 36px;
+	justify-self: center;
 	place-items: center;
 	border: 2px solid #f1e8ca;
 	border-radius: 50%;
 	background: #fff;
 	font-size: 18px;
 	opacity: .58;
+	transition: transform .25s ease, background .25s ease, opacity .25s ease;
 }
 
-.student-portal .student-exam-path > span.reached {
+.student-portal .student-exam-path-track > span.reached {
 	border-color: #f3c858;
 	background: #ffeb9c;
 	opacity: 1;
 }
 
-.student-portal .student-exam-path > span:not(:last-child)::after {
+.student-portal .student-exam-path-track > span.reached:not(.student-bird-runner) {
+	transform: scale(1.06);
+}
+
+.student-portal .student-bird-runner {
 	position: absolute;
 	top: 50%;
-	left: 100%;
-	width: 9px;
-	border-top: 2px dashed #e9d58c;
-	content: '';
+	left: clamp(18px, var(--student-bird-left), calc(100% - 18px));
+	z-index: 2;
+	display: grid;
+	width: 48px;
+	height: 48px;
+	place-items: center;
+	border: 3px solid #fff;
+	border-radius: 19px;
+	background: linear-gradient(145deg, #fff0a9, #ffd975);
+	box-shadow: 0 4px 0 #e4b746, 0 8px 16px #74501d2b;
+	font-size: 29px;
+	line-height: 1;
+	transform: translate(-50%, -50%);
+	transition: left .58s cubic-bezier(.2, .8, .2, 1), transform .3s ease;
+	animation: student-bird-hop .7s ease-in-out infinite alternate;
+}
+
+.student-portal .student-bird-runner.is-near-flight {
+	animation: student-bird-hop .45s ease-in-out infinite alternate;
+}
+
+.student-portal .student-bird-flight-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 30;
+	display: grid;
+	place-items: center;
+	overflow: hidden;
+	background:
+		radial-gradient(circle at 50% 42%, #fffdf0 0, #fffdf0 14%, transparent 40%),
+		linear-gradient(160deg, #8ed9ff, #c9efff 46%, #e7d8ff);
+	animation: student-flight-sky-enter .3s ease both;
+}
+
+.student-portal .student-flight-sky {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.student-portal .student-flight-sky > span {
+	position: absolute;
+	top: 18%;
+	left: 16%;
+	font-size: clamp(26px, 5vw, 58px);
+	animation: student-flight-cloud-drift 5s ease-in-out infinite alternate;
+}
+
+.student-portal .student-flight-sky > span:nth-child(2) { top: 22%; left: 74%; animation-delay: -.8s; }
+.student-portal .student-flight-sky > span:nth-child(3) { top: 67%; left: 18%; animation-delay: -1.4s; }
+.student-portal .student-flight-sky > span:nth-child(4) { top: 72%; left: 81%; animation-delay: -.5s; }
+.student-portal .student-flight-sky > span:nth-child(5) { top: 43%; left: 8%; opacity: .45; }
+.student-portal .student-flight-sky > span:nth-child(6) { top: 16%; left: 48%; animation-delay: -2s; }
+
+.student-portal .student-flight-bird {
+	position: absolute;
+	top: 52%;
+	left: 50%;
+	z-index: 1;
+	display: grid;
+	width: clamp(88px, 15vw, 148px);
+	height: clamp(88px, 15vw, 148px);
+	place-items: center;
+	border: 6px solid white;
+	border-radius: 45% 45% 40% 40%;
+	background: linear-gradient(145deg, #fff2b7, #ffd76f);
+	box-shadow: 0 9px 0 #e2b749, 0 18px 40px #6248203a;
+	font-size: clamp(56px, 10vw, 100px);
+	transform: translate(-50%, -50%);
+	animation: student-bird-free-flight 2.25s cubic-bezier(.24, .68, .34, 1) both;
+}
+
+.student-portal .student-flight-message {
+	position: relative;
+	z-index: 2;
+	display: grid;
+	justify-items: center;
+	gap: 5px;
+	margin-top: 250px;
+	padding: 15px 24px;
+	border: 2px solid #fff;
+	border-radius: 20px;
+	background: #ffffffdc;
+	box-shadow: 0 5px 0 #d4c1ee;
+	color: #503878;
+	text-align: center;
+	animation: student-flight-message-pop .5s .12s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.student-portal .student-flight-message strong {
+	font-size: clamp(18px, 4vw, 27px);
+	font-weight: 800;
+}
+
+.student-portal .student-flight-message span {
+	color: #765ba0;
+	font-size: clamp(14px, 3vw, 18px);
+}
+
+@keyframes student-bird-hop {
+	from { margin-top: 1px; transform: translate(-50%, -50%) rotate(-5deg); }
+	to { margin-top: -8px; transform: translate(-50%, -50%) rotate(5deg); }
+}
+
+@keyframes student-flight-sky-enter {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes student-flight-cloud-drift {
+	to { transform: translate3d(16px, -11px, 0) rotate(8deg); }
+}
+
+@keyframes student-bird-free-flight {
+	0% { top: 54%; left: 50%; transform: translate(-50%, -50%) rotate(-8deg) scale(.72); }
+	25% { top: 43%; left: 58%; transform: translate(-50%, -50%) rotate(12deg) scale(1.08); }
+	50% { top: 49%; left: 69%; transform: translate(-50%, -50%) rotate(-8deg) scale(1.12); }
+	75% { top: 25%; left: 82%; transform: translate(-50%, -50%) rotate(18deg) scale(.9); }
+	100% { top: -15%; left: 112%; transform: translate(-50%, -50%) rotate(35deg) scale(.5); }
+}
+
+@keyframes student-flight-message-pop {
+	from { transform: translateY(12px) scale(.9); opacity: 0; }
+	to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .student-portal .student-question {
@@ -1482,6 +1873,16 @@
 		font-size: 0;
 	}
 
+	.student-portal .student-account .student-teacher-nav-button {
+		width: 44px;
+		flex: 0 0 44px;
+		padding: 0;
+	}
+
+	.student-portal .student-teacher-nav-label {
+		display: none;
+	}
+
 	.student-portal .student-account button svg {
 		width: 18px;
 		height: 18px;
@@ -1587,7 +1988,10 @@
 	.student-portal .student-exam-context { grid-column: auto; }
 	.student-portal .student-exam-counter { justify-content: space-between; }
 	.student-portal .student-exam-path { gap: 5px; padding: 9px; }
-	.student-portal .student-exam-path > span { width: 31px; height: 31px; flex-basis: 31px; font-size: 15px; }
+	.student-portal .student-exam-path-track { min-width: max(100%, 520px); padding: 0 16px; }
+	.student-portal .student-exam-path-track > span:not(.student-bird-runner) { width: 30px; height: 30px; font-size: 15px; }
+	.student-portal .student-bird-runner { width: 42px; height: 42px; font-size: 25px; }
+	.student-portal .student-flight-message { margin-top: 190px; }
 	.student-portal .student-question { padding: 15px 11px; }
 	.student-portal .student-question legend { font-size: 17px; }
 	.student-portal .student-options { grid-template-columns: 1fr; }
@@ -1715,6 +2119,62 @@ html[data-theme='dark'] .student-portal .student-teacher-request {
 html[data-theme='dark'] .student-portal .student-teacher-request strong { color: #c5f0d5; }
 html[data-theme='dark'] .student-portal .student-teacher-request p { color: #a9c4b3; }
 
+html[data-theme='dark'] .student-portal .student-account .student-teacher-nav-button {
+	border-color: #3c604d;
+	background: linear-gradient(145deg, #263d30, #292337);
+	box-shadow: 0 3px 0 #26352b;
+	color: #a9e6bf;
+}
+
+html[data-theme='dark'] .student-portal .student-account .student-teacher-nav-button.is-pending {
+	border-color: #75643b;
+	background: #3a3224;
+	color: #f3d88b;
+}
+
+html[data-theme='dark'] .student-portal .student-teacher-modal {
+	border-color: #493b5a;
+	background: linear-gradient(145deg, #292337, #241f31);
+	box-shadow: 0 8px 0 #30283d, 0 24px 65px #0006;
+}
+
+html[data-theme='dark'] .student-portal .student-teacher-modal-close {
+	border-color: #493b5a;
+	background: #302a3d;
+	color: #e0d7ed;
+}
+
+html[data-theme='dark'] .student-portal .student-teacher-modal-heading h2,
+html[data-theme='dark'] .student-portal .student-teacher-benefits strong {
+	color: #f0e8ff;
+}
+
+html[data-theme='dark'] .student-portal .student-teacher-modal-heading p { color: #c6aaff; }
+html[data-theme='dark'] .student-portal .student-teacher-modal-icon { background: #473b27; box-shadow: 0 4px 0 #3a3024; }
+
+html[data-theme='dark'] .student-portal .student-teacher-benefits article {
+	border-color: #493b5a;
+	background: linear-gradient(110deg, #302a3d, #2b2539);
+	box-shadow: 0 3px 0 #282336;
+}
+
+html[data-theme='dark'] .student-portal .student-teacher-benefits p { color: #c4b7d5; }
+
+html[data-theme='dark'] .student-portal .student-teacher-note {
+	border-color: #3c604d;
+	background: #20372c;
+	color: #b9dfc5;
+}
+
+html[data-theme='dark'] .student-portal .student-teacher-pending {
+	border-color: #75643b;
+	background: #3a3224;
+	color: #f3d88b;
+}
+
+html[data-theme='dark'] .student-portal .student-teacher-pending p { color: #dfc986; }
+html[data-theme='dark'] .student-portal .student-teacher-modal-error { border-color: #70483f; background: #392720; color: #ffc3b5; }
+
 html[data-theme='dark'] .student-portal .student-picker-label,
 html[data-theme='dark'] .student-portal .student-time-label {
 	color: #d2c4e9;
@@ -1731,6 +2191,26 @@ html[data-theme='dark'] .student-portal .student-exam-path {
 	border-color: #3b4c5b;
 	background: #222a36;
 }
+
+html[data-theme='dark'] .student-portal .student-exam-path-track::before { border-color: #76673e; }
+html[data-theme='dark'] .student-portal .student-exam-path-track > span:not(.student-bird-runner) { border-color: #554a35; background: #302a35; }
+html[data-theme='dark'] .student-portal .student-exam-path-track > span.reached:not(.student-bird-runner) { border-color: #b18d3d; background: #564522; }
+html[data-theme='dark'] .student-portal .student-bird-runner { border-color: #50412a; background: linear-gradient(145deg, #665329, #9b7330); box-shadow: 0 4px 0 #49391e, 0 8px 16px #0005; }
+
+html[data-theme='dark'] .student-portal .student-bird-flight-overlay {
+	background:
+		radial-gradient(circle at 50% 42%, #4d4661 0, #4d4661 14%, transparent 40%),
+		linear-gradient(160deg, #243c56, #304b5d 46%, #45365d);
+}
+
+html[data-theme='dark'] .student-portal .student-flight-message {
+	border-color: #6c5d83;
+	background: #292337e8;
+	box-shadow: 0 5px 0 #1e1a28;
+	color: #f1eaff;
+}
+
+html[data-theme='dark'] .student-portal .student-flight-message span { color: #d1c0ee; }
 
 html[data-theme='dark'] .student-portal .student-timer-ring {
 	background: conic-gradient(#459a6b var(--timer-progress), #344138 0);
