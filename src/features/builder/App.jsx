@@ -507,6 +507,72 @@ function QuestionPaperBuilder({ user, role }) {
   }, [grade, subject, applyPaperSettings, isAdmin, user.uid, dataReloadKey])
 
   useEffect(() => {
+    if (!notice) return undefined
+    const errorNotice = /হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice)
+    const timer = window.setTimeout(() => setNotice(''), errorNotice ? 5200 : 3200)
+    return () => window.clearTimeout(timer)
+  }, [notice])
+
+  const questionsById = useMemo(() => new Map(questions.map((question) => [question.id, question])), [questions])
+  const localForContext = questions.filter((question) => question.isLocal && question.grade === grade && question.subject === subject)
+  const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
+  const mergeableChapters = isAdmin
+    ? questionMeta.chapters
+    : [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort()
+  const chapterQuestionCounts = useMemo(() => {
+    const counts = new Map((questionMeta.chapterCounts ?? []).map(({ chapter, total, typeCounts = {} }) => [
+      chapter,
+      { total, typeCounts: { ...typeCounts } },
+    ]))
+    localForContext.forEach((question) => {
+      if (!question.chapter) return
+      const chapterCounts = counts.get(question.chapter) ?? { total: 0, typeCounts: {} }
+      chapterCounts.total += 1
+      chapterCounts.typeCounts[question.type] = (chapterCounts.typeCounts[question.type] ?? 0) + 1
+      counts.set(question.chapter, chapterCounts)
+    })
+    return counts
+  }, [questionMeta.chapterCounts, localForContext])
+  const totalQuestionCount = questionMeta.total + localForContext.length
+  const singleSelectedChapterCounts = selectedChapters.length === 1
+    ? chapterQuestionCounts.get(selectedChapters[0]) ?? { total: 0, typeCounts: {} }
+    : null
+  const selectedQuestions = questions.filter((question) => selected.includes(question.id))
+  const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
+  const selectedChapterTypeCounts = questionTypes.reduce((counts, type) => {
+    counts[type.id] = selectedChapters.reduce(
+      (sum, chapter) => sum + (chapterQuestionCounts.get(chapter)?.typeCounts[type.id] ?? 0),
+      0,
+    )
+    return counts
+  }, {})
+  const allQuestionTypeCounts = questionTypes.reduce((counts, type) => {
+    counts[type.id] = (questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length
+    return counts
+  }, {})
+  const questionTypeCounts = questionTypes.reduce((counts, type) => {
+    counts[type.id] = selectedChapters.length
+      ? selectedChapterTypeCounts[type.id]
+      : allQuestionTypeCounts[type.id]
+    return counts
+  }, {})
+  const availableQuestionTypes = questionTypes.filter((type) => questionTypeCounts[type.id] > 0)
+  const activeTypeCount = questionTypeCounts[activeType] ?? 0
+  const effectiveActiveType = activeType !== 'all' && activeTypeCount === 0 ? 'all' : activeType
+  const filteredQuestions = useMemo(() => {
+    const useBanglaPaperSelection = page === 'builder' && subject === 'bangla-2'
+    const localForContext = questions.filter((question) => question.isLocal
+      && questionMatchesFilters(question, grade, subject, useBanglaPaperSelection ? 'all' : effectiveActiveType, useBanglaPaperSelection ? [] : selectedChapters, useBanglaPaperSelection ? '' : debouncedSearch))
+    const serverForPage = visibleQuestionIds.map((id) => questionsById.get(id)).filter((question) => question && !question.isLocal)
+    return [...localForContext, ...serverForPage]
+  }, [questions, visibleQuestionIds, questionsById, grade, subject, effectiveActiveType, selectedChapters, debouncedSearch, page])
+  const questionTypeCount = questionTypes.filter((type) => allQuestionTypeCounts[type.id] > 0).length
+  const configuredRandomTotal = availableQuestionTypes.reduce(
+    (sum, type) => sum + (Number(randomQuotas[type.id]) || 0),
+    0,
+  )
+
+  useEffect(() => {
     if (dataMode !== 'mongo') return undefined
     let active = true
     const controller = new AbortController()
@@ -554,72 +620,6 @@ function QuestionPaperBuilder({ user, role }) {
       controller.abort()
     }
   }, [dataMode, grade, subject, effectiveActiveType, selectedChapters, debouncedSearch, sortOrder, user.uid, page])
-
-  useEffect(() => {
-    if (!notice) return undefined
-    const errorNotice = /হয়নি|পারিনি|যাবে না|সংযোগ নেই|পরীক্ষা করুন|সঠিক|ত্রুটি|পাওয়া যায়নি|নির্বাচন করুন/.test(notice)
-    const timer = window.setTimeout(() => setNotice(''), errorNotice ? 5200 : 3200)
-    return () => window.clearTimeout(timer)
-  }, [notice])
-
-  const questionsById = useMemo(() => new Map(questions.map((question) => [question.id, question])), [questions])
-  const filteredQuestions = useMemo(() => {
-    const useBanglaPaperSelection = page === 'builder' && subject === 'bangla-2'
-    const localForContext = questions.filter((question) => question.isLocal
-      && questionMatchesFilters(question, grade, subject, useBanglaPaperSelection ? 'all' : effectiveActiveType, useBanglaPaperSelection ? [] : selectedChapters, useBanglaPaperSelection ? '' : debouncedSearch))
-    const serverForPage = visibleQuestionIds.map((id) => questionsById.get(id)).filter((question) => question && !question.isLocal)
-    return [...localForContext, ...serverForPage]
-  }, [questions, visibleQuestionIds, questionsById, grade, subject, effectiveActiveType, selectedChapters, debouncedSearch, page])
-  const localForContext = questions.filter((question) => question.isLocal && question.grade === grade && question.subject === subject)
-  const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
-  const mergeableChapters = isAdmin
-    ? questionMeta.chapters
-    : [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort()
-  const chapterQuestionCounts = useMemo(() => {
-    const counts = new Map((questionMeta.chapterCounts ?? []).map(({ chapter, total, typeCounts = {} }) => [
-      chapter,
-      { total, typeCounts: { ...typeCounts } },
-    ]))
-    localForContext.forEach((question) => {
-      if (!question.chapter) return
-      const chapterCounts = counts.get(question.chapter) ?? { total: 0, typeCounts: {} }
-      chapterCounts.total += 1
-      chapterCounts.typeCounts[question.type] = (chapterCounts.typeCounts[question.type] ?? 0) + 1
-      counts.set(question.chapter, chapterCounts)
-    })
-    return counts
-  }, [questionMeta.chapterCounts, localForContext])
-  const totalQuestionCount = questionMeta.total + localForContext.length
-  const singleSelectedChapterCounts = selectedChapters.length === 1
-    ? chapterQuestionCounts.get(selectedChapters[0]) ?? { total: 0, typeCounts: {} }
-    : null
-  const selectedQuestions = questions.filter((question) => selected.includes(question.id))
-  const totalMarks = selectedQuestions.reduce((sum, question) => sum + Number(question.marks || 0), 0)
-  const selectedChapterTypeCounts = questionTypes.reduce((counts, type) => {
-    counts[type.id] = selectedChapters.reduce(
-      (sum, chapter) => sum + (chapterQuestionCounts.get(chapter)?.typeCounts[type.id] ?? 0),
-      0,
-    )
-    return counts
-  }, {})
-  const allQuestionTypeCounts = questionTypes.reduce((counts, type) => {
-    counts[type.id] = (questionMeta.typeCounts[type.id] ?? 0) + localForContext.filter((question) => question.type === type.id).length
-    return counts
-  }, {})
-  const questionTypeCounts = questionTypes.reduce((counts, type) => {
-    counts[type.id] = selectedChapters.length
-      ? selectedChapterTypeCounts[type.id]
-      : allQuestionTypeCounts[type.id]
-    return counts
-  }, {})
-  const availableQuestionTypes = questionTypes.filter((type) => questionTypeCounts[type.id] > 0)
-  const activeTypeCount = questionTypeCounts[activeType] ?? 0
-  const effectiveActiveType = activeType !== 'all' && activeTypeCount === 0 ? 'all' : activeType
-  const questionTypeCount = questionTypes.filter((type) => allQuestionTypeCounts[type.id] > 0).length
-  const configuredRandomTotal = availableQuestionTypes.reduce(
-    (sum, type) => sum + (Number(randomQuotas[type.id]) || 0),
-    0,
-  )
 
   async function refreshQuestionMeta() {
     const requestedContext = { grade, subject }

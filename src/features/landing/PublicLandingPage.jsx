@@ -2,16 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
   BookOpen,
+  Building2,
   Check,
   ClipboardList,
   Code2,
+  FileSpreadsheet,
   FileText,
+  GraduationCap,
   Layers3,
   Menu,
   Printer,
-  Quote,
-  Shapes,
-  Star,
+  Search,
+  Sparkles,
+  Users,
   X,
 } from 'lucide-react'
 import './PublicLandingPage.css'
@@ -21,33 +24,67 @@ import { apiUrl } from '../../shared/api.js'
 const features = [
   {
     icon: Layers3,
-    title: 'শ্রেণিভিত্তিক প্রশ্ন ব্যবস্থাপনা',
-    description: 'পঞ্চম থেকে দশম শ্রেণির জন্য সাজানো প্রশ্ন ব্যাংক থেকে আপনার শ্রেণির প্রশ্ন দেখুন।',
+    title: 'শ্রেণি ও বিষয়ভিত্তিক প্রশ্ন ব্যাংক',
+    description: 'শ্রেণি, বিষয় ও অধ্যায় ধরে প্রশ্ন খুঁজুন—প্রশ্নের ধরন অনুযায়ী সাজানো ব্যাংক থেকে।',
   },
   {
     icon: BookOpen,
-    title: 'বিষয় ও অধ্যায় অনুযায়ী',
-    description: 'বিষয় এবং অধ্যায় বেছে প্রাসঙ্গিক প্রশ্ন খুঁজে নিন—প্রস্তুতি থাকে গোছানো।',
+    title: 'প্রশ্ন তৈরি ও সম্পাদনা',
+    description: 'MCQ, সংক্ষিপ্ত, সৃজনশীলসহ বিভিন্ন ধরনে প্রশ্ন ও উত্তর তৈরি বা সম্পাদনা করুন।',
   },
   {
-    icon: Shapes,
-    title: 'বিভিন্ন ধরনের প্রশ্ন',
-    description: 'MCQ-এর পাশাপাশি সংক্ষিপ্ত, সৃজনশীল, বর্ণনামূলক ও অন্যান্য প্রশ্নের ধরন ব্যবহার করুন।',
+    icon: FileSpreadsheet,
+    title: 'Excel থেকে প্রশ্ন যোগ',
+    description: 'Bulk importer দিয়ে স্প্রেডশিটের প্রশ্ন আনুন; ডুপ্লিকেট শনাক্ত করে ব্যাংক গোছান।',
   },
   {
     icon: ClipboardList,
     title: 'নিজের মতো প্রশ্নপত্র',
-    description: 'প্রশ্ন বেছে নিন অথবা ধরনভিত্তিক সংখ্যা ঠিক করে পছন্দমতো প্রশ্নপত্র সাজান।',
+    description: 'প্রশ্ন বেছে নিন, ধরনভিত্তিক সংখ্যা ঠিক করুন এবং প্রিভিউতে সাজানো প্রশ্নপত্র দেখুন।',
   },
   {
-    icon: Check,
-    title: 'শিক্ষকের কাজের উপযোগী',
-    description: 'প্রশ্ন খোঁজা থেকে বাছাই—একটি সহজ কর্মপ্রবাহে প্রস্তুতির ধাপগুলো এগিয়ে নিন।',
+    icon: GraduationCap,
+    title: 'শিক্ষার্থীদের অনলাইন পরীক্ষা',
+    description: 'সময় ধরে পরীক্ষা দিন, উত্তর জমা দিন এবং ফলাফল, উত্তর পর্যালোচনা ও leaderboard দেখুন।',
+  },
+  {
+    icon: Building2,
+    title: 'কোচিং সেন্টার পরিচালনা',
+    description: 'শিক্ষার্থী, শিক্ষক, ব্যাচ, উপস্থিতি, ফি, পরীক্ষা-ফলাফল ও নোটিশ এক জায়গায় সামলান।',
+  },
+  {
+    icon: Users,
+    title: 'দল ও অ্যাক্সেস ব্যবস্থাপনা',
+    description: 'প্রতিষ্ঠানের সদস্যদের ভূমিকা অনুযায়ী কাজের সুযোগ দিন; admin content request-ও পরিচালনা করুন।',
   },
   {
     icon: Printer,
     title: 'PDF বা প্রিন্ট',
-    description: 'তৈরি প্রশ্নপত্রের প্রিভিউ দেখে PDF হিসেবে সংরক্ষণ করুন বা প্রিন্ট করুন।',
+    description: 'প্রশ্নপত্রের প্রিভিউ থেকে লাইভ এডিট করুন, PDF হিসেবে সংরক্ষণ করুন বা প্রিন্ট করুন।',
+  },
+]
+
+const audiences = [
+  {
+    icon: BookOpen,
+    className: 'teacher',
+    title: 'শিক্ষকের কাজ',
+    description: 'প্রশ্ন সাজানো থেকে ক্লাসের জন্য প্রশ্নপত্র—প্রস্তুতির পুরো কাজ এক workspace-এ।',
+    points: ['প্রশ্ন ব্যাংক তৈরি ও খোঁজা', 'নির্বাচিত প্রশ্নে paper set', 'প্রিভিউ, সম্পাদনা ও প্রিন্ট'],
+  },
+  {
+    icon: GraduationCap,
+    className: 'student',
+    title: 'শিক্ষার্থীর শেখা',
+    description: 'অনুশীলনমূলক পরীক্ষা দিয়ে নিজের অগ্রগতি দেখুন, ভুল উত্তর থেকে শিখুন।',
+    points: ['সময়-নির্ধারিত পরীক্ষা', 'ফলাফল ও উত্তর পর্যালোচনা', 'Leaderboard ও শিক্ষক অনুরোধ'],
+  },
+  {
+    icon: Building2,
+    className: 'coaching',
+    title: 'কোচিং সেন্টারের পরিচালনা',
+    description: 'কেন্দ্রের দৈনন্দিন একাডেমিক ও প্রশাসনিক কাজ একই জায়গা থেকে পরিচালনা করুন।',
+    points: ['শিক্ষার্থী, শিক্ষক ও ব্যাচ', 'উপস্থিতি ও ফি রেকর্ড', 'পরীক্ষা, ফলাফল ও নোটিশ'],
   },
 ]
 
@@ -104,6 +141,40 @@ function PaperPreview() {
         <div className="landing-paper-lines"><i /><i /><i /></div>
       </div>
       <div className="landing-preview-chip"><Check size={15} aria-hidden="true" /> নিজের মতো সাজান</div>
+    </div>
+  )
+}
+
+function PlatformIllustration() {
+  return (
+    <div className="landing-platform-visual" aria-label="প্রশ্নঘরের প্রশ্ন ব্যাংক, শিক্ষক, শিক্ষার্থী ও প্রতিষ্ঠানের কাজের ভিজ্যুয়াল সারাংশ" role="img">
+      <svg className="landing-platform-orbit" viewBox="0 0 600 520" aria-hidden="true">
+        <ellipse cx="300" cy="260" rx="260" ry="196" />
+        <ellipse cx="300" cy="260" rx="210" ry="153" />
+        <path d="M67 260h466M300 47v426" />
+        <circle cx="300" cy="64" r="5" />
+        <circle cx="526" cy="260" r="5" />
+        <circle cx="300" cy="456" r="5" />
+        <circle cx="74" cy="260" r="5" />
+      </svg>
+      <span className="landing-visual-shape landing-visual-shape-one" aria-hidden="true" />
+      <span className="landing-visual-shape landing-visual-shape-two" aria-hidden="true" />
+      <span className="landing-visual-shape landing-visual-shape-three" aria-hidden="true" />
+      <div className="landing-orbit-card landing-orbit-bank">
+        <span><Search size={16} /></span><b>প্রশ্ন ব্যাংক</b><i><i /></i>
+      </div>
+      <div className="landing-orbit-card landing-orbit-teacher">
+        <span><BookOpen size={16} /></span><b>শিক্ষক</b><small>প্রশ্নপত্র তৈরি</small>
+      </div>
+      <div className="landing-orbit-card landing-orbit-student">
+        <span><GraduationCap size={17} /></span><b>শিক্ষার্থী</b><small>অনলাইন পরীক্ষা</small>
+      </div>
+      <div className="landing-orbit-card landing-orbit-center">
+        <span><Building2 size={16} /></span><b>কোচিং সেন্টার</b><small>দৈনন্দিন পরিচালনা</small>
+      </div>
+      <div className="landing-orbit-centerpiece"><PaperPreview /></div>
+      <span className="landing-visual-spark landing-visual-spark-one"><Sparkles size={22} /></span>
+      <span className="landing-visual-spark landing-visual-spark-two"><Sparkles size={15} /></span>
     </div>
   )
 }
@@ -193,8 +264,7 @@ export default function PublicLandingPage() {
           const revealGroups = [
             ['.landing-feature-card', '.landing-feature-grid'],
             ['.landing-step', '.landing-steps'],
-            ['.landing-review-card', '.landing-review-grid'],
-            ['.landing-price-card', '.landing-pricing-grid'],
+            ['.landing-audience-card', '.landing-audience-grid'],
           ]
 
           revealGroups.forEach(([items, trigger]) => {
@@ -248,7 +318,7 @@ export default function PublicLandingPage() {
         <div className="landing-header-inner">
           <a className="landing-brand" href="#" aria-label="প্রশ্নঘর হোম">
             <span className="landing-brand-icon"><BookOpen size={23} aria-hidden="true" /></span>
-            <span><strong>প্রশ্নঘর</strong><small>প্রশ্নপত্র তৈরি হোক সহজে</small></span>
+            <span><strong>প্রশ্নঘর</strong><small>শিক্ষার সব কাজ এক জায়গায়</small></span>
           </a>
           <button
             className="landing-menu-toggle"
@@ -263,8 +333,8 @@ export default function PublicLandingPage() {
             <a href="#" onClick={closeMenu}>হোম</a>
             <a href="#features" onClick={closeMenu}>ফিচার</a>
             <a href="#how-it-works" onClick={closeMenu}>যেভাবে কাজ করে</a>
-            <a href="#reviews" onClick={closeMenu}>রিভিউ</a>
-            <a href="#pricing" onClick={closeMenu}>প্রাইসিং</a>
+            <a href="#roles" onClick={closeMenu}>কার জন্য</a>
+            <a href="#about" onClick={closeMenu}>আমাদের কথা</a>
             <a href="#developer" onClick={closeMenu}>ডেভেলপার</a>
             <div className="landing-nav-actions">
               <a className="landing-login-link" href="#/login" onClick={closeMenu}>লগইন</a>
@@ -278,9 +348,9 @@ export default function PublicLandingPage() {
         <section className="landing-hero">
           <div className="landing-hero-inner">
             <div className="landing-hero-copy">
-              <span className="landing-eyebrow"><span /> শিক্ষকদের প্রশ্নপত্র প্রস্তুতির সহজ সঙ্গী</span>
-              <h1>সহজেই তৈরি করুন আপনার <span>পছন্দের প্রশ্নপত্র</span></h1>
-              <p>শ্রেণি, বিষয় ও অধ্যায়ভিত্তিক প্রশ্ন ব্যাংক থেকে প্রশ্ন বেছে নিন। নিজের প্রয়োজনমতো সাজিয়ে তৈরি করুন প্রশ্নপত্র—এক জায়গায়, সহজেই।</p>
+              <span className="landing-eyebrow"><span /> শিক্ষক · শিক্ষার্থী · শিক্ষা প্রতিষ্ঠান</span>
+              <h1>শেখানো, শেখা আর পরিচালনা—<span>সব এক প্রশ্নঘরে</span></h1>
+              <p>প্রশ্ন ব্যাংক ও প্রশ্নপত্র তৈরি থেকে অনলাইন পরীক্ষা এবং কোচিং সেন্টার পরিচালনা—আপনার শিক্ষার কাজগুলো এক জায়গায় গুছিয়ে নিন।</p>
               <div className="landing-hero-actions">
                 <a className="landing-button-primary" href="#/register">শুরু করুন <ArrowRight size={18} /></a>
                 <a className="landing-button-secondary" href="#/login">লগইন করুন</a>
@@ -288,16 +358,16 @@ export default function PublicLandingPage() {
               <QuestionBankTotal apiUrl={apiUrl} className="landing-question-bank-total" />
               <div className="landing-hero-note"><Check size={16} /> Google দিয়ে সাইন ইন করে শুরু করুন</div>
             </div>
-            <div className="landing-hero-art"><PaperPreview /></div>
+            <div className="landing-hero-art"><PlatformIllustration /></div>
           </div>
           <div className="landing-hero-bottom" aria-hidden="true" />
         </section>
 
         <section className="landing-features landing-section" id="features">
           <div className="landing-section-heading">
-            <span className="landing-section-kicker">আপনার প্রস্তুতিতে সহায়ক</span>
-            <h2>প্রশ্নপত্র তৈরির দরকারি সবকিছু</h2>
-            <p>প্রশ্ন খোঁজা, বাছাই এবং প্রিন্ট—শিক্ষকের পরিচিত কাজগুলোকে রাখুন এক সহজ ধারায়।</p>
+            <span className="landing-section-kicker">একটি প্ল্যাটফর্মে সম্পূর্ণ workflow</span>
+            <h2>শুধু প্রশ্নপত্র নয়—শিক্ষার পুরো কাজ</h2>
+            <p>প্রশ্ন তৈরি, পরীক্ষা নেওয়া ও প্রতিষ্ঠান পরিচালনার দরকারি টুলগুলো একসঙ্গে ব্যবহার করুন।</p>
           </div>
           <div className="landing-feature-grid">
             {features.map(({ icon: Icon, title, description }, index) => (
@@ -329,80 +399,23 @@ export default function PublicLandingPage() {
           </div>
         </section>
 
-        <section className="landing-reviews landing-section" id="reviews">
+        <section className="landing-audience-section landing-section" id="roles">
           <div className="landing-section-heading">
-            <span className="landing-section-kicker">ব্যবহারকারীদের মতামত</span>
-            <h2>রিভিউ দিয়ে সাজুক প্রশ্নঘর</h2>
-            <p>এখানে প্রকৃত ব্যবহারকারীর অনুমতিপ্রাপ্ত মতামত যোগ করুন। নিচের লেখাগুলো পরিবর্তনযোগ্য demo placeholder।</p>
-            <span className="landing-demo-notice">DEMO CONTENT · প্রকাশের আগে বাস্তব রিভিউ দিয়ে বদলান</span>
+            <span className="landing-section-kicker">আপনার ভূমিকার জন্য আলাদা workspace</span>
+            <h2>আপনি যেখানেই থাকুন, কাজ এগোবে</h2>
+            <p>নিজের account-এ প্রবেশ করলেই আপনার ভূমিকা অনুযায়ী দরকারি কাজগুলো সামনে পাবেন।</p>
           </div>
-          <div className="landing-review-grid">
-            {[
-              { quote: 'এখানে একজন শিক্ষকের বাস্তব অভিজ্ঞতা ও মতামত যোগ করুন।', label: 'রিভিউ placeholder ০১' },
-              { quote: 'প্রশ্ন বাছাই ও প্রশ্নপত্র তৈরির অভিজ্ঞতা সম্পর্কে প্রকৃত রিভিউ লিখুন।', label: 'রিভিউ placeholder ০২' },
-              { quote: 'প্রকাশের আগে ব্যবহারকারীর সম্মতি নিয়ে তাঁর সঠিক পরিচয় যোগ করুন।', label: 'রিভিউ placeholder ০৩' },
-            ].map((review) => (
-              <article className="landing-review-card" key={review.label}>
-                <div className="landing-review-stars" aria-label="রেটিং placeholder">
-                  {Array.from({ length: 5 }, (_, index) => <Star key={index} size={16} fill="currentColor" />)}
-                </div>
-                <Quote className="landing-review-quote-icon" size={25} aria-hidden="true" />
-                <p>“{review.quote}”</p>
-                <div className="landing-review-person">
-                  <span className="landing-review-avatar"><BookOpen size={18} /></span>
-                  <span><strong>{review.label}</strong><small>বাস্তব পরিচয় যোগ করুন</small></span>
-                </div>
+          <div className="landing-audience-grid">
+            {audiences.map(({ icon: Icon, className, title, description, points }) => (
+              <article className={`landing-audience-card landing-audience-${className}`} key={title}>
+                <span className="landing-audience-icon"><Icon size={25} strokeWidth={1.8} /></span>
+                <span className="landing-audience-orbit" aria-hidden="true" />
+                <h3>{title}</h3>
+                <p>{description}</p>
+                <ul>{points.map((point) => <li key={point}><Check size={15} />{point}</li>)}</ul>
+                <a href="#/register">শুরু করুন <ArrowRight size={16} /></a>
               </article>
             ))}
-          </div>
-        </section>
-
-        <section className="landing-pricing-section" id="pricing">
-          <div className="landing-section landing-pricing-inner">
-            <div className="landing-section-heading">
-              <span className="landing-section-kicker">সহজ ও স্বচ্ছ পরিকল্পনা</span>
-              <h2>আপনার জন্য উপযুক্ত পরিকল্পনা</h2>
-              <p>নিচের পরিকল্পনা ও মূল্য demo—প্রকৃত মূল্য, সুবিধা এবং প্রাপ্যতা নিশ্চিত করে আপডেট করুন।</p>
-              <span className="landing-demo-notice">DEMO PRICING · বর্তমান অ্যাপে পেমেন্ট/সাবস্ক্রিপশন চালু নেই</span>
-            </div>
-            <div className="landing-pricing-grid">
-              <article className="landing-price-card">
-                <span className="landing-price-demo-tag">DEMO</span>
-                <span className="landing-price-name">শিক্ষক</span>
-                <h3>৳০ <small>/ মাস</small></h3>
-                <p>ব্যক্তিগতভাবে প্রশ্নপত্র তৈরির জন্য demo plan</p>
-                <ul>
-                  <li><Check size={16} /> প্রশ্ন ব্যাংক ব্রাউজ</li>
-                  <li><Check size={16} /> প্রশ্নপত্র তৈরি ও প্রিভিউ</li>
-                  <li><Check size={16} /> PDF / প্রিন্ট</li>
-                </ul>
-                <a href="#/register">শুরু করুন <ArrowRight size={16} /></a>
-              </article>
-              <article className="landing-price-card landing-price-card-featured">
-                <span className="landing-price-demo-tag">DEMO · সম্পাদনা করুন</span>
-                <span className="landing-price-name">শিক্ষক প্লাস</span>
-                <h3>৳২৯৯ <small>/ মাস</small></h3>
-                <p>মূল্য ও পরিকল্পনার বিবরণ পরিবর্তনযোগ্য demo</p>
-                <ul>
-                  <li><Check size={16} /> বিষয় ও অধ্যায়ভিত্তিক নির্বাচন</li>
-                  <li><Check size={16} /> নিজের মতো প্রশ্নপত্র সাজানো</li>
-                  <li><Check size={16} /> PDF / প্রিন্ট</li>
-                </ul>
-                <a href="#/register">শুরু করুন <ArrowRight size={16} /></a>
-              </article>
-              <article className="landing-price-card">
-                <span className="landing-price-demo-tag">DEMO</span>
-                <span className="landing-price-name">প্রতিষ্ঠান</span>
-                <h3>৳৯৯৯ <small>/ মাস</small></h3>
-                <p>প্রতিষ্ঠানের জন্য প্রস্তাবিত demo plan</p>
-                <ul>
-                  <li><Check size={16} /> একাধিক শিক্ষকের ব্যবহার</li>
-                  <li><Check size={16} /> প্রশ্নপত্র তৈরির কর্মপ্রবাহ</li>
-                  <li><Check size={16} /> পরিকল্পনা সম্পর্কে যোগাযোগ</li>
-                </ul>
-                <a href="#/register">শুরু করুন <ArrowRight size={16} /></a>
-              </article>
-            </div>
           </div>
         </section>
 
@@ -410,8 +423,8 @@ export default function PublicLandingPage() {
           <div className="landing-about-mark"><FileText size={27} /></div>
           <div>
             <span className="landing-section-kicker">শিক্ষার জন্য তৈরি</span>
-            <h2>প্রশ্ন তৈরি হোক আরও গোছানো</h2>
-            <p>প্রশ্নঘর শ্রেণি ও বিষয়ভিত্তিক প্রশ্ন ব্যবস্থাপনা এবং প্রশ্নপত্র তৈরির একটি টুল। শিক্ষকরা প্রশ্ন বাছাই করে প্রিভিউ দেখতে এবং সমর্থিত প্রিন্ট/PDF অপশন ব্যবহার করতে পারেন।</p>
+            <h2>শিক্ষার কাজ হোক আরও গোছানো</h2>
+            <p>প্রশ্নঘর একসঙ্গে আনে শ্রেণি ও বিষয়ভিত্তিক প্রশ্ন ব্যাংক, প্রশ্নপত্র তৈরি, শিক্ষার্থীদের অনলাইন পরীক্ষা এবং কোচিং সেন্টারের একাডেমিক ও প্রশাসনিক কাজ।</p>
           </div>
         </section>
 
@@ -449,6 +462,14 @@ export default function PublicLandingPage() {
               <summary>প্রশ্নপত্র কি PDF বা প্রিন্ট করা যাবে?</summary>
               <p>হ্যাঁ। প্রশ্নপত্রের প্রিভিউতে PDF / প্রিন্ট অপশন ব্যবহার করে সংরক্ষণ বা প্রিন্ট করতে পারবেন।</p>
             </details>
+            <details>
+              <summary>কোচিং সেন্টারের কী কী কাজ করা যায়?</summary>
+              <p>সেন্টার, সদস্য, শিক্ষার্থী, শিক্ষক, ব্যাচ, উপস্থিতি, ফি, পরীক্ষা-ফলাফল এবং নোটিশ পরিচালনা করা যায়।</p>
+            </details>
+            <details>
+              <summary>শিক্ষার্থীরা কি অনলাইনে পরীক্ষা দিতে পারে?</summary>
+              <p>হ্যাঁ। শিক্ষার্থীরা সময়-নির্ধারিত পরীক্ষা দিতে, ফলাফল ও উত্তর পর্যালোচনা করতে এবং leaderboard দেখতে পারে।</p>
+            </details>
           </div>
         </section>
 
@@ -456,7 +477,7 @@ export default function PublicLandingPage() {
           <div className="landing-cta-inner">
             <div>
               <span>আজই শুরু করুন</span>
-              <h2>আপনার পরের প্রশ্নপত্রটি তৈরি করুন সহজে।</h2>
+              <h2>শিক্ষার কাজগুলো এক জায়গায় গুছিয়ে শুরু করুন।</h2>
             </div>
             <a className="landing-cta-button" href="#/register">প্রশ্নঘরে প্রবেশ করুন <ArrowRight size={18} /></a>
           </div>
@@ -467,9 +488,9 @@ export default function PublicLandingPage() {
         <div className="landing-footer-inner">
           <a className="landing-brand landing-footer-brand" href="#">
             <span className="landing-brand-icon"><BookOpen size={22} aria-hidden="true" /></span>
-            <span><strong>প্রশ্নঘর</strong><small>প্রশ্নপত্র তৈরি হোক সহজে</small></span>
+            <span><strong>প্রশ্নঘর</strong><small>শিক্ষার সব কাজ এক জায়গায়</small></span>
           </a>
-          <p>শিক্ষকদের জন্য প্রশ্ন ব্যাংক ও প্রশ্নপত্র তৈরির টুল।</p>
+          <p>প্রশ্ন ব্যাংক, অনলাইন পরীক্ষা ও শিক্ষা প্রতিষ্ঠান পরিচালনার workspace।</p>
           <span className="landing-footer-copyright">© {new Date().getFullYear()} প্রশ্নঘর</span>
         </div>
       </footer>
