@@ -4,8 +4,10 @@ import {
   BookOpen,
   Building2,
   Check,
+  CheckCircle2,
   ClipboardList,
   Code2,
+  Clock3,
   FileSpreadsheet,
   FileText,
   GraduationCap,
@@ -13,6 +15,7 @@ import {
   Menu,
   Printer,
   Search,
+  Shapes,
   Sparkles,
   Users,
   X,
@@ -172,6 +175,12 @@ function PlatformIllustration() {
       <div className="landing-orbit-card landing-orbit-center">
         <span><Building2 size={16} /></span><b>কোচিং সেন্টার</b><small>দৈনন্দিন পরিচালনা</small>
       </div>
+      <div className="landing-orbit-card landing-orbit-progress">
+        <span><CheckCircle2 size={16} /></span><b>প্রস্তুত</b><small>প্রিন্টের জন্য</small>
+      </div>
+      <div className="landing-orbit-card landing-orbit-timer">
+        <span><Clock3 size={16} /></span><b>অনুশীলন</b><small>নিজের গতিতে</small>
+      </div>
       <div className="landing-orbit-centerpiece"><PaperPreview /></div>
       <span className="landing-visual-spark landing-visual-spark-one"><Sparkles size={22} /></span>
       <span className="landing-visual-spark landing-visual-spark-two"><Sparkles size={15} /></span>
@@ -265,6 +274,7 @@ export default function PublicLandingPage() {
             ['.landing-feature-card', '.landing-feature-grid'],
             ['.landing-step', '.landing-steps'],
             ['.landing-audience-card', '.landing-audience-grid'],
+            ['.landing-flow-node', '.landing-flow-visual'],
           ]
 
           revealGroups.forEach(([items, trigger]) => {
@@ -373,6 +383,9 @@ export default function PublicLandingPage() {
             {features.map(({ icon: Icon, title, description }, index) => (
               <article className="landing-feature-card" key={title}>
                 <span className={`landing-feature-icon landing-feature-icon-${index + 1}`}><Icon size={21} strokeWidth={1.9} /></span>
+                <span className={`landing-feature-art landing-feature-art-${index % 4}`} aria-hidden="true">
+                  <i /><i /><i /><i />
+                </span>
                 <h3>{title}</h3>
                 <p>{description}</p>
               </article>
@@ -386,6 +399,23 @@ export default function PublicLandingPage() {
               <span className="landing-section-kicker">সহজ তিনটি ধাপ</span>
               <h2>ভাবনা থেকে প্রশ্নপত্র</h2>
               <p>আপনার পাঠের চাহিদা অনুযায়ী প্রশ্ন বেছে নিন, তারপর তৈরি প্রশ্নপত্রটি ব্যবহার করুন।</p>
+            </div>
+            <div className="landing-flow-visual" aria-label="প্রশ্ন ব্যাংক থেকে প্রশ্নপত্র, পরীক্ষা ও ফলাফল পর্যন্ত workflow" role="img">
+              <svg viewBox="0 0 900 120" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M95 60H805" />
+              </svg>
+              {[
+                { icon: Search, title: 'খুঁজুন', subtitle: 'প্রশ্ন ব্যাংক', color: 'blue' },
+                { icon: ClipboardList, title: 'সাজান', subtitle: 'প্রশ্নপত্র', color: 'violet' },
+                { icon: GraduationCap, title: 'শিখুন', subtitle: 'অনলাইন পরীক্ষা', color: 'amber' },
+                { icon: CheckCircle2, title: 'দেখুন', subtitle: 'ফলাফল ও অগ্রগতি', color: 'green' },
+              ].map(({ icon: Icon, title, subtitle, color }) => (
+                <div className={`landing-flow-node landing-flow-${color}`} key={title}>
+                  <span><Icon size={22} strokeWidth={1.8} /></span>
+                  <strong>{title}</strong>
+                  <small>{subtitle}</small>
+                </div>
+              ))}
             </div>
             <div className="landing-steps">
               {steps.map((step) => (
@@ -410,6 +440,7 @@ export default function PublicLandingPage() {
               <article className={`landing-audience-card landing-audience-${className}`} key={title}>
                 <span className="landing-audience-icon"><Icon size={25} strokeWidth={1.8} /></span>
                 <span className="landing-audience-orbit" aria-hidden="true" />
+                <span className="landing-audience-decoration" aria-hidden="true"><Shapes size={44} /></span>
                 <h3>{title}</h3>
                 <p>{description}</p>
                 <ul>{points.map((point) => <li key={point}><Check size={15} />{point}</li>)}</ul>
