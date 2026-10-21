@@ -20,6 +20,26 @@ import {
 const router = express.Router()
 const managementRoles = ['owner', 'manager']
 const membershipRoles = ['owner', 'manager', 'teacher', 'student', 'accountant']
+const admissionTextFields = {
+  englishName: 120,
+  fatherName: 120,
+  motherName: 120,
+  permanentDistrict: 100,
+  permanentPostOffice: 100,
+  permanentVillage: 100,
+  permanentArea: 100,
+  presentDistrict: 100,
+  presentPostOffice: 100,
+  presentVillage: 100,
+  presentArea: 100,
+  guardianDistrict: 100,
+  guardianPostOffice: 100,
+  guardianVillage: 100,
+  guardianArea: 100,
+  nationality: 80,
+  religion: 80,
+  previousGrade: 40,
+}
 
 function serialize(document) {
   if (!document) return document
@@ -118,6 +138,14 @@ function normalizePhotoURL(value) {
     throw new Error('Student photo URL must be a valid HTTPS URL')
   }
   return url
+}
+
+function normalizeOptionalString(value, field, maxLength) {
+  if (value === undefined || value === null || value === '') return ''
+  if (typeof value !== 'string' || value.trim().length > maxLength) {
+    throw new Error(`Student ${field} must be at most ${maxLength} characters`)
+  }
+  return value.trim()
 }
 
 function isCalendarDate(value) {
@@ -448,18 +476,26 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
     if (!Number.isInteger(normalizedGrade) || normalizedGrade < 1 || normalizedGrade > 12) {
       return response.status(400).json({ error: 'Student grade must be between 1 and 12' })
     }
+    if (request.body.dateOfBirth && !isCalendarDate(request.body.dateOfBirth)) {
+      return response.status(400).json({ error: 'Provide date of birth in YYYY-MM-DD format' })
+    }
     const email = normalizeEmail(request.body.email)
     const account = await findOptionalFirebaseAccount(email)
     const student = await CoachingStudent.create({
       centerId: request.params.centerId,
       name: normalizedName,
       studentCode: normalizedCode,
+      ...Object.fromEntries(Object.entries(admissionTextFields).map(([field, maxLength]) => [
+        field,
+        normalizeOptionalString(request.body[field], field, maxLength),
+      ])),
       grade: normalizedGrade,
       phone: typeof request.body.phone === 'string' ? request.body.phone.trim().slice(0, 30) : '',
       email,
       linkedUserId: account?.uid ?? '',
       guardianName: typeof request.body.guardianName === 'string' ? request.body.guardianName.trim().slice(0, 120) : '',
       guardianPhone: typeof request.body.guardianPhone === 'string' ? request.body.guardianPhone.trim().slice(0, 30) : '',
+      dateOfBirth: request.body.dateOfBirth || '',
       photoURL: normalizePhotoURL(request.body.photoURL),
       createdBy: request.firebaseUser.uid,
     })
@@ -470,6 +506,7 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
     if (error instanceof Error && error.message.startsWith('Student ID')) return response.status(400).json({ error: error.message })
     if (error instanceof Error && error.message.startsWith('Email')) return response.status(400).json({ error: error.message })
     if (error instanceof Error && error.message.startsWith('Student photo URL')) return response.status(400).json({ error: error.message })
+    if (error instanceof Error && error.message.startsWith('Student ')) return response.status(400).json({ error: error.message })
     next(error)
   }
 })
@@ -481,9 +518,12 @@ router.patch('/centers/:centerId/students/:studentId', requireCenterMembership, 
     const student = await CoachingStudent.findOne({ _id: studentId, centerId: request.params.centerId, status: 'active' })
     if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
 
-    const { name, studentCode, grade, phone, email, guardianName, guardianPhone, photoURL } = request.body ?? {}
+    const { name, studentCode, grade, phone, email, guardianName, guardianPhone, photoURL, dateOfBirth } = request.body ?? {}
     if (name !== undefined) student.name = normalizeRequiredString(name, 'Student name', 120)
     if (studentCode !== undefined) student.studentCode = normalizeRequiredString(studentCode, 'Student ID', 40)
+    for (const [field, maxLength] of Object.entries(admissionTextFields)) {
+      if (request.body[field] !== undefined) student[field] = normalizeOptionalString(request.body[field], field, maxLength)
+    }
     if (grade !== undefined) {
       const normalizedGrade = Number(grade)
       if (!Number.isInteger(normalizedGrade) || normalizedGrade < 1 || normalizedGrade > 12) {
@@ -499,12 +539,16 @@ router.patch('/centers/:centerId/students/:studentId', requireCenterMembership, 
     }
     if (guardianName !== undefined) student.guardianName = typeof guardianName === 'string' ? guardianName.trim().slice(0, 120) : ''
     if (guardianPhone !== undefined) student.guardianPhone = typeof guardianPhone === 'string' ? guardianPhone.trim().slice(0, 30) : ''
+    if (dateOfBirth !== undefined) {
+      if (dateOfBirth && !isCalendarDate(dateOfBirth)) return response.status(400).json({ error: 'Provide date of birth in YYYY-MM-DD format' })
+      student.dateOfBirth = dateOfBirth || ''
+    }
     if (photoURL !== undefined) student.photoURL = normalizePhotoURL(photoURL)
     await student.save()
     response.json(serialize(student.toObject()))
   } catch (error) {
     if (error.code === 11000) return response.status(409).json({ error: 'This student ID is already used in the center' })
-    if (error instanceof Error && ['Student name', 'Student ID', 'Email', 'Student photo URL'].some((prefix) => error.message.startsWith(prefix))) {
+    if (error instanceof Error && ['Student name', 'Student ID', 'Email', 'Student photo URL', 'Student '].some((prefix) => error.message.startsWith(prefix))) {
       return response.status(400).json({ error: error.message })
     }
     next(error)

@@ -56,7 +56,7 @@ Coaching API প্রতিটি center operation-এ active membership যা
 ### এখন যা ব্যবহার করা যাবে
 
 - Center approval queue, center selector, team membership ও role পরিচালনা; Owner/Manager suspended member-এর access আবার চালু করতে পারেন।
-- আলাদা student profile: নাম, center-এর মধ্যে unique Student ID, শ্রেণি, যোগাযোগ, অভিভাবকের তথ্য ও ImageBB-সহ image host-এর সরাসরি HTTPS profile-photo URL; Owner/Manager profile সম্পাদনা বা নিষ্ক্রিয় করতে পারেন, পুরোনো record মুছে যায় না।
+- অনলাইন ভর্তি ফরম: PDF-এর বিন্যাস অনুসারে শিক্ষার্থীর বাংলা/ইংরেজি নাম, পিতা-মাতা, স্থায়ী/বর্তমান ঠিকানা, অভিভাবকের ঠিকানা, জাতীয়তা, ধর্ম, জন্মতারিখ, আগের/ভর্তিচ্ছু শ্রেণি, ফোন, ইমেইল, অভিভাবকের ফোন এবং ImageBB-সহ image host-এর সরাসরি HTTPS ছবি-URL সংরক্ষণ। Student ID center-এর মধ্যে unique; Owner/Manager ফরম সম্পাদনা বা শিক্ষার্থী নিষ্ক্রিয় করতে পারেন, পুরোনো record মুছে যায় না। সংরক্ষিত ফরম তালিকা থেকে আবার print করা যায়।
 - আলাদা teacher profile: যোগাযোগ, বিষয় এবং ঐচ্ছিক Firebase account link।
 - Batch: নাম, শ্রেণি, বিষয়, teacher assignment ও schedule।
 - Active student-কে একই center-এর batch-এ enroll করা।

@@ -60,6 +60,38 @@ function gradeLabel(grade) {
   return grade ? `${bengaliNumber(grade)} শ্রেণি` : 'শ্রেণি নেই'
 }
 
+function emptyAdmissionForm() {
+  return {
+    name: '',
+    englishName: '',
+    studentCode: '',
+    fatherName: '',
+    motherName: '',
+    permanentDistrict: '',
+    permanentPostOffice: '',
+    permanentVillage: '',
+    permanentArea: '',
+    presentDistrict: '',
+    presentPostOffice: '',
+    presentVillage: '',
+    presentArea: '',
+    guardianName: '',
+    guardianPhone: '',
+    guardianDistrict: '',
+    guardianPostOffice: '',
+    guardianVillage: '',
+    guardianArea: '',
+    nationality: '',
+    religion: '',
+    dateOfBirth: '',
+    previousGrade: '',
+    grade: '7',
+    phone: '',
+    email: '',
+    photoURL: '',
+  }
+}
+
 async function downloadExcel(fileName, sheetName, rows) {
   const { default: XLSX } = await import('../questions/excelWorkbook.js')
   const workbook = XLSX.utils.book_new()
@@ -116,6 +148,92 @@ function printFeeInvoice(record, center) {
   return true
 }
 
+function printAdmissionForm(student, center) {
+  const formWindow = window.open('', '_blank')
+  if (!formWindow) return false
+  formWindow.opener = null
+  const line = (label, value, className = '') => `<div class="field ${className}"><span>${escapeHTML(label)}</span><strong>${escapeHTML(value || '')}</strong></div>`
+  const address = (prefix, item) => `<div class="address-row">
+    ${line('জেলা', item[`${prefix}District`])}
+    ${line('ডাকঘর', item[`${prefix}PostOffice`])}
+    ${line('গ্রাম', item[`${prefix}Village`])}
+    ${line('পাড়া', item[`${prefix}Area`])}
+  </div>`
+  const photo = student.photoURL
+    ? `<img src="${escapeHTML(student.photoURL)}" alt="শিক্ষার্থীর ছবি">`
+    : '<span>পাসপোর্ট সাইজ<br>এর রঙিন ছবি<br>১ কপি</span>'
+  formWindow.document.write(`<!doctype html>
+    <html lang="bn"><head><meta charset="utf-8"><title>ভর্তি ফরম - ${escapeHTML(student.name)}</title>
+    <style>
+      @page{size:legal portrait;margin:0}
+      *{box-sizing:border-box}
+      body{margin:0;font-family:Arial,"Noto Sans Bengali",sans-serif;color:#171717}
+      .sheet{position:relative;min-height:14in;margin:0;padding:.42in .62in .38in;border:5px double #56305a}
+      .head{text-align:center;padding-right:1.25in;line-height:1.35}
+      .form-no{position:absolute;top:.2in;left:.35in;min-width:1.05in;min-height:.3in;border:1px solid #222;text-align:center;padding:4px}
+      .photo{position:absolute;right:.35in;top:.2in;width:1.25in;height:1.5in;border:1px solid #222;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:bold;padding:5px;line-height:1.7}
+      .photo img{width:100%;height:100%;object-fit:cover}
+      .motto{font-size:13px}.center-name{font-size:20px;font-weight:bold;margin:3px 0}
+      .center-en{font-size:12px;font-weight:bold}.center-address{font-size:11px;margin-top:3px}
+      h1{text-align:center;font-size:21px;margin:14px 0 10px;text-decoration:underline}
+      .fields{display:grid;gap:5px}
+      .field{display:flex;align-items:flex-end;gap:5px;min-height:24px;font-size:13px}
+      .field>span{white-space:nowrap;font-weight:bold}
+      .field strong{display:block;flex:1;min-height:21px;padding:0 4px 2px;border-bottom:1px dotted #222;font-weight:500}
+      .address-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+      .address-row .field{font-size:12px}
+      .guardian-row{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:10px}
+      .guardian-address{display:grid;gap:4px}
+      .three-col{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:12px}
+      .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+      .contact-row{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:12px}
+      .terms-title{display:inline-block;position:relative;margin:22px 0 14px;padding:6px 17px;border:1px solid #222;font-size:16px;font-weight:bold}
+      .terms{margin:14px 0 10px;padding-left:20px;font-size:12px;font-weight:bold;line-height:1.8}
+      .declaration{text-align:center;font-size:13px;font-weight:bold;line-height:1.65;margin:18px 0 0}
+      .signatures{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:48px;font-size:13px;font-weight:bold;line-height:1.9}
+      @media print{.sheet{break-inside:avoid}}
+    </style></head><body><main class="sheet">
+    <div class="form-no">ফরম নং- ${escapeHTML(student.studentCode)}</div>
+    <div class="photo">${photo}</div>
+    <header class="head">
+      <div class="motto">বিসমিল্লাহির রাহমানির রাহিম</div>
+      <div class="center-name">${escapeHTML(center?.name || 'এ হক কোচিং সেন্টার, কুড়িগ্রাম')}</div>
+      <div class="center-en">A HAQUE COACHING CENTER, KURIGRAM</div>
+      <div class="center-address">${escapeHTML(center?.address || 'ডাকঘর ও জেলা: কুড়িগ্রাম')}${center?.contactPhone ? `, মোবাইল: ${escapeHTML(center.contactPhone)}` : ''}</div>
+    </header>
+    <h1>শিক্ষার্থী ভর্তি আবেদন ফরম</h1>
+    <section class="fields">
+      ${line('১। শিক্ষার্থীর নাম (বাংলায়)', student.name)}
+      ${line('শিক্ষার্থীর নাম (ইংরেজিতে)', student.englishName)}
+      ${line('২। শিক্ষার্থীর পিতার নাম', student.fatherName)}
+      ${line('৩। শিক্ষার্থীর মাতার নাম', student.motherName)}
+      <div class="guardian-address"><strong>৪। স্থায়ী ঠিকানা</strong>${address('permanent', student)}</div>
+      <div class="guardian-address"><strong>৫। বর্তমান ঠিকানা</strong>${address('present', student)}</div>
+      <div class="guardian-row"><div>${line('৬। অভিভাবকের নাম', student.guardianName)}</div>${line('জেলা', student.guardianDistrict)}${line('ডাকঘর', student.guardianPostOffice)}</div>
+      <div class="address-row">${line('গ্রাম', student.guardianVillage)}${line('পাড়া', student.guardianArea)}${line('জাতীয়তা', student.nationality)}${line('ধর্ম', student.religion)}</div>
+      <div class="three-col">${line('জন্ম তারিখ', student.dateOfBirth ? formatDate(student.dateOfBirth) : '')}${line('পূর্বে যে শ্রেণিতে পড়ত', student.previousGrade)}${line('যে শ্রেণিতে ভর্তি হতে ইচ্ছুক', student.grade ? gradeLabel(student.grade) : '')}</div>
+      <div class="contact-row">${line('শিক্ষার্থীর ফোন', student.phone)}${line('ইমেইল', student.email)}${line('অভিভাবকের ফোন', student.guardianPhone)}</div>
+    </section>
+    <div class="terms-title">ভর্তির শর্তাবলী:</div>
+    <ol class="terms">
+      <li>শিক্ষার্থীকে নিয়মিত ক্লাসে উপস্থিত হতে হবে।</li>
+      <li>প্রতিষ্ঠান প্রধানের বিনা অনুমতিতে ছুটি অথবা ক্লাস ত্যাগ করা যাবে না।</li>
+      <li>ভর্তিকৃত শিক্ষার্থীকে কমপক্ষে ১ বছর স্থায়ী থাকতে হবে।</li>
+      <li>মাসিক বেতন চলতি মাসের ৫ তারিখের মধ্যে ও ক্লাস চলাকালীন সময়ে পরিশোধ করতে হবে।</li>
+      <li>মাসিক বেতন আংশিক গ্রহণযোগ্য নয়।</li>
+      <li>কোন কারণে শিক্ষার্থীর ভর্তি বাতিল হলে তার নিকট যাবতীয় পাওনাদি প্রতিষ্ঠান কর্তৃক আদায়যোগ্য হবে।</li>
+      <li>কোচিং এর নিয়ম শৃঙ্খলা মেনে চলতে হবে এবং কোন রাষ্ট্রবিরোধী কাজ করা যাবে না।</li>
+    </ol>
+    <p class="declaration">আমি এই মর্মে ঘোষণা করছি যে, উপরে বর্ণিত শিক্ষার্থীর তথ্যাবলী সত্য বিধায় ভর্তি ও সকল শর্ত পালন সাপেক্ষে<br>আমার পুত্র/কন্যাকে আপনার কোচিং-এ ভর্তির ব্যবস্থা গ্রহণের জন্য অনুরোধ করছি।</p>
+    <footer class="signatures">
+      <div>ভর্তি করা হলো -<br>পরিচালকের স্বাক্ষর -<br>তারিখ -<br>মোবাইল: ${escapeHTML(center?.contactPhone || '')}</div>
+      <div>পিতা/অভিভাবকের নাম : ${escapeHTML(student.guardianName || '')}<br>স্বাক্ষর -<br>মোবাইল - ${escapeHTML(student.guardianPhone || '')}</div>
+    </footer>
+    </main><script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+  formWindow.document.close()
+  return true
+}
+
 export default function CoachingManagementApp({ user, role, onBack }) {
   const [centers, setCenters] = useState([])
   const [selectedCenterId, setSelectedCenterId] = useState('')
@@ -130,7 +248,8 @@ export default function CoachingManagementApp({ user, role, onBack }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [memberForm, setMemberForm] = useState({ email: '', role: 'teacher' })
-  const [studentForm, setStudentForm] = useState({ name: '', studentCode: '', grade: '7', phone: '', email: '', guardianName: '', guardianPhone: '', photoURL: '' })
+  const [studentForm, setStudentForm] = useState(emptyAdmissionForm)
+  const [lastSavedStudent, setLastSavedStudent] = useState(null)
   const [editingStudentId, setEditingStudentId] = useState('')
   const [studentEditForm, setStudentEditForm] = useState(null)
   const [teacherForm, setTeacherForm] = useState({ name: '', phone: '', email: '', subjects: '' })
@@ -438,6 +557,12 @@ export default function CoachingManagementApp({ user, role, onBack }) {
     }
   }
 
+  function printStudentAdmissionForm(student) {
+    if (!printAdmissionForm(student, activeCenter)) {
+      setError('ভর্তি ফর্মের print window খোলা যায়নি। Browser popup অনুমতি দিয়ে আবার চেষ্টা করুন।')
+    }
+  }
+
   async function decideCenterRequest(centerRequest, decision) {
     setBusyRequestId(centerRequest.id)
     setError('')
@@ -727,22 +852,82 @@ export default function CoachingManagementApp({ user, role, onBack }) {
               </>}
 
               {activeTab === 'students' && <div className="coaching-management-grid">
-                {canManage && <section className="coaching-panel">
-                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">নতুন profile</span><h2>শিক্ষার্থী যোগ করুন</h2></div></div>
-                  <form className="coaching-form" onSubmit={(event) => void submitForm(event, `${endpoint}/students`, { ...studentForm, grade: Number(studentForm.grade) }, 'শিক্ষার্থী profile যোগ হয়েছে।', () => setStudentForm({ name: '', studentCode: '', grade: '7', phone: '', email: '', guardianName: '', guardianPhone: '', photoURL: '' }))}>
-                    <label>শিক্ষার্থীর নাম<input required maxLength="120" value={studentForm.name} onChange={(event) => setStudentForm((current) => ({ ...current, name: event.target.value }))} /></label>
-                    <div className="coaching-form-row"><label>Student ID<input required maxLength="40" value={studentForm.studentCode} onChange={(event) => setStudentForm((current) => ({ ...current, studentCode: event.target.value }))} /></label><label>শ্রেণি<select value={studentForm.grade} onChange={(event) => setStudentForm((current) => ({ ...current, grade: event.target.value }))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label></div>
-                    <div className="coaching-form-row"><label>ফোন<input maxLength="30" value={studentForm.phone} onChange={(event) => setStudentForm((current) => ({ ...current, phone: event.target.value }))} /></label><label>ইমেইল<input type="email" maxLength="254" value={studentForm.email} onChange={(event) => setStudentForm((current) => ({ ...current, email: event.target.value }))} /></label></div>
-                    <div className="coaching-form-row"><label>অভিভাবকের নাম<input maxLength="120" value={studentForm.guardianName} onChange={(event) => setStudentForm((current) => ({ ...current, guardianName: event.target.value }))} /></label><label>অভিভাবকের ফোন<input maxLength="30" value={studentForm.guardianPhone} onChange={(event) => setStudentForm((current) => ({ ...current, guardianPhone: event.target.value }))} /></label></div>
-                    <label>প্রোফাইল ছবির URL<input type="url" maxLength="500" value={studentForm.photoURL} onChange={(event) => setStudentForm((current) => ({ ...current, photoURL: event.target.value }))} placeholder="https://i.ibb.co/..." /><small className="coaching-muted">ImageBB-তে আপলোড করা ছবির সরাসরি HTTPS লিংক দিন।</small></label>
-                    <button type="submit" className="coaching-button coaching-button-primary" disabled={busy}><Plus size={15} /> শিক্ষার্থী সংরক্ষণ</button>
+                {canManage && <section className="coaching-panel coaching-admission-panel">
+                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">অনলাইন ভর্তি ফরম</span><h2>শিক্ষার্থী ভর্তি আবেদন</h2><p>তথ্য সংরক্ষণ হলে সেন্টারে অনলাইনে থাকবে; পরে এই তালিকা থেকে ফরম আবার প্রিন্ট করা যাবে।</p></div></div>
+                  {lastSavedStudent && <div className="coaching-invoice-action"><span>{lastSavedStudent.name} — ভর্তি ফরম অনলাইনে সংরক্ষিত</span><button type="button" className="coaching-button coaching-button-muted" onClick={() => printStudentAdmissionForm(lastSavedStudent)}><Printer size={15} /> ভর্তি ফর্ম প্রিন্ট</button></div>}
+                  <form className="coaching-form coaching-admission-form" onSubmit={(event) => void submitForm(
+                    event,
+                    `${endpoint}/students`,
+                    { ...studentForm, grade: Number(studentForm.grade) },
+                    'ভর্তি ফরম অনলাইনে সংরক্ষণ হয়েছে।',
+                    () => setStudentForm(emptyAdmissionForm()),
+                    setLastSavedStudent,
+                  )}>
+                    <div className="coaching-admission-section">
+                      <h3>শিক্ষার্থীর তথ্য</h3>
+                      <div className="coaching-admission-grid">
+                        <label>শিক্ষার্থীর নাম (বাংলায়)<input required maxLength="120" value={studentForm.name} onChange={(event) => setStudentForm((current) => ({ ...current, name: event.target.value }))} /></label>
+                        <label>শিক্ষার্থীর নাম (ইংরেজিতে)<input maxLength="120" value={studentForm.englishName} onChange={(event) => setStudentForm((current) => ({ ...current, englishName: event.target.value }))} /></label>
+                        <label>ফরম নং / Student ID<input required maxLength="40" value={studentForm.studentCode} onChange={(event) => setStudentForm((current) => ({ ...current, studentCode: event.target.value }))} /></label>
+                        <label>জন্ম তারিখ<input type="date" value={studentForm.dateOfBirth} onChange={(event) => setStudentForm((current) => ({ ...current, dateOfBirth: event.target.value }))} /></label>
+                      </div>
+                    </div>
+                    <div className="coaching-admission-section">
+                      <h3>পিতা-মাতার তথ্য</h3>
+                      <div className="coaching-admission-grid">
+                        <label>পিতার নাম<input maxLength="120" value={studentForm.fatherName} onChange={(event) => setStudentForm((current) => ({ ...current, fatherName: event.target.value }))} /></label>
+                        <label>মাতার নাম<input maxLength="120" value={studentForm.motherName} onChange={(event) => setStudentForm((current) => ({ ...current, motherName: event.target.value }))} /></label>
+                      </div>
+                    </div>
+                    {[
+                      ['permanent', 'স্থায়ী ঠিকানা'],
+                      ['present', 'বর্তমান ঠিকানা'],
+                    ].map(([prefix, title]) => <div className="coaching-admission-section" key={prefix}>
+                      <h3>{title}</h3>
+                      <div className="coaching-admission-grid coaching-address-grid">
+                        <label>জেলা<input maxLength="100" value={studentForm[`${prefix}District`]} onChange={(event) => setStudentForm((current) => ({ ...current, [`${prefix}District`]: event.target.value }))} /></label>
+                        <label>ডাকঘর<input maxLength="100" value={studentForm[`${prefix}PostOffice`]} onChange={(event) => setStudentForm((current) => ({ ...current, [`${prefix}PostOffice`]: event.target.value }))} /></label>
+                        <label>গ্রাম<input maxLength="100" value={studentForm[`${prefix}Village`]} onChange={(event) => setStudentForm((current) => ({ ...current, [`${prefix}Village`]: event.target.value }))} /></label>
+                        <label>পাড়া<input maxLength="100" value={studentForm[`${prefix}Area`]} onChange={(event) => setStudentForm((current) => ({ ...current, [`${prefix}Area`]: event.target.value }))} /></label>
+                      </div>
+                    </div>)}
+                    <div className="coaching-admission-section">
+                      <h3>অভিভাবকের তথ্য</h3>
+                      <div className="coaching-admission-grid">
+                        <label>অভিভাবকের নাম<input maxLength="120" value={studentForm.guardianName} onChange={(event) => setStudentForm((current) => ({ ...current, guardianName: event.target.value }))} /></label>
+                        <label>অভিভাবকের ফোন<input maxLength="30" value={studentForm.guardianPhone} onChange={(event) => setStudentForm((current) => ({ ...current, guardianPhone: event.target.value }))} /></label>
+                      </div>
+                      <div className="coaching-admission-grid coaching-address-grid">
+                        <label>জেলা<input maxLength="100" value={studentForm.guardianDistrict} onChange={(event) => setStudentForm((current) => ({ ...current, guardianDistrict: event.target.value }))} /></label>
+                        <label>ডাকঘর<input maxLength="100" value={studentForm.guardianPostOffice} onChange={(event) => setStudentForm((current) => ({ ...current, guardianPostOffice: event.target.value }))} /></label>
+                        <label>গ্রাম<input maxLength="100" value={studentForm.guardianVillage} onChange={(event) => setStudentForm((current) => ({ ...current, guardianVillage: event.target.value }))} /></label>
+                        <label>পাড়া<input maxLength="100" value={studentForm.guardianArea} onChange={(event) => setStudentForm((current) => ({ ...current, guardianArea: event.target.value }))} /></label>
+                      </div>
+                    </div>
+                    <div className="coaching-admission-section">
+                      <h3>অন্যান্য ও যোগাযোগ</h3>
+                      <div className="coaching-admission-grid">
+                        <label>জাতীয়তা<input maxLength="80" value={studentForm.nationality} onChange={(event) => setStudentForm((current) => ({ ...current, nationality: event.target.value }))} /></label>
+                        <label>ধর্ম<input maxLength="80" value={studentForm.religion} onChange={(event) => setStudentForm((current) => ({ ...current, religion: event.target.value }))} /></label>
+                        <label>পূর্বে যে শ্রেণিতে পড়ত<input maxLength="40" value={studentForm.previousGrade} onChange={(event) => setStudentForm((current) => ({ ...current, previousGrade: event.target.value }))} /></label>
+                        <label>যে শ্রেণিতে ভর্তি হতে ইচ্ছুক<select value={studentForm.grade} onChange={(event) => setStudentForm((current) => ({ ...current, grade: event.target.value }))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label>
+                        <label>শিক্ষার্থীর ফোন<input maxLength="30" value={studentForm.phone} onChange={(event) => setStudentForm((current) => ({ ...current, phone: event.target.value }))} /></label>
+                        <label>ইমেইল<input type="email" maxLength="254" value={studentForm.email} onChange={(event) => setStudentForm((current) => ({ ...current, email: event.target.value }))} /></label>
+                      </div>
+                    </div>
+                    <div className="coaching-admission-section">
+                      <h3>পাসপোর্ট সাইজের রঙিন ছবি</h3>
+                      <label>ছবির URL<input type="url" maxLength="500" value={studentForm.photoURL} onChange={(event) => setStudentForm((current) => ({ ...current, photoURL: event.target.value }))} placeholder="https://i.ibb.co/..." /><small className="coaching-muted">ImageBB-তে আপলোড করা ছবির সরাসরি HTTPS লিংক দিন। ছবিটি প্রোফাইল ও প্রিন্ট করা ভর্তি ফরমে থাকবে।</small></label>
+                    </div>
+                    <button type="submit" className="coaching-button coaching-button-primary" disabled={busy}><Plus size={15} /> ভর্তি ফরম সংরক্ষণ</button>
                   </form>
                 </section>}
-                <section className="coaching-panel coaching-list-panel"><div className="coaching-panel-heading"><div><span className="coaching-eyebrow">সেন্টারের তালিকা</span><h2>শিক্ষার্থী <span>{bengaliNumber(overview.students.length)}</span></h2></div></div>
+                <section className="coaching-panel coaching-list-panel coaching-student-list-panel"><div className="coaching-panel-heading"><div><span className="coaching-eyebrow">অনলাইনে সংরক্ষিত ভর্তি ফরম</span><h2>শিক্ষার্থী <span>{bengaliNumber(overview.students.length)}</span></h2><p>যেকোনো সময় তালিকা থেকে ভর্তি ফরম প্রিন্ট করুন।</p></div></div>
                   {overview.students.length === 0 ? <p className="coaching-muted">এখনো কোনো শিক্ষার্থী profile নেই।</p> : <div className="coaching-record-list">{overview.students.map((student) => <article className="coaching-record coaching-student-record" key={student.id}>
                     <span className="coaching-record-avatar coaching-student-avatar">{student.photoURL ? <img src={student.photoURL} alt={`${student.name}-এর প্রোফাইল`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} /> : <GraduationCap size={17} />}</span>
                     <span className="coaching-record-main"><strong>{student.name}</strong><small>ID: {student.studentCode} · {gradeLabel(student.grade)}</small><small>{[student.phone, student.email, student.guardianName && `অভিভাবক: ${student.guardianName}`, student.guardianPhone && `অভিভাবক ফোন: ${student.guardianPhone}`].filter(Boolean).join(' · ') || 'যোগাযোগের তথ্য নেই'}</small></span>
                     {canManage && <span className="coaching-student-actions">
+                      <button type="button" className="coaching-icon-button" aria-label={`${student.name} ভর্তি ফর্ম প্রিন্ট করুন`} title="ভর্তি ফর্ম প্রিন্ট" onClick={() => printStudentAdmissionForm(student)}><Printer size={15} /></button>
                       <button type="button" className="coaching-icon-button" aria-label={`${student.name} সম্পাদনা করুন`} disabled={busy} onClick={() => {
                         setEditingStudentId(student.id)
                         setStudentEditForm({

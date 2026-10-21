@@ -138,6 +138,14 @@
 .coaching-icon-danger { border-color: #efd5d1; color: #a53f35; }
 .coaching-student-edit { flex: 1 0 100%; padding: 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #f9fbf9; }
 .coaching-invoice-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid #d6e6da; border-radius: 7px; background: #f5fbf6; color: #357451; font-size: 10px; font-weight: 700; }
+.coaching-admission-panel,.coaching-student-list-panel { grid-column: 1 / -1; }
+.coaching-admission-form { gap: 16px; }
+.coaching-admission-section { display: grid; gap: 9px; padding-bottom: 14px; border-bottom: 1px solid #edf1ed; }
+.coaching-admission-section h3 { margin: 0; color: #34453b; font-size: 12px; }
+.coaching-admission-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.coaching-address-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.coaching-admission-form label { font-size: 10px; }
+.coaching-student-actions .coaching-icon-button { cursor: pointer; }
 .coaching-spin { animation: coaching-spin .8s linear infinite; }
 @keyframes coaching-spin { to { transform: rotate(360deg); } }
 
@@ -196,6 +204,8 @@ html[data-theme='dark'] .coaching-record { border-color: #35463b; }
 html[data-theme='dark'] .coaching-student-edit { border-color: #35463b; background: #18221c; }
 html[data-theme='dark'] .coaching-invoice-action { border-color: #365844; background: #1b2a20; color: #a7d8b4; }
 html[data-theme='dark'] .coaching-icon-danger { border-color: #70443e; color: #f19c91; }
+html[data-theme='dark'] .coaching-admission-section { border-color: #35463b; }
+html[data-theme='dark'] .coaching-admission-section h3 { color: #e2ebe5; }
 html[data-theme='dark'] .coaching-attendance-toolbar label,
 html[data-theme='dark'] .coaching-fee-heading > label { color: #b3c0b7; }
 html[data-theme='dark'] .coaching-attendance-toolbar select,
@@ -244,10 +254,12 @@ html[data-theme='dark'] .coaching-notice-card p { color: #b3c0b7; }
   .coaching-center-picker { flex-basis: 100%; }
   .coaching-page-heading { align-items: flex-start; }
   .coaching-form-row,
+  .coaching-admission-grid,
   .coaching-feature-grid,
   .coaching-member-form,
   .coaching-member-list,
   .coaching-attendance-list { grid-template-columns: minmax(0, 1fr); }
+  .coaching-address-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .coaching-feature-grid .coaching-feature-later { grid-column: auto; }
   .coaching-exam-results { grid-column: auto; }
   .coaching-exam-result-list { grid-template-columns: minmax(0, 1fr); }
