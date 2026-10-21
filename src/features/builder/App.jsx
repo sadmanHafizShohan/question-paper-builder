@@ -4,6 +4,7 @@ import {
   ArrowDownUp,
   CircleAlert,
   BookOpen,
+  Building2,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -47,6 +48,7 @@ import FirebaseAuthGate from '../auth/FirebaseAuthGate.jsx'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import AdminUsersPanel from '../admin/AdminUsersPanel.jsx'
 import AdminContentRequestsPanel from '../admin/AdminContentRequestsPanel.jsx'
+import CoachingManagementApp from '../coaching/CoachingManagementApp.jsx'
 import StudentActivityPanel from '../admin/StudentActivityPanel.jsx'
 import StudentExamPortal from '../student/StudentExamPortal.jsx'
 import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
@@ -56,6 +58,7 @@ import { getGradeLabel, getSubjectLabel, grades, subjects } from '../../shared/a
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 import AnimatedNumber from '../../components/ui/AnimatedNumber.jsx'
 import { auth } from '../../shared/firebase.js'
+import { useThemeMode } from '../../shared/theme.js'
 import {
   CreativeQuestionAnswer,
   CreativeQuestionPrompt,
@@ -166,6 +169,20 @@ function questionMatchesFilters(question, grade, subject, activeType, selectedCh
     && text.toLowerCase().includes(search.toLowerCase())
 }
 
+function createDeterministicShuffle(seed, length) {
+  const indexes = Array.from({ length }, (_, index) => index)
+  let hash = 0
+  for (const char of String(seed)) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  }
+  for (let i = indexes.length - 1; i > 0; i--) {
+    hash = (hash * 1664525 + 1013904223) >>> 0
+    const j = hash % (i + 1)
+    ;[indexes[i], indexes[j]] = [indexes[j], indexes[i]]
+  }
+  return indexes
+}
+
 function hasPendingPublishRequest(requests, questionId) {
   return requests.some((contentRequest) => contentRequest.localQuestionId === questionId
     && ['pending', 'processing'].includes(contentRequest.status))
@@ -237,7 +254,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [showDuplicateDetector, setShowDuplicateDetector] = useState(false)
   const [editorResetKey, setEditorResetKey] = useState(0)
   const [showPreview, setShowPreview] = useState(() => Boolean(workspaceState.showPreview && workspaceState.selected?.length))
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
+  const [darkMode, setDarkMode] = useThemeMode()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [paperTitle, setPaperTitle] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperTitle ?? 'সাপ্তাহিক পরিক্ষা')
   const [paperDuration, setPaperDuration] = useState(() => getLocalPaperSettings(grade, subject, user.uid, isAdmin).paperDuration ?? '২ ঘণ্টা')
@@ -435,11 +452,6 @@ function QuestionPaperBuilder({ user, role }) {
   }, [])
 
   useEffect(() => {
-    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
-    localStorage.setItem('question-builder-theme', darkMode ? 'dark' : 'light')
-  }, [darkMode])
-
-  useEffect(() => {
     const timeoutId = window.setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => window.clearTimeout(timeoutId)
   }, [search])
@@ -508,7 +520,7 @@ function QuestionPaperBuilder({ user, role }) {
       setVisibleQuestionIds(localForContext.map((question) => question.id))
       const params = new URLSearchParams({ subject, grade: String(questionBankGrade(grade)), sort: sortOrder })
       const loadAllBanglaPaperQuestions = page === 'builder' && subject === 'bangla-2'
-      if (!loadAllBanglaPaperQuestions && activeType !== 'all') params.set('type', activeType)
+      if (!loadAllBanglaPaperQuestions && effectiveActiveType !== 'all') params.set('type', effectiveActiveType)
       if (!loadAllBanglaPaperQuestions && debouncedSearch) params.set('search', debouncedSearch)
       if (!loadAllBanglaPaperQuestions) selectedChapters.forEach((chapter) => params.append('chapter', chapter))
       try {
@@ -541,7 +553,7 @@ function QuestionPaperBuilder({ user, role }) {
       active = false
       controller.abort()
     }
-  }, [dataMode, grade, subject, activeType, selectedChapters, debouncedSearch, sortOrder, user.uid, page])
+  }, [dataMode, grade, subject, effectiveActiveType, selectedChapters, debouncedSearch, sortOrder, user.uid, page])
 
   useEffect(() => {
     if (!notice) return undefined
@@ -554,10 +566,10 @@ function QuestionPaperBuilder({ user, role }) {
   const filteredQuestions = useMemo(() => {
     const useBanglaPaperSelection = page === 'builder' && subject === 'bangla-2'
     const localForContext = questions.filter((question) => question.isLocal
-      && questionMatchesFilters(question, grade, subject, useBanglaPaperSelection ? 'all' : activeType, useBanglaPaperSelection ? [] : selectedChapters, useBanglaPaperSelection ? '' : debouncedSearch))
+      && questionMatchesFilters(question, grade, subject, useBanglaPaperSelection ? 'all' : effectiveActiveType, useBanglaPaperSelection ? [] : selectedChapters, useBanglaPaperSelection ? '' : debouncedSearch))
     const serverForPage = visibleQuestionIds.map((id) => questionsById.get(id)).filter((question) => question && !question.isLocal)
     return [...localForContext, ...serverForPage]
-  }, [questions, visibleQuestionIds, questionsById, grade, subject, activeType, selectedChapters, debouncedSearch, page])
+  }, [questions, visibleQuestionIds, questionsById, grade, subject, effectiveActiveType, selectedChapters, debouncedSearch, page])
   const localForContext = questions.filter((question) => question.isLocal && question.grade === grade && question.subject === subject)
   const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
   const mergeableChapters = isAdmin
@@ -602,17 +614,12 @@ function QuestionPaperBuilder({ user, role }) {
   }, {})
   const availableQuestionTypes = questionTypes.filter((type) => questionTypeCounts[type.id] > 0)
   const activeTypeCount = questionTypeCounts[activeType] ?? 0
+  const effectiveActiveType = activeType !== 'all' && activeTypeCount === 0 ? 'all' : activeType
   const questionTypeCount = questionTypes.filter((type) => allQuestionTypeCounts[type.id] > 0).length
   const configuredRandomTotal = availableQuestionTypes.reduce(
     (sum, type) => sum + (Number(randomQuotas[type.id]) || 0),
     0,
   )
-
-  useEffect(() => {
-    if (!isLoadingQuestions && dataMode !== 'connecting' && activeType !== 'all' && activeTypeCount === 0) {
-      setActiveType('all')
-    }
-  }, [activeType, activeTypeCount, dataMode, isLoadingQuestions])
 
   async function refreshQuestionMeta() {
     const requestedContext = { grade, subject }
@@ -824,7 +831,7 @@ function QuestionPaperBuilder({ user, role }) {
       cursor: nextQuestionCursor,
     })
     const loadAllBanglaPaperQuestions = page === 'builder' && subject === 'bangla-2'
-    if (!loadAllBanglaPaperQuestions && activeType !== 'all') params.set('type', activeType)
+    if (!loadAllBanglaPaperQuestions && effectiveActiveType !== 'all') params.set('type', effectiveActiveType)
     if (!loadAllBanglaPaperQuestions && debouncedSearch) params.set('search', debouncedSearch)
     if (!loadAllBanglaPaperQuestions) selectedChapters.forEach((chapter) => params.append('chapter', chapter))
     try {
@@ -1060,7 +1067,7 @@ function QuestionPaperBuilder({ user, role }) {
     setQuestions((current) => current.some((item) => item.id === payload.id)
       ? current.map((item) => item.id === payload.id ? savedQuestion : item)
       : [savedQuestion, ...current])
-    if (questionMatchesFilters(savedQuestion, grade, subject, activeType, selectedChapters, debouncedSearch)) {
+    if (questionMatchesFilters(savedQuestion, grade, subject, effectiveActiveType, selectedChapters, debouncedSearch)) {
       setVisibleQuestionIds((current) => {
         const remaining = current.filter((id) => id !== savedQuestion.id)
         return sortOrder === 'desc' ? [savedQuestion.id, ...remaining] : [...remaining, savedQuestion.id]
@@ -1323,6 +1330,9 @@ function QuestionPaperBuilder({ user, role }) {
         <button type="button" className={`nav-item ${page === 'activities' ? 'active' : ''}`} onClick={() => { setPage('activities'); setIsSidebarOpen(false) }}>
           <Activity size={18} /><span>শিক্ষার্থী activity</span>
         </button>
+        <button type="button" className="nav-item" onClick={() => { window.location.hash = '#/coaching'; setIsSidebarOpen(false) }}>
+          <Building2 size={18} /><span>কোচিং ম্যানেজমেন্ট</span>
+        </button>
         {isAdmin && <button type="button" className={`nav-item admin-nav-item ${page === 'users' ? 'active' : ''}`} aria-label="ব্যবহারকারী ও role পরিচালনা" title="ব্যবহারকারী" onClick={() => { setPage('users'); setIsSidebarOpen(false) }}>
           <Shield size={18} /><span>ব্যবহারকারী</span>
         </button>}
@@ -1431,13 +1441,13 @@ function QuestionPaperBuilder({ user, role }) {
                   </div>
                 </div>}
                 <div className="type-tabs" role="tablist" aria-label="প্রশ্নের ধরন">
-                  <button className={activeType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন{selectedChapters.length < 2 && <span>{questionCount(singleSelectedChapterCounts?.total ?? totalQuestionCount)}</span>}</button>
+                  <button className={effectiveActiveType === 'all' ? 'active' : ''} onClick={() => setActiveType('all')}>সব প্রশ্ন{selectedChapters.length < 2 && <span>{questionCount(singleSelectedChapterCounts?.total ?? totalQuestionCount)}</span>}</button>
                   {[
                     ...['mcq', 'short', 'cq', 'long'].map((id) => questionTypes.find((type) => type.id === id)).filter(Boolean),
                     ...questionTypes.filter((type) => !['mcq', 'short', 'cq', 'long'].includes(type.id)),
                   ].filter((type) => questionTypeCounts[type.id] > 0).map((type) => {
                     const typeCount = questionTypeCounts[type.id]
-                    return <button key={type.id} className={activeType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{typeLabel(type.id, subject)}{selectedChapters.length < 2 && <span>{questionCount(typeCount)}</span>}</button>
+                    return <button key={type.id} className={effectiveActiveType === type.id ? 'active' : ''} onClick={() => setActiveType(type.id)}>{typeLabel(type.id, subject)}{selectedChapters.length < 2 && <span>{questionCount(typeCount)}</span>}</button>
                   })}
                 </div>
                 <div className="question-table-wrap">
@@ -1550,7 +1560,7 @@ function QuestionPaperBuilder({ user, role }) {
           const importedServerIds = savedQuestions
             .filter((question) => !question.isLocal && (subject === 'bangla-2'
               ? question.grade === grade && question.subject === subject
-              : questionMatchesFilters(question, grade, subject, activeType, selectedChapters, debouncedSearch)))
+              : questionMatchesFilters(question, grade, subject, effectiveActiveType, selectedChapters, debouncedSearch)))
             .map((question) => question.id)
           setVisibleQuestionIds((current) => [...new Set(sortOrder === 'desc' ? [...importedServerIds, ...current] : [...current, ...importedServerIds])])
           if (isAdmin) void refreshQuestionMeta()
@@ -1899,16 +1909,10 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
     const map = new Map()
     for (const question of questions) {
       if (question.type !== 'mcq' || !question.options?.length) continue
-      const indexes = question.options.map((_, i) => i)
-      for (let i = indexes.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [indexes[i], indexes[j]] = [indexes[j], indexes[i]]
-      }
-      map.set(question.id, indexes)
+      map.set(question.id, createDeterministicShuffle(`${question.id}-${question.prompt ?? ''}`, question.options.length))
     }
     return map
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [questions])
 
   useEffect(() => {
     localStorage.setItem(`paper-preview-layout-${customizationKey}`, JSON.stringify(customLayout))
@@ -2321,7 +2325,6 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
 
                   // Each type within a chapter gets its own group number (not per-chapter)
                   const typeKey = typeId
-                  const isFirstOccurrence = !renderedTypeKeys.has(typeKey)
                   if (!isStandalone && !isPassage) renderedTypeKeys.add(typeKey)
 
                   const groupNum = (!isStandalone && !isPassage) ? englishGroupNumber++ : null
@@ -2452,8 +2455,24 @@ function PaperPreview({ questions, title, duration, paperClass, subjectId, subje
   )
 }
 
+function AuthenticatedWorkspace({ user, role }) {
+  const [coachingSelected, setCoachingSelected] = useState(() => window.location.hash === '#/coaching')
+
+  useEffect(() => {
+    const syncWorkspace = () => setCoachingSelected(window.location.hash === '#/coaching')
+    window.addEventListener('hashchange', syncWorkspace)
+    return () => window.removeEventListener('hashchange', syncWorkspace)
+  }, [])
+
+  if (coachingSelected) {
+    return <CoachingManagementApp user={user} role={role} onBack={() => { window.location.hash = '#/questions' }} />
+  }
+  if (role === 'student') {
+    return <StudentExamPortal user={user} />
+  }
+  return <QuestionPaperBuilder user={user} role={role} />
+}
+
 export default function App() {
-  return <FirebaseAuthGate>{(user, role) => role === 'student'
-    ? <StudentExamPortal user={user} />
-    : <QuestionPaperBuilder user={user} role={role} />}</FirebaseAuthGate>
+  return <FirebaseAuthGate>{(user, role) => <AuthenticatedWorkspace user={user} role={role} />}</FirebaseAuthGate>
 }

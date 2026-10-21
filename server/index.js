@@ -6,6 +6,7 @@ import mongoose from 'mongoose'
 import process from 'node:process'
 import { firebaseAdminAuth } from './config/firebaseAdmin.js'
 import { ContentRequest, PaperSettings, Question, StudentExamAttempt, TeacherRoleRequest } from './models/index.js'
+import coachingRouter from './features/coaching/routes.js'
 
 dotenv.config()
 
@@ -47,7 +48,9 @@ app.use('/api', async (request, response, next) => {
         ? claimRole
         : 'teacher',
     }
-    if (request.firebaseUser.role === 'student' && !request.path.startsWith('/student/')) {
+    if (request.firebaseUser.role === 'student'
+      && !request.path.startsWith('/student/')
+      && !request.path.startsWith('/coaching/')) {
       return response.status(403).json({ error: 'Student accounts can only access student exam features' })
     }
     next()
@@ -57,6 +60,8 @@ app.use('/api', async (request, response, next) => {
     response.status(500).json({ error: 'Authentication service unavailable' })
   }
 })
+
+app.use('/api/coaching', coachingRouter)
 
 function requireAdmin(request, response, next) {
   if (request.firebaseUser.role !== 'admin') {

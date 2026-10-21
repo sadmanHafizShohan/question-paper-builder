@@ -4,11 +4,13 @@
 
 ## কোডের বিন্যাস
 
-- `src/features/`: builder, questions, student, admin, auth ও landing page-এর feature-ভিত্তিক UI এবং logic।
+- `src/features/`: builder, questions, student, admin, auth, landing page এবং coaching management-এর feature-ভিত্তিক UI ও logic।
 - `src/components/`: একাধিক feature-এ ব্যবহৃত সাধারণ UI component।
 - `src/shared/`: frontend-এর shared API, Firebase, academic data ও event helper।
 - `src/styles/`: application-wide stylesheet; feature/component-এর stylesheet সংশ্লিষ্ট folder-এ থাকে।
-- `server/config/`, `server/models/`: backend credentials/configuration এবং MongoDB model।
+- `server/config/`, `server/models/`: backend credentials/configuration এবং shared MongoDB model।
+- `server/features/coaching/`: coaching management-এর পৃথক API routes ও permission checks।
+- `server/models/coaching.js`: coaching center, membership, profile, batch ও enrollment model।
 - `server/scripts/`: backend-এর administrative command-line script।
 - `server/index.js`: Express API entry point ও route registration।
 - `public/`: সরাসরি serve করা static file; `src/assets/`: frontend bundle-এ import করা asset।
@@ -26,6 +28,44 @@
 শ্রেণি: ৫–১০। বিষয়: গণিত, বাংলা ১ম/২য় পত্র, English 1st/2nd Paper, Global Studies, ইসলাম ও নৈতিক শিক্ষা, এবং তথ্য ও যোগাযোগ প্রযুক্তি। প্রতিটি প্রশ্নে grade, subject, chapter ও type আলাদা metadata হিসেবে MongoDB-তে থাকে; তাই class-wise folder দরকার নেই।
 
 প্রশ্ন যোগ করার সময় শ্রেণি, বিষয় ও প্রশ্নের ধরন select করুন। MCQ-তে সাধারণ ধরন অথবা বিবৃতিভিত্তিক ধরন বেছে নিন। বিবৃতিভিত্তিক MCQ-তে মূল প্রশ্ন, তিনটি i/ii/iii বিবৃতি এবং নির্দেশনা লিখুন; চারটি সমন্বয় বিকল্প (i ও iii, i ও ii, ii ও iii, i, ii ও iii) অ্যাপ নিজে তৈরি করে। সাধারণ MCQ-তে চারটি উত্তর বিকল্প হাতে লিখুন। প্রশ্ন, উত্তর, বিবৃতি ও MCQ বিকল্পে `$x^2 + y^2$` বা `\( \frac{a}{b} \)` লিখলে সূত্রটি লেখার সময় preview-তে এবং প্রশ্নপত্রে render হয়; আলাদা লাইনের সূত্রের জন্য `\[ ... \]` বা `$$ ... $$` ব্যবহার করুন। প্রিভিউতে প্রশ্ন, বিবৃতি, নির্দেশনা ও স্বয়ংক্রিয় বিকল্প এই ক্রমে দেখাবে। এই ধরন যেকোনো বিষয়ের জন্য ব্যবহার করা যায়। অধ্যায়ে ওই grade/subject-এর আগের chapter suggestion থেকে বাছুন অথবা প্রথমবারের জন্য নাম লিখুন। Teacher-এর তৈরি প্রশ্ন localStorage-এ থাকে; প্রশ্নের পাশে পাঠানোর অনুরোধ দিলে Admin অনুমোদন না করা পর্যন্ত সেটি local-এই থাকে। অনুমোদন করলে প্রশ্ন MongoDB-তে প্রকাশিত হয়, প্রত্যাখ্যান করলে local কপি থাকে। MongoDB-র অধ্যায়ের নাম বদলানো বা merge করার অনুরোধও Teacher পাঠাতে পারেন; Admin ব্যবহারকারী পৃষ্ঠার “প্রশ্ন ও অধ্যায়ের অনুরোধ” অংশ থেকে সেগুলো অনুমোদন বা বাতিল করেন। Admin সরাসরি প্রশ্ন ও অধ্যায় পরিচালনা করতে পারেন। প্রশ্ন ব্যাংকে একাধিক অধ্যায় নির্বাচন করে সব নির্বাচিত অধ্যায় মিলিয়ে প্রতিটি প্রশ্নের ধরনের random সংখ্যা এক জায়গায় সেট করা যায়; অ্যাপ ওই অধ্যায়গুলো থেকে মোট নির্ধারিত সংখ্যক প্রশ্ন বেছে নেয়। নির্দিষ্ট chapter catalog এখনো prefilled নয়, কারণ class ও subject অনুযায়ী syllabus-এর chapter আলাদা।
+
+## Coaching Management — Foundation থেকে Phase 3
+
+প্রশ্ন ব্যাংক ও পরীক্ষা app-এর বিদ্যমান module-ই আছে; Coaching Management আলাদা frontend workspace (`src/features/coaching/`) এবং আলাদা backend route/model (`server/features/coaching/`, `server/models/coaching.js`) হিসেবে যুক্ত। Login ও Firebase account shared হলেও coaching-এর teacher/student profile আলাদা থাকে। ফলে একজন ব্যক্তি center-ভেদে ভিন্ন coaching role রাখতে পারেন।
+
+### Center চালু করা
+
+1. লগইন করা ব্যবহারকারী Coaching Management workspace থেকে center-এর নাম, ঠিকানা ও ফোন দিয়ে approval request পাঠান।
+2. Platform `admin` ব্যবহারকারী অনুরোধ approve করলে center তৈরি হয় এবং requester ওই center-এর `owner` membership পান। Reject করলে center তৈরি হয় না।
+3. Owner/manager center-এর Overview থেকে আগে থেকে থাকা Firebase account-এর email দিয়ে manager, teacher, student বা accountant membership যোগ করতে পারেন। নতুন account invitation এখনো এই ধাপে নেই।
+4. আলাদা teacher/student profile-এ email দিলে বিদ্যমান Firebase account-এর সঙ্গে profileটি link হয়; account না থাকলে profileটি login account ছাড়াই থাকে। Link করা profile-কে Coaching workspace ব্যবহার করতে হলে center team-এ তার membership-ও দিতে হবে।
+
+### Role ও data boundary
+
+| Coaching role | বর্তমান অনুমতি |
+| --- | --- |
+| `owner` | Center overview, team membership, profile, batch, enrollment, attendance, fee receipt, exam/result ও notice পরিচালনা |
+| `manager` | Attendance, fee, exam/result ও notice-সহ owner-এর মতো center operations; owner/manager role assign বা পরিবর্তন করতে পারেন না |
+| `teacher` | নিজের linked teacher profile ও assigned batch দেখতে; নিজের batch-এর attendance, exam, result ও batch notice পরিচালনা |
+| `student` | নিজের linked student profile, enrolled batch, exam ও নিজের ফলাফল দেখতে; সেন্টার/নিজ batch-এর notice পড়তে |
+| `accountant` | Center-এর profile ও batch read করতে, fee receipt রেকর্ড/দেখতে এবং notice পড়তে পারেন |
+| Platform `admin` | Center request approve/reject; শুধু global admin হওয়ায় center-এর student data স্বয়ংক্রিয়ভাবে দেখতে পান না |
+
+Coaching API প্রতিটি center operation-এ active membership যাচাই করে এবং MongoDB query-তে `centerId` filter প্রয়োগ করে। Coaching role platform Firebase `admin`/`teacher`/`student` claim-এর বিকল্প নয়; দুটো permission আলাদা। Student account-ও `/api/coaching` API ব্যবহার করতে পারে, কিন্তু কেবল তার coaching membership অনুমোদিত center data-তে প্রবেশ দেয়।
+
+### এখন যা ব্যবহার করা যাবে
+
+- Center approval queue, center selector, team membership ও role পরিচালনা; Owner/Manager suspended member-এর access আবার চালু করতে পারেন।
+- আলাদা student profile: নাম, center-এর মধ্যে unique Student ID, শ্রেণি, যোগাযোগ ও অভিভাবকের তথ্য।
+- আলাদা teacher profile: যোগাযোগ, বিষয় এবং ঐচ্ছিক Firebase account link।
+- Batch: নাম, শ্রেণি, বিষয়, teacher assignment ও schedule।
+- Active student-কে একই center-এর batch-এ enroll করা।
+- Attendance: active enrolled student-দের জন্য batch ও date অনুযায়ী উপস্থিত, অনুপস্থিত, দেরি বা ছুটির রেকর্ড; Teacher কেবল নিজের assigned batch পরিচালনা করেন।
+- Fee ledger: মাস, পরিশোধের তারিখ, শিক্ষার্থী, পরিমাণ, ফি-এর ধরন, payment method ও receipt/reference-সহ manual fee receipt; Owner/Manager/Accountant রেকর্ড যোগ ও পর্যালোচনা করতে পারেন।
+- Coaching পরীক্ষা ও ফলাফল: batch-এর জন্য পরীক্ষার নাম, তারিখ ও পূর্ণমান তৈরি; active enrolled শিক্ষার্থীদের নম্বর/মন্তব্য রেকর্ড; শিক্ষার্থী শুধু নিজের batch-এর পরীক্ষা ও নিজের ফল দেখতে পায়।
+- Notice board: সেন্টারের সবাই বা নির্দিষ্ট batch-এর জন্য notice প্রকাশ; Teacher শুধু assigned batch-এ পাঠাতে পারেন, Owner/Manager notice archive করতে পারেন; মেয়াদোত্তীর্ণ notice স্বয়ংক্রিয়ভাবে তালিকা থেকে বাদ যায়।
+
+Fee ledger-এ শুধু হাতে নথিভুক্ত payment receipt রাখা হয়; fee due schedule, automatic balance calculation, refund/edit এবং online payment gateway এখনো নেই। Coaching exam-এ online question delivery নেই; শুধু পরীক্ষার record ও manual result entry আছে। Guardian messaging ও notice notification এখনো নেই। Coaching feature ব্যবহার করতে API server (`npm run server`) ও MongoDB চালু থাকতে হবে।
 
 ## চালু করা
 

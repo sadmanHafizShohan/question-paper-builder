@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, GraduationCap, LogOut, Medal, MessageSquareText, Moon, RotateCcw, Send, Sun } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, Building2, CheckCircle2, GraduationCap, LogOut, Medal, MessageSquareText, Moon, RotateCcw, Send, Sun } from 'lucide-react'
 import { signOut } from '@firebase/auth'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
+import { useThemeMode } from '../../shared/theme.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 import MathMarkup from '../../components/ui/MathMarkup.jsx'
 import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
@@ -86,7 +87,7 @@ async function readResult(response) {
 }
 
 export default function StudentExamPortal({ user }) {
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('question-builder-theme') === 'dark')
+  const [darkMode, setDarkMode] = useThemeMode()
   const [grade, setGrade] = useState(7)
   const [subject, setSubject] = useState('math')
   const [chapter, setChapter] = useState('')
@@ -121,11 +122,6 @@ export default function StudentExamPortal({ user }) {
     : durationMinutes * 60
   const timeExpired = Boolean(attempt && remainingSeconds === 0)
   const timerLabel = `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
-    localStorage.setItem('question-builder-theme', darkMode ? 'dark' : 'light')
-  }, [darkMode])
 
   useEffect(() => {
     let active = true
@@ -309,7 +305,7 @@ export default function StudentExamPortal({ user }) {
     <main className={`student-portal${attempt ? ' exam-active' : ''}`}>
       {!attempt && <header className="student-header">
         <div className="student-brand"><span><BookOpen size={21} /></span><div><strong>প্রশ্নঘর</strong><small>শিক্ষার্থী পোর্টাল</small></div></div>
-        <div className="student-account"><span className="student-profile-avatar" title={accountName}>{accountName.trim().charAt(0)}{googlePhotoURL && <img src={googlePhotoURL} alt={`${accountName} profile`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
+        <div className="student-account"><span className="student-profile-avatar" title={accountName}>{accountName.trim().charAt(0)}{googlePhotoURL && <img src={googlePhotoURL} alt={`${accountName} profile`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}</span><span>{accountName}</span><button type="button" onClick={() => { window.location.hash = '#/coaching' }}><Building2 size={15} /> কোচিং</button><button type="button" className="student-theme-toggle" aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'} aria-pressed={darkMode} title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={16} /> : <Moon size={16} />}</button><button type="button" onClick={handleLogout}><LogOut size={16} /> লগআউট</button></div>
       </header>}
 
       <div className={`student-content${attempt ? ' student-content-exam-active' : ''}`}>
