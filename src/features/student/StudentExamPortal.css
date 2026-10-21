@@ -88,7 +88,7 @@
 .student-exam-context { margin: 0 0 16px; color: #68756e; font-size: 12px; }
 .student-question { margin: 0 0 15px; padding: 16px; border: 1px solid #e7ece8; border-radius: 9px; }
 .student-question legend { max-width: 100%; padding: 0 6px; font-size: 13px; font-weight: 700; line-height: 1.8; }
-.student-question legend>span { color: #16715d; }
+.student-question legend>.student-question-number { color: #16715d; }
 .student-equation { margin: 8px 0; padding: 9px; border-radius: 6px; background: #f6f8f6; font-family: serif; }
 .student-math { display: inline-flex; max-width: 100%; align-items: center; vertical-align: middle; }
 .student-math-display { display: flex; width: fit-content; max-width: 100%; margin: 7px 0; overflow-x: auto; font-size: 1.15em; }
@@ -119,7 +119,7 @@
 .student-answer-review>p { margin: 5px 0 18px; color: #849089; font-size: 11px; }
 .student-review-question { padding: 16px 0; border-top: 1px solid #e9eeea; }
 .student-review-question h3 { margin: 0; font-size: 13px; line-height: 1.8; }
-.student-review-question h3>span { color: #16715d; }
+.student-review-question h3>.student-review-number { color: #16715d; }
 .student-review-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .student-review-options>div { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border: 1px solid #e5ebe6; border-radius: 7px; color: #526159; font-size: 12px; line-height: 1.6; }
 .student-review-options>div.correct { border-color: #b9dec5; background: #f0f8f2; color: #176b43; }
