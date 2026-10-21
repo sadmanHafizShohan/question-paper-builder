@@ -131,6 +131,13 @@
 .coaching-record-main { display: grid; min-width: 0; gap: 3px; }
 .coaching-record-main strong { color: #34453b; font-size: 11px; overflow-wrap: anywhere; }
 .coaching-record-main small { color: #829087; font-size: 9px; line-height: 1.55; overflow-wrap: anywhere; }
+.coaching-student-record { flex-wrap: wrap; }
+.coaching-student-avatar { position: relative; overflow: hidden; }
+.coaching-student-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.coaching-student-actions { display: inline-flex; gap: 5px; margin-left: auto; }
+.coaching-icon-danger { border-color: #efd5d1; color: #a53f35; }
+.coaching-student-edit { flex: 1 0 100%; padding: 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #f9fbf9; }
+.coaching-invoice-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid #d6e6da; border-radius: 7px; background: #f5fbf6; color: #357451; font-size: 10px; font-weight: 700; }
 .coaching-spin { animation: coaching-spin .8s linear infinite; }
 @keyframes coaching-spin { to { transform: rotate(360deg); } }
 
@@ -186,6 +193,9 @@ html[data-theme='dark'] .coaching-member select { border-color: #35463b; backgro
 html[data-theme='dark'] .coaching-member-suspend { border-color: #70443e; background: #352421; color: #f19c91; }
 html[data-theme='dark'] .coaching-member-activate { border-color: #365744; background: #20372b; color: #a7d8b4; }
 html[data-theme='dark'] .coaching-record { border-color: #35463b; }
+html[data-theme='dark'] .coaching-student-edit { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-invoice-action { border-color: #365844; background: #1b2a20; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-icon-danger { border-color: #70443e; color: #f19c91; }
 html[data-theme='dark'] .coaching-attendance-toolbar label,
 html[data-theme='dark'] .coaching-fee-heading > label { color: #b3c0b7; }
 html[data-theme='dark'] .coaching-attendance-toolbar select,

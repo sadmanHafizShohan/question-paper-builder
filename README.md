@@ -56,14 +56,14 @@ Coaching API প্রতিটি center operation-এ active membership যা
 ### এখন যা ব্যবহার করা যাবে
 
 - Center approval queue, center selector, team membership ও role পরিচালনা; Owner/Manager suspended member-এর access আবার চালু করতে পারেন।
-- আলাদা student profile: নাম, center-এর মধ্যে unique Student ID, শ্রেণি, যোগাযোগ ও অভিভাবকের তথ্য।
+- আলাদা student profile: নাম, center-এর মধ্যে unique Student ID, শ্রেণি, যোগাযোগ, অভিভাবকের তথ্য ও ImageBB-সহ image host-এর সরাসরি HTTPS profile-photo URL; Owner/Manager profile সম্পাদনা বা নিষ্ক্রিয় করতে পারেন, পুরোনো record মুছে যায় না।
 - আলাদা teacher profile: যোগাযোগ, বিষয় এবং ঐচ্ছিক Firebase account link।
 - Batch: নাম, শ্রেণি, বিষয়, teacher assignment ও schedule।
 - Active student-কে একই center-এর batch-এ enroll করা।
-- Attendance: active enrolled student-দের জন্য batch ও date অনুযায়ী উপস্থিত, অনুপস্থিত, দেরি বা ছুটির রেকর্ড; Teacher কেবল নিজের assigned batch পরিচালনা করেন।
-- Fee ledger: মাস, পরিশোধের তারিখ, শিক্ষার্থী, পরিমাণ, ফি-এর ধরন, payment method ও receipt/reference-সহ manual fee receipt; Owner/Manager/Accountant রেকর্ড যোগ ও পর্যালোচনা করতে পারেন।
-- Coaching পরীক্ষা ও ফলাফল: batch-এর জন্য পরীক্ষার নাম, তারিখ ও পূর্ণমান তৈরি; active enrolled শিক্ষার্থীদের নম্বর/মন্তব্য রেকর্ড; শিক্ষার্থী শুধু নিজের batch-এর পরীক্ষা ও নিজের ফল দেখতে পায়।
-- Notice board: সেন্টারের সবাই বা নির্দিষ্ট batch-এর জন্য notice প্রকাশ; Teacher শুধু assigned batch-এ পাঠাতে পারেন, Owner/Manager notice archive করতে পারেন; মেয়াদোত্তীর্ণ notice স্বয়ংক্রিয়ভাবে তালিকা থেকে বাদ যায়।
+- Attendance: batch ও date অনুযায়ী উপস্থিতি সংরক্ষণ, আগের দিনের সংরক্ষিত অবস্থা দেখা এবং নির্বাচিত দিনের saved attendance Excel-এ ডাউনলোড; Teacher কেবল নিজের assigned batch পরিচালনা করেন।
+- Fee ledger: মাস, পরিশোধের তারিখ, শিক্ষার্থী, পরিমাণ, ফি-এর ধরন, payment method ও receipt/reference-সহ manual fee receipt; Owner/Manager/Accountant রেকর্ড যোগ ও পর্যালোচনা করতে পারেন এবং invoice print করতে পারেন।
+- Coaching পরীক্ষা ও ফলাফল: batch-এর জন্য পরীক্ষার নাম, তারিখ ও পূর্ণমান তৈরি; active enrolled শিক্ষার্থীদের নম্বর/মন্তব্য রেকর্ড; পরীক্ষা ও ফলাফল আলাদা Excel workbook-এ ডাউনলোড; শিক্ষার্থী শুধু নিজের batch-এর পরীক্ষা ও নিজের ফল দেখতে পায়।
+- Notice board: সেন্টারের সবাই বা নির্দিষ্ট batch-এর জন্য notice প্রকাশ; Teacher শুধু assigned batch-এ পাঠাতে পারেন, Owner/Manager notice archive করতে পারেন; notice তালিকা Excel-এ ডাউনলোড হয়; মেয়াদোত্তীর্ণ notice স্বয়ংক্রিয়ভাবে তালিকা থেকে বাদ যায়।
 
 Fee ledger-এ শুধু হাতে নথিভুক্ত payment receipt রাখা হয়; fee due schedule, automatic balance calculation, refund/edit এবং online payment gateway এখনো নেই। Coaching exam-এ online question delivery নেই; শুধু পরীক্ষার record ও manual result entry আছে। Guardian messaging ও notice notification এখনো নেই। Coaching feature ব্যবহার করতে API server (`npm run server`) ও MongoDB চালু থাকতে হবে।
 

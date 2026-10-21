@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ArrowLeft, BookOpen, Building2, CalendarCheck, Check, ClipboardList, FileText, GraduationCap, Megaphone, Moon, Plus, Receipt, RefreshCw, Sun, Users, X } from 'lucide-react'
+import { Archive, ArrowLeft, BookOpen, Building2, CalendarCheck, Check, ClipboardList, Download, FileText, GraduationCap, Megaphone, Moon, Pencil, Plus, Printer, Receipt, RefreshCw, Sun, Trash2, Users, X } from 'lucide-react'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 import { bengaliNumber } from '../../shared/formatting.js'
@@ -60,6 +60,62 @@ function gradeLabel(grade) {
   return grade ? `${bengaliNumber(grade)} শ্রেণি` : 'শ্রেণি নেই'
 }
 
+async function downloadExcel(fileName, sheetName, rows) {
+  const { default: XLSX } = await import('../questions/excelWorkbook.js')
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), sheetName)
+  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+  const url = URL.createObjectURL(new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+function escapeHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character])
+}
+
+function printFeeInvoice(record, center) {
+  const invoiceWindow = window.open('', '_blank')
+  if (!invoiceWindow) return false
+  invoiceWindow.opener = null
+  const student = record.studentId ?? {}
+  const invoiceNumber = record.reference || String(record.id).slice(-8).toUpperCase()
+  invoiceWindow.document.write(`<!doctype html>
+    <html lang="bn"><head><meta charset="utf-8"><title>ফি রসিদ - ${escapeHTML(invoiceNumber)}</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#24342b;margin:40px auto;max-width:680px;padding:24px}
+      h1{margin:0 0 6px;font-size:24px}h2{margin:28px 0 12px;font-size:18px}
+      p{margin:5px 0;color:#526259}.meta{display:flex;justify-content:space-between;gap:20px}
+      table{width:100%;border-collapse:collapse;margin-top:20px}th,td{text-align:left;padding:11px;border:1px solid #dfe7e1}
+      th{background:#f1f7f2}.amount{text-align:right;font-weight:bold}.footer{margin-top:35px;text-align:right}
+      @media print{body{margin:0 auto;padding:0}}
+    </style></head><body>
+    <h1>${escapeHTML(center?.name || 'কোচিং সেন্টার')}</h1>
+    <p>${escapeHTML(center?.address || '')}${center?.contactPhone ? ` · ${escapeHTML(center.contactPhone)}` : ''}</p>
+    <h2>ফি জমার রসিদ</h2>
+    <div class="meta"><p>রসিদ নম্বর: ${escapeHTML(invoiceNumber)}</p><p>তারিখ: ${escapeHTML(formatDate(record.paymentDate))}</p></div>
+    <p>শিক্ষার্থী: ${escapeHTML(student.name || 'শিক্ষার্থী')} · ID: ${escapeHTML(student.studentCode || '')}</p>
+    <table><thead><tr><th>বিবরণ</th><th>ফি মাস</th><th>পেমেন্ট পদ্ধতি</th><th class="amount">পরিমাণ</th></tr></thead>
+    <tbody><tr><td>${escapeHTML(feeCategoryLabels[record.category] || record.category)}</td><td>${escapeHTML(record.feeMonth)}</td>
+    <td>${escapeHTML(paymentMethodLabels[record.method] || record.method)}</td><td class="amount">${escapeHTML(formatCurrency(record.amount))}</td></tr></tbody></table>
+    ${record.note ? `<p>নোট: ${escapeHTML(record.note)}</p>` : ''}
+    <p class="footer">গ্রহণকারীর স্বাক্ষর: ____________________</p>
+    <script>window.addEventListener('load',()=>window.print())</script></body></html>`)
+  invoiceWindow.document.close()
+  return true
+}
+
 export default function CoachingManagementApp({ user, role, onBack }) {
   const [centers, setCenters] = useState([])
   const [selectedCenterId, setSelectedCenterId] = useState('')
@@ -74,7 +130,9 @@ export default function CoachingManagementApp({ user, role, onBack }) {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [memberForm, setMemberForm] = useState({ email: '', role: 'teacher' })
-  const [studentForm, setStudentForm] = useState({ name: '', studentCode: '', grade: '7', phone: '', email: '', guardianName: '', guardianPhone: '' })
+  const [studentForm, setStudentForm] = useState({ name: '', studentCode: '', grade: '7', phone: '', email: '', guardianName: '', guardianPhone: '', photoURL: '' })
+  const [editingStudentId, setEditingStudentId] = useState('')
+  const [studentEditForm, setStudentEditForm] = useState(null)
   const [teacherForm, setTeacherForm] = useState({ name: '', phone: '', email: '', subjects: '' })
   const [batchForm, setBatchForm] = useState({ name: '', grade: '7', subject: '', teacherId: '', schedule: '' })
   const [enrollmentForm, setEnrollmentForm] = useState({ batchId: '', studentId: '' })
@@ -90,6 +148,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
   const [feeLoadedKey, setFeeLoadedKey] = useState('')
   const [feeRefreshToken, setFeeRefreshToken] = useState(0)
   const [feeForm, setFeeForm] = useState({ studentId: '', amount: '', paymentDate: localDateValue(), category: 'tuition', method: 'cash', reference: '', note: '' })
+  const [lastSavedFee, setLastSavedFee] = useState(null)
   const [exams, setExams] = useState([])
   const [examsLoadedKey, setExamsLoadedKey] = useState('')
   const [examRefreshToken, setExamRefreshToken] = useState(0)
@@ -302,18 +361,19 @@ export default function CoachingManagementApp({ user, role, onBack }) {
     return () => { active = false }
   }, [activeCenter, endpoint])
 
-  async function submitForm(event, path, body, successMessage, reset) {
+  async function submitForm(event, path, body, successMessage, reset, onSuccess) {
     event.preventDefault()
     setBusy(true)
     setError('')
     setNotice('')
     try {
-      await readResponse(await authenticatedFetch(`${apiUrl}/coaching${path}`, {
+      const result = await readResponse(await authenticatedFetch(`${apiUrl}/coaching${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }))
       reset?.()
+      onSuccess?.(result)
       setNotice(successMessage)
       if (activeCenter) await loadOverview()
       else await loadWorkspace({ quiet: true })
@@ -321,6 +381,60 @@ export default function CoachingManagementApp({ user, role, onBack }) {
       setError(messageOf(submitError, 'তথ্য সংরক্ষণ করা যায়নি।'))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function updateStudent(event, student) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await readResponse(await authenticatedFetch(`${apiUrl}/coaching${endpoint}/students/${encodeURIComponent(student.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...studentEditForm, grade: Number(studentEditForm.grade) }),
+      }))
+      setEditingStudentId('')
+      setStudentEditForm(null)
+      setNotice(`${student.name}-এর তথ্য আপডেট হয়েছে।`)
+      await loadOverview()
+    } catch (updateError) {
+      setError(messageOf(updateError, 'শিক্ষার্থীর তথ্য আপডেট করা যায়নি।'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deactivateStudent(student) {
+    if (!window.confirm(`${student.name}-কে শিক্ষার্থী তালিকা থেকে সরাবেন? পুরোনো attendance ও fee record সংরক্ষিত থাকবে।`)) return
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await readResponse(await authenticatedFetch(`${apiUrl}/coaching${endpoint}/students/${encodeURIComponent(student.id)}`, {
+        method: 'DELETE',
+      }))
+      setNotice(`${student.name}-কে সক্রিয় তালিকা থেকে সরানো হয়েছে; পুরোনো রেকর্ড সংরক্ষিত আছে।`)
+      await loadOverview()
+    } catch (deleteError) {
+      setError(messageOf(deleteError, 'শিক্ষার্থীকে তালিকা থেকে সরানো যায়নি।'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function exportSpreadsheet(fileName, sheetName, rows) {
+    try {
+      await downloadExcel(fileName, sheetName, rows)
+    } catch (exportError) {
+      setError(messageOf(exportError, 'Excel ফাইল তৈরি করা যায়নি।'))
+    }
+  }
+
+  function printInvoice(record) {
+    if (!printFeeInvoice(record, activeCenter)) {
+      setError('Invoice print window খোলা যায়নি। Browser popup অনুমতি দিয়ে আবার চেষ্টা করুন।')
     }
   }
 
@@ -615,16 +729,44 @@ export default function CoachingManagementApp({ user, role, onBack }) {
               {activeTab === 'students' && <div className="coaching-management-grid">
                 {canManage && <section className="coaching-panel">
                   <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">নতুন profile</span><h2>শিক্ষার্থী যোগ করুন</h2></div></div>
-                  <form className="coaching-form" onSubmit={(event) => void submitForm(event, `${endpoint}/students`, { ...studentForm, grade: Number(studentForm.grade) }, 'শিক্ষার্থী profile যোগ হয়েছে।', () => setStudentForm({ name: '', studentCode: '', grade: '7', phone: '', email: '', guardianName: '', guardianPhone: '' }))}>
+                  <form className="coaching-form" onSubmit={(event) => void submitForm(event, `${endpoint}/students`, { ...studentForm, grade: Number(studentForm.grade) }, 'শিক্ষার্থী profile যোগ হয়েছে।', () => setStudentForm({ name: '', studentCode: '', grade: '7', phone: '', email: '', guardianName: '', guardianPhone: '', photoURL: '' }))}>
                     <label>শিক্ষার্থীর নাম<input required maxLength="120" value={studentForm.name} onChange={(event) => setStudentForm((current) => ({ ...current, name: event.target.value }))} /></label>
                     <div className="coaching-form-row"><label>Student ID<input required maxLength="40" value={studentForm.studentCode} onChange={(event) => setStudentForm((current) => ({ ...current, studentCode: event.target.value }))} /></label><label>শ্রেণি<select value={studentForm.grade} onChange={(event) => setStudentForm((current) => ({ ...current, grade: event.target.value }))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label></div>
                     <div className="coaching-form-row"><label>ফোন<input maxLength="30" value={studentForm.phone} onChange={(event) => setStudentForm((current) => ({ ...current, phone: event.target.value }))} /></label><label>ইমেইল<input type="email" maxLength="254" value={studentForm.email} onChange={(event) => setStudentForm((current) => ({ ...current, email: event.target.value }))} /></label></div>
                     <div className="coaching-form-row"><label>অভিভাবকের নাম<input maxLength="120" value={studentForm.guardianName} onChange={(event) => setStudentForm((current) => ({ ...current, guardianName: event.target.value }))} /></label><label>অভিভাবকের ফোন<input maxLength="30" value={studentForm.guardianPhone} onChange={(event) => setStudentForm((current) => ({ ...current, guardianPhone: event.target.value }))} /></label></div>
+                    <label>প্রোফাইল ছবির URL<input type="url" maxLength="500" value={studentForm.photoURL} onChange={(event) => setStudentForm((current) => ({ ...current, photoURL: event.target.value }))} placeholder="https://i.ibb.co/..." /><small className="coaching-muted">ImageBB-তে আপলোড করা ছবির সরাসরি HTTPS লিংক দিন।</small></label>
                     <button type="submit" className="coaching-button coaching-button-primary" disabled={busy}><Plus size={15} /> শিক্ষার্থী সংরক্ষণ</button>
                   </form>
                 </section>}
                 <section className="coaching-panel coaching-list-panel"><div className="coaching-panel-heading"><div><span className="coaching-eyebrow">সেন্টারের তালিকা</span><h2>শিক্ষার্থী <span>{bengaliNumber(overview.students.length)}</span></h2></div></div>
-                  {overview.students.length === 0 ? <p className="coaching-muted">এখনো কোনো শিক্ষার্থী profile নেই।</p> : <div className="coaching-record-list">{overview.students.map((student) => <article className="coaching-record" key={student.id}><span className="coaching-record-avatar"><GraduationCap size={17} /></span><span className="coaching-record-main"><strong>{student.name}</strong><small>ID: {student.studentCode} · {gradeLabel(student.grade)}</small><small>{[student.phone, student.email, student.guardianName && `অভিভাবক: ${student.guardianName}`, student.guardianPhone && `অভিভাবক ফোন: ${student.guardianPhone}`].filter(Boolean).join(' · ') || 'যোগাযোগের তথ্য নেই'}</small></span></article>)}</div>}
+                  {overview.students.length === 0 ? <p className="coaching-muted">এখনো কোনো শিক্ষার্থী profile নেই।</p> : <div className="coaching-record-list">{overview.students.map((student) => <article className="coaching-record coaching-student-record" key={student.id}>
+                    <span className="coaching-record-avatar coaching-student-avatar">{student.photoURL ? <img src={student.photoURL} alt={`${student.name}-এর প্রোফাইল`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} /> : <GraduationCap size={17} />}</span>
+                    <span className="coaching-record-main"><strong>{student.name}</strong><small>ID: {student.studentCode} · {gradeLabel(student.grade)}</small><small>{[student.phone, student.email, student.guardianName && `অভিভাবক: ${student.guardianName}`, student.guardianPhone && `অভিভাবক ফোন: ${student.guardianPhone}`].filter(Boolean).join(' · ') || 'যোগাযোগের তথ্য নেই'}</small></span>
+                    {canManage && <span className="coaching-student-actions">
+                      <button type="button" className="coaching-icon-button" aria-label={`${student.name} সম্পাদনা করুন`} disabled={busy} onClick={() => {
+                        setEditingStudentId(student.id)
+                        setStudentEditForm({
+                          name: student.name,
+                          studentCode: student.studentCode,
+                          grade: String(student.grade),
+                          phone: student.phone || '',
+                          email: student.email || '',
+                          guardianName: student.guardianName || '',
+                          guardianPhone: student.guardianPhone || '',
+                          photoURL: student.photoURL || '',
+                        })
+                      }}><Pencil size={15} /></button>
+                      <button type="button" className="coaching-icon-button coaching-icon-danger" aria-label={`${student.name} সরান`} disabled={busy} onClick={() => void deactivateStudent(student)}><Trash2 size={15} /></button>
+                    </span>}
+                    {editingStudentId === student.id && <form className="coaching-form coaching-student-edit" onSubmit={(event) => void updateStudent(event, student)}>
+                      <label>শিক্ষার্থীর নাম<input required maxLength="120" value={studentEditForm?.name ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, name: event.target.value }))} /></label>
+                      <div className="coaching-form-row"><label>Student ID<input required maxLength="40" value={studentEditForm?.studentCode ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, studentCode: event.target.value }))} /></label><label>শ্রেণি<select value={studentEditForm?.grade ?? '7'} onChange={(event) => setStudentEditForm((current) => ({ ...current, grade: event.target.value }))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label></div>
+                      <div className="coaching-form-row"><label>ফোন<input maxLength="30" value={studentEditForm?.phone ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, phone: event.target.value }))} /></label><label>ইমেইল<input type="email" maxLength="254" value={studentEditForm?.email ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, email: event.target.value }))} /></label></div>
+                      <div className="coaching-form-row"><label>অভিভাবকের নাম<input maxLength="120" value={studentEditForm?.guardianName ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, guardianName: event.target.value }))} /></label><label>অভিভাবকের ফোন<input maxLength="30" value={studentEditForm?.guardianPhone ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, guardianPhone: event.target.value }))} /></label></div>
+                      <label>প্রোফাইল ছবির URL<input type="url" maxLength="500" value={studentEditForm?.photoURL ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, photoURL: event.target.value }))} placeholder="https://i.ibb.co/..." /></label>
+                      <div className="coaching-inline-actions"><button type="submit" className="coaching-button coaching-button-primary" disabled={busy}><Check size={15} /> পরিবর্তন সংরক্ষণ</button><button type="button" className="coaching-button coaching-button-muted" disabled={busy} onClick={() => { setEditingStudentId(''); setStudentEditForm(null) }}>বাতিল</button></div>
+                    </form>}
+                  </article>)}</div>}
                 </section>
               </div>}
 
@@ -680,10 +822,24 @@ export default function CoachingManagementApp({ user, role, onBack }) {
               </div>}
 
               {activeTab === 'attendance' && <section className="coaching-panel">
-                <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">দৈনিক রেকর্ড</span><h2>ব্যাচের উপস্থিতি</h2><p>Teacher শুধু নিজের assigned batch-এর উপস্থিতি দিতে পারবেন।</p></div></div>
+                <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">দৈনিক রেকর্ড</span><h2>ব্যাচের উপস্থিতি</h2><p>Teacher শুধু নিজের assigned batch-এর উপস্থিতি দিতে পারবেন।</p></div>
+                  <button type="button" className="coaching-button coaching-button-muted" disabled={!attendanceRows.some((student) => student.savedStatus)} onClick={() => void exportSpreadsheet(
+                    `attendance-${selectedAttendanceBatchId}-${attendanceDate}.xlsx`,
+                    'উপস্থিতি',
+                    [
+                      ['শিক্ষার্থীর নাম', 'Student ID', 'তারিখ', 'অবস্থা'],
+                      ...attendanceRows.filter((student) => student.savedStatus).map((student) => [
+                        student.name,
+                        student.studentCode,
+                        attendanceDate,
+                        attendanceLabels[student.savedStatus],
+                      ]),
+                    ],
+                  )}><Download size={15} /> Excel ডাউনলোড</button>
+                </div>
                 <div className="coaching-attendance-toolbar">
                   <label>ব্যাচ<select value={selectedAttendanceBatchId} onChange={(event) => setAttendanceBatchId(event.target.value)}><option value="">ব্যাচ নির্বাচন করুন</option>{overview.batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name} · {batch.subject}</option>)}</select></label>
-                  <label>তারিখ<input type="date" value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label>
+                  <label>তারিখ<input type="date" max={localDateValue()} value={attendanceDate} onChange={(event) => setAttendanceDate(event.target.value)} /></label>
                   {attendanceRows.length > 0 && <button type="button" className="coaching-button coaching-button-muted" onClick={() => setAttendanceRows((current) => current.map((student) => ({ ...student, status: 'present' })))}>সবাই উপস্থিত</button>}
                 </div>
                 {!overview.batches.length
@@ -695,7 +851,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                       : <form onSubmit={(event) => void saveAttendance(event)}>
                         <div className="coaching-attendance-list">{attendanceRows.map((student) => (
                           <label className="coaching-attendance-row" key={student.id}>
-                            <span><strong>{student.name}</strong><small>{student.studentCode}</small></span>
+                            <span><strong>{student.name}</strong><small>{student.studentCode} · {student.savedStatus ? `সংরক্ষিত: ${attendanceLabels[student.savedStatus]}${student.status !== student.savedStatus ? ' · পরিবর্তন বাকি' : ''}` : 'এখনো সংরক্ষিত নয়'}</small></span>
                             <select aria-label={`${student.name}-এর উপস্থিতি`} value={student.status} onChange={(event) => setAttendanceRows((current) => current.map((item) => item.id === student.id ? { ...item, status: event.target.value } : item))}>
                               <option value="">নির্বাচন করুন</option>
                               {Object.entries(attendanceLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -718,7 +874,9 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                       setFeeForm({ studentId: '', amount: '', paymentDate: localDateValue(), category: 'tuition', method: 'cash', reference: '', note: '' })
                       setFeeRefreshToken((current) => current + 1)
                     },
+                    setLastSavedFee,
                   )}>
+                    {lastSavedFee && <div className="coaching-invoice-action"><span>সর্বশেষ জমার রসিদ প্রস্তুত</span><button type="button" className="coaching-button coaching-button-muted" onClick={() => printInvoice(lastSavedFee)}><Printer size={15} /> Invoice প্রিন্ট</button></div>}
                     <label>শিক্ষার্থী<select required value={feeForm.studentId} onChange={(event) => setFeeForm((current) => ({ ...current, studentId: event.target.value }))}><option value="">শিক্ষার্থী নির্বাচন করুন</option>{overview.students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.studentCode}</option>)}</select></label>
                     <div className="coaching-form-row">
                       <label>ফি মাস<input type="month" required value={feeMonth} onChange={(event) => setFeeMonth(event.target.value)} /></label>
@@ -745,6 +903,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                       : <div className="coaching-record-list">{feeRecords.map((record) => <article className="coaching-record" key={record.id}>
                         <span className="coaching-record-avatar"><Receipt size={17} /></span>
                         <span className="coaching-record-main"><strong>{record.studentId?.name || 'শিক্ষার্থী'} · {formatCurrency(record.amount)}</strong><small>{record.studentId?.studentCode || ''} · {formatDate(record.paymentDate)} · {feeCategoryLabels[record.category]} · {paymentMethodLabels[record.method]}</small><small>{[record.reference && `রসিদ: ${record.reference}`, record.note].filter(Boolean).join(' · ') || 'অতিরিক্ত তথ্য নেই'}</small></span>
+                        <button type="button" className="coaching-icon-button" aria-label={`${record.studentId?.name || 'শিক্ষার্থী'}-এর invoice প্রিন্ট`} onClick={() => printInvoice(record)}><Printer size={15} /></button>
                       </article>)}</div>}
                   {feeSummary.truncated && <p className="coaching-muted">সারাংশে সব {bengaliNumber(feeSummary.count)}টি receipt অন্তর্ভুক্ত; তালিকায় সর্বশেষ ৫০০টি দেখানো হচ্ছে।</p>}
                 </section>
@@ -774,7 +933,16 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                 </section>}
 
                 <section className="coaching-panel coaching-list-panel">
-                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">পরীক্ষা ও ফলাফল</span><h2>পরীক্ষার তালিকা <span>{bengaliNumber(exams.length)}</span></h2></div></div>
+                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">পরীক্ষা ও ফলাফল</span><h2>পরীক্ষার তালিকা <span>{bengaliNumber(exams.length)}</span></h2></div>
+                    <button type="button" className="coaching-button coaching-button-muted" disabled={!exams.length} onClick={() => void exportSpreadsheet(
+                      'coaching-exams.xlsx',
+                      'পরীক্ষা',
+                      [
+                        ['পরীক্ষার নাম', 'ব্যাচ', 'বিষয়', 'পরীক্ষার তারিখ', 'পূর্ণমান'],
+                        ...exams.map((exam) => [exam.title, exam.batchId?.name || '', exam.batchId?.subject || '', exam.examDate, exam.totalMarks]),
+                      ],
+                    )}><Download size={15} /> Excel ডাউনলোড</button>
+                  </div>
                   {examsLoadedKey !== examsQueryKey
                     ? <div className="coaching-loading"><LoadingStatus label="পরীক্ষার তালিকা লোড হচ্ছে…" /></div>
                     : exams.length === 0
@@ -787,7 +955,27 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                 </section>
 
                 {selectedExam && <section className="coaching-panel coaching-exam-results">
-                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">ফলাফল</span><h2>{selectedExam.title}</h2><p>{selectedExam.batchId?.name || 'ব্যাচ'} · {formatDate(selectedExam.examDate)} · পূর্ণমান {bengaliNumber(selectedExam.totalMarks)}</p></div></div>
+                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">ফলাফল</span><h2>{selectedExam.title}</h2><p>{selectedExam.batchId?.name || 'ব্যাচ'} · {formatDate(selectedExam.examDate)} · পূর্ণমান {bengaliNumber(selectedExam.totalMarks)}</p></div>
+                    <button type="button" className="coaching-button coaching-button-muted" disabled={!examResults.some((result) => result.marks !== '')} onClick={() => void exportSpreadsheet(
+                      `exam-results-${selectedExam.id}.xlsx`,
+                      'ফলাফল',
+                      [
+                        ['শিক্ষার্থীর নাম', 'Student ID', 'পরীক্ষা', 'প্রাপ্ত নম্বর', 'পূর্ণমান', 'শতকরা', 'মন্তব্য'],
+                        ...examResults.filter((result) => result.marks !== '').map((result) => {
+                          const marks = Number(result.marks)
+                          return [
+                            result.studentName || result.studentId?.name || 'শিক্ষার্থী',
+                            result.studentCode || result.studentId?.studentCode || '',
+                            selectedExam.title,
+                            marks,
+                            selectedExam.totalMarks,
+                            `${(marks / selectedExam.totalMarks * 100).toFixed(1)}%`,
+                            result.remarks || '',
+                          ]
+                        }),
+                      ],
+                    )}><Download size={15} /> ফলাফল Excel</button>
+                  </div>
                   {examResultsLoadedKey !== examResultsQueryKey
                     ? <div className="coaching-loading"><LoadingStatus label="ফলাফল লোড হচ্ছে…" /></div>
                     : examResults.length === 0
@@ -831,7 +1019,23 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                   </form>
                 </section>}
                 <section className="coaching-panel coaching-list-panel">
-                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">সাম্প্রতিক আপডেট</span><h2>নোটিশ <span>{bengaliNumber(notices.length)}</span></h2></div></div>
+                  <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">সাম্প্রতিক আপডেট</span><h2>নোটিশ <span>{bengaliNumber(notices.length)}</span></h2></div>
+                    <button type="button" className="coaching-button coaching-button-muted" disabled={!notices.length} onClick={() => void exportSpreadsheet(
+                      'coaching-notices.xlsx',
+                      'নোটিশ',
+                      [
+                        ['শিরোনাম', 'বিস্তারিত', 'কারা দেখবেন', 'ব্যাচ', 'প্রকাশের তারিখ', 'মেয়াদ শেষ'],
+                        ...notices.map((item) => [
+                          item.title,
+                          item.message,
+                          item.audience === 'all' ? 'সেন্টারের সবাই' : 'নির্দিষ্ট ব্যাচ',
+                          item.batchId?.name || '',
+                          item.createdAt?.slice(0, 10) || '',
+                          item.expiresAt || '',
+                        ]),
+                      ],
+                    )}><Download size={15} /> Excel ডাউনলোড</button>
+                  </div>
                   {noticesLoadedKey !== noticesQueryKey
                     ? <div className="coaching-loading"><LoadingStatus label="নোটিশ লোড হচ্ছে…" /></div>
                     : notices.length === 0

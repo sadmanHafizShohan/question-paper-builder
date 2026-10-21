@@ -45,6 +45,7 @@ const coachingStudentSchema = new mongoose.Schema({
   email: { type: String, default: '', trim: true, lowercase: true, maxlength: 254 },
   guardianName: { type: String, default: '', trim: true, maxlength: 120 },
   guardianPhone: { type: String, default: '', trim: true, maxlength: 30 },
+  photoURL: { type: String, default: '', trim: true, maxlength: 500 },
   grade: { type: Number, min: 1, max: 12, required: true },
   linkedUserId: { type: String, default: '' },
   status: { type: String, enum: ['active', 'inactive'], default: 'active', index: true },

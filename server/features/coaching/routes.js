@@ -96,6 +96,7 @@ function normalizeEmail(value, { required = false, label = 'Email' } = {}) {
     if (required) throw new Error(`${label} is required`)
     return ''
   }
+
   const email = value.trim().toLowerCase()
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error(`${label} must be a valid email address`)
@@ -103,10 +104,39 @@ function normalizeEmail(value, { required = false, label = 'Email' } = {}) {
   return email
 }
 
+function normalizePhotoURL(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  const url = value.trim()
+  if (url.length > 500) throw new Error('Student photo URL cannot exceed 500 characters')
+  let parsedURL
+  try {
+    parsedURL = new URL(url)
+  } catch {
+    throw new Error('Student photo URL must be a valid HTTPS URL')
+  }
+  if (parsedURL.protocol !== 'https:') {
+    throw new Error('Student photo URL must be a valid HTTPS URL')
+  }
+  return url
+}
+
 function isCalendarDate(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00.000Z`)
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+function isTodayOrEarlier(value) {
+  const todayParts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const today = ['year', 'month', 'day']
+    .map((type) => todayParts.find((part) => part.type === type)?.value)
+    .join('-')
+  return value <= today
 }
 
 function isFeeMonth(value) {
@@ -430,6 +460,7 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
       linkedUserId: account?.uid ?? '',
       guardianName: typeof request.body.guardianName === 'string' ? request.body.guardianName.trim().slice(0, 120) : '',
       guardianPhone: typeof request.body.guardianPhone === 'string' ? request.body.guardianPhone.trim().slice(0, 30) : '',
+      photoURL: normalizePhotoURL(request.body.photoURL),
       createdBy: request.firebaseUser.uid,
     })
     response.status(201).json(serialize(student.toObject()))
@@ -438,6 +469,64 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
     if (error instanceof Error && error.message.startsWith('Student name')) return response.status(400).json({ error: error.message })
     if (error instanceof Error && error.message.startsWith('Student ID')) return response.status(400).json({ error: error.message })
     if (error instanceof Error && error.message.startsWith('Email')) return response.status(400).json({ error: error.message })
+    if (error instanceof Error && error.message.startsWith('Student photo URL')) return response.status(400).json({ error: error.message })
+    next(error)
+  }
+})
+
+router.patch('/centers/:centerId/students/:studentId', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const { studentId } = request.params
+    if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Invalid student profile' })
+    const student = await CoachingStudent.findOne({ _id: studentId, centerId: request.params.centerId, status: 'active' })
+    if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
+
+    const { name, studentCode, grade, phone, email, guardianName, guardianPhone, photoURL } = request.body ?? {}
+    if (name !== undefined) student.name = normalizeRequiredString(name, 'Student name', 120)
+    if (studentCode !== undefined) student.studentCode = normalizeRequiredString(studentCode, 'Student ID', 40)
+    if (grade !== undefined) {
+      const normalizedGrade = Number(grade)
+      if (!Number.isInteger(normalizedGrade) || normalizedGrade < 1 || normalizedGrade > 12) {
+        return response.status(400).json({ error: 'Student grade must be between 1 and 12' })
+      }
+      student.grade = normalizedGrade
+    }
+    if (phone !== undefined) student.phone = typeof phone === 'string' ? phone.trim().slice(0, 30) : ''
+    if (email !== undefined) {
+      student.email = normalizeEmail(email)
+      const account = await findOptionalFirebaseAccount(student.email)
+      student.linkedUserId = account?.uid ?? ''
+    }
+    if (guardianName !== undefined) student.guardianName = typeof guardianName === 'string' ? guardianName.trim().slice(0, 120) : ''
+    if (guardianPhone !== undefined) student.guardianPhone = typeof guardianPhone === 'string' ? guardianPhone.trim().slice(0, 30) : ''
+    if (photoURL !== undefined) student.photoURL = normalizePhotoURL(photoURL)
+    await student.save()
+    response.json(serialize(student.toObject()))
+  } catch (error) {
+    if (error.code === 11000) return response.status(409).json({ error: 'This student ID is already used in the center' })
+    if (error instanceof Error && ['Student name', 'Student ID', 'Email', 'Student photo URL'].some((prefix) => error.message.startsWith(prefix))) {
+      return response.status(400).json({ error: error.message })
+    }
+    next(error)
+  }
+})
+
+router.delete('/centers/:centerId/students/:studentId', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const { studentId } = request.params
+    if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Invalid student profile' })
+    const student = await CoachingStudent.findOneAndUpdate(
+      { _id: studentId, centerId: request.params.centerId, status: 'active' },
+      { $set: { status: 'inactive' } },
+      { new: true, runValidators: true },
+    )
+    if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
+    await CoachingEnrollment.updateMany(
+      { centerId: request.params.centerId, studentId, status: 'active' },
+      { $set: { status: 'withdrawn' } },
+    )
+    response.json({ id: String(student._id), status: student.status })
+  } catch (error) {
     next(error)
   }
 })
@@ -533,6 +622,7 @@ router.get('/centers/:centerId/attendance', requireCenterMembership, requireCent
     const { batchId, date } = request.query
     if (!mongoose.isValidObjectId(batchId)) return response.status(400).json({ error: 'Choose a valid batch' })
     if (!isCalendarDate(date)) return response.status(400).json({ error: 'Provide a valid attendance date in YYYY-MM-DD format' })
+    if (!isTodayOrEarlier(date)) return response.status(400).json({ error: 'Attendance cannot be viewed or recorded for a future date' })
 
     const { centerId, userId } = request.coachingMembership
     const batch = await CoachingBatch.findOne({ _id: batchId, centerId, status: 'active' }).lean()
@@ -544,24 +634,29 @@ router.get('/centers/:centerId/attendance', requireCenterMembership, requireCent
     const enrollments = await CoachingEnrollment.find({ centerId, batchId, status: 'active' })
       .populate({ path: 'studentId', match: { status: 'active' }, select: 'name studentCode' })
       .lean()
-    const students = enrollments.map((enrollment) => enrollment.studentId).filter(Boolean)
-    const attendance = students.length
-      ? await CoachingAttendance.find({
-          centerId,
-          batchId,
-          date,
-          studentId: { $in: students.map((student) => student._id) },
-        }).lean()
-      : []
-    const attendanceByStudent = new Map(attendance.map((record) => [String(record.studentId), record.status]))
+    const studentsById = new Map(enrollments
+      .map((enrollment) => enrollment.studentId)
+      .filter(Boolean)
+      .map((student) => [String(student._id), student]))
+    const attendance = await CoachingAttendance.find({ centerId, batchId, date })
+      .populate({ path: 'studentId', select: 'name studentCode' })
+      .lean()
+    const attendanceByStudent = new Map(attendance
+      .filter((record) => record.studentId)
+      .map((record) => {
+        const student = record.studentId
+        studentsById.set(String(student._id), student)
+        return [String(student._id), record.status]
+      }))
     response.json({
       batch: serialize(batch),
       date,
-      students: students.map((student) => ({
+      students: [...studentsById.values()].map((student) => ({
         id: String(student._id),
         name: student.name,
         studentCode: student.studentCode,
         status: attendanceByStudent.get(String(student._id)) ?? '',
+        savedStatus: attendanceByStudent.get(String(student._id)) ?? '',
       })),
     })
   } catch (error) {
@@ -575,6 +670,7 @@ router.post('/centers/:centerId/batches/:batchId/attendance', requireCenterMembe
     const { date, entries } = request.body ?? {}
     if (!mongoose.isValidObjectId(batchId)) return response.status(400).json({ error: 'Choose a valid batch' })
     if (!isCalendarDate(date)) return response.status(400).json({ error: 'Provide a valid attendance date in YYYY-MM-DD format' })
+    if (!isTodayOrEarlier(date)) return response.status(400).json({ error: 'Attendance cannot be recorded for a future date' })
     const validStatuses = ['present', 'absent', 'late', 'excused']
     if (!Array.isArray(entries) || entries.length < 1 || entries.length > 1000) {
       return response.status(400).json({ error: 'Provide between 1 and 1,000 attendance entries' })
