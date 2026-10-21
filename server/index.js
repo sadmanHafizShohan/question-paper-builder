@@ -5,7 +5,7 @@ import { Buffer } from 'node:buffer'
 import mongoose from 'mongoose'
 import process from 'node:process'
 import { firebaseAdminAuth } from './config/firebaseAdmin.js'
-import { PaperSettings, Question, StudentExamAttempt, TeacherRoleRequest } from './models/index.js'
+import { ContentRequest, PaperSettings, Question, StudentExamAttempt, TeacherRoleRequest } from './models/index.js'
 
 dotenv.config()
 
@@ -78,6 +78,279 @@ function requireStaff(request, response, next) {
   }
   next()
 }
+
+function serializeContentRequest(contentRequest) {
+  return {
+    id: String(contentRequest._id),
+    type: contentRequest.type,
+    uid: contentRequest.userId,
+    requesterName: contentRequest.requesterName,
+    requesterEmail: contentRequest.requesterEmail,
+    requesterPhotoURL: contentRequest.requesterPhotoURL,
+    subject: contentRequest.subject,
+    grade: contentRequest.grade,
+    localQuestionId: contentRequest.localQuestionId,
+    questionData: contentRequest.questionData,
+    sourceChapter: contentRequest.sourceChapter,
+    sourceChapters: contentRequest.sourceChapters,
+    targetChapter: contentRequest.targetChapter,
+    status: contentRequest.status,
+    resultQuestionId: contentRequest.resultQuestionId ? String(contentRequest.resultQuestionId) : '',
+    createdAt: contentRequest.createdAt,
+  }
+}
+
+function contentRequestQuestionData(questionData, subject, grade) {
+  if (!questionData || typeof questionData !== 'object' || Array.isArray(questionData)) {
+    throw new Error('Provide valid question details')
+  }
+  return {
+    subject,
+    grade,
+    type: questionData.type,
+    chapter: questionData.chapter,
+    prompt: questionData.prompt,
+    equation: questionData.equation,
+    inlineEquations: questionData.inlineEquations,
+    options: questionData.options,
+    statements: questionData.statements,
+    statementQuestion: questionData.statementQuestion,
+    optionEquations: questionData.optionEquations,
+    optionInlineEquations: questionData.optionInlineEquations,
+    answer: questionData.answer,
+    answerEquation: questionData.answerEquation,
+    inlineAnswerEquations: questionData.inlineAnswerEquations,
+    marks: questionData.marks,
+    figure: questionData.figure,
+  }
+}
+
+app.post('/api/content-requests', requireStaff, async (request, response, next) => {
+  try {
+    const { type, subject, grade } = request.body ?? {}
+    const normalizedGrade = Number(grade)
+    if (!['question-publish', 'chapter-rename', 'chapter-merge'].includes(type)
+      || typeof subject !== 'string' || !validSubjects.includes(subject.trim())
+      || !Number.isInteger(normalizedGrade) || normalizedGrade < 5 || normalizedGrade > 10) {
+      return response.status(400).json({ error: 'Provide a valid content request type, subject, and grade' })
+    }
+
+    const requestData = {
+      type,
+      userId: request.firebaseUser.uid,
+      requesterName: request.firebaseUser.name ?? '',
+      requesterEmail: request.firebaseUser.email ?? '',
+      requesterPhotoURL: request.firebaseUser.picture ?? '',
+      subject: subject.trim(),
+      grade: questionBankGrade(normalizedGrade),
+    }
+    if (type === 'question-publish') {
+      const { localQuestionId, questionData } = request.body
+      if (typeof localQuestionId !== 'string' || !localQuestionId.startsWith('local-') || localQuestionId.length > 100
+        || !questionData || typeof questionData !== 'object' || Array.isArray(questionData)) {
+        return response.status(400).json({ error: 'Provide a valid saved local question' })
+      }
+      const duplicateRequest = await ContentRequest.exists({
+        userId: request.firebaseUser.uid,
+        localQuestionId,
+        type,
+        status: { $in: ['pending', 'processing', 'approved'] },
+      })
+      if (duplicateRequest) return response.status(409).json({ error: 'A request for this local question already exists' })
+
+      const questionFields = contentRequestQuestionData(
+        questionData,
+        subject.trim(),
+        questionBankGrade(normalizedGrade),
+      )
+      await new Question(questionFields).validate()
+      requestData.localQuestionId = localQuestionId
+      requestData.questionData = questionFields
+    } else if (type === 'chapter-rename') {
+      const { sourceChapter, targetChapter } = request.body
+      if (typeof sourceChapter !== 'string' || !sourceChapter.trim() || sourceChapter.trim().length > 120
+        || typeof targetChapter !== 'string' || !targetChapter.trim() || targetChapter.trim().length > 120
+        || sourceChapter.trim() === targetChapter.trim()) {
+        return response.status(400).json({ error: 'Provide different valid source and destination chapter names' })
+      }
+      requestData.sourceChapter = sourceChapter.trim()
+      requestData.targetChapter = targetChapter.trim()
+    } else {
+      const { sourceChapters, targetChapter } = request.body
+      if (!Array.isArray(sourceChapters) || sourceChapters.length !== 2
+        || sourceChapters.some((chapter) => typeof chapter !== 'string' || !chapter.trim() || chapter.trim().length > 120)
+        || new Set(sourceChapters.map((chapter) => chapter.trim())).size !== 2
+        || typeof targetChapter !== 'string' || !targetChapter.trim() || targetChapter.trim().length > 120) {
+        return response.status(400).json({ error: 'Provide two different chapters and a valid destination name' })
+      }
+      requestData.sourceChapters = sourceChapters.map((chapter) => chapter.trim())
+      requestData.targetChapter = targetChapter.trim()
+    }
+
+    const contentRequest = await ContentRequest.create(requestData)
+    response.status(201).json(serializeContentRequest(contentRequest))
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/content-requests/mine', requireStaff, async (request, response, next) => {
+  try {
+    const requests = await ContentRequest.find({ userId: request.firebaseUser.uid })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean()
+    response.json(requests.map(serializeContentRequest))
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/admin/content-requests', requireAdmin, async (_request, response, next) => {
+  try {
+    const requests = await ContentRequest.find({ status: 'pending' })
+      .sort({ createdAt: 1 })
+      .limit(200)
+      .lean()
+    const missingProfiles = [...new Set(requests
+      .filter((contentRequest) => !contentRequest.requesterName || !contentRequest.requesterEmail || !contentRequest.requesterPhotoURL)
+      .map((contentRequest) => contentRequest.userId))]
+    const profiles = new Map()
+    for (let offset = 0; offset < missingProfiles.length; offset += 100) {
+      try {
+        const { users } = await firebaseAdminAuth.getUsers(
+          missingProfiles.slice(offset, offset + 100).map((uid) => ({ uid })),
+        )
+        users.forEach((account) => profiles.set(account.uid, account))
+      } catch (error) {
+        console.error('Could not load Firebase profiles for content requests', error)
+      }
+    }
+    response.json(requests.map((contentRequest) => {
+      const profile = profiles.get(contentRequest.userId)
+      return {
+        ...serializeContentRequest(contentRequest),
+        requesterName: contentRequest.requesterName || profile?.displayName || '',
+        requesterEmail: contentRequest.requesterEmail || profile?.email || '',
+        requesterPhotoURL: contentRequest.requesterPhotoURL || profile?.photoURL || '',
+      }
+    }))
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/content-requests/:requestId/decision', requireAdmin, async (request, response, next) => {
+  let contentRequest
+  try {
+    if (!mongoose.isValidObjectId(request.params.requestId)) {
+      return response.status(400).json({ error: 'Invalid content request' })
+    }
+    const { decision } = request.body ?? {}
+    if (!['approve', 'reject'].includes(decision)) {
+      return response.status(400).json({ error: 'Decision must be approve or reject' })
+    }
+    if (decision === 'reject') {
+      contentRequest = await ContentRequest.findOneAndUpdate(
+        { _id: request.params.requestId, status: 'pending' },
+        { $set: { status: 'rejected', resolvedAt: new Date() } },
+        { new: true },
+      )
+      if (!contentRequest) return response.status(404).json({ error: 'Pending content request not found' })
+      return response.json(serializeContentRequest(contentRequest))
+    }
+
+    const pendingRequest = await ContentRequest.findOne({
+      _id: request.params.requestId,
+      status: 'pending',
+    })
+    if (!pendingRequest) return response.status(404).json({ error: 'Pending content request not found' })
+    let editedQuestionData
+    if (request.body?.questionData !== undefined) {
+      if (pendingRequest.type !== 'question-publish') {
+        return response.status(400).json({ error: 'Only question publication requests can include edited question details' })
+      }
+      if (!request.body.questionData || typeof request.body.questionData !== 'object' || Array.isArray(request.body.questionData)) {
+        return response.status(400).json({ error: 'Provide valid edited question details' })
+      }
+      editedQuestionData = contentRequestQuestionData(
+        request.body.questionData,
+        pendingRequest.subject,
+        pendingRequest.grade,
+      )
+      await new Question(editedQuestionData).validate()
+    }
+
+    contentRequest = await ContentRequest.findOneAndUpdate(
+      { _id: request.params.requestId, status: 'pending' },
+      {
+        $set: {
+          status: 'processing',
+          ...(editedQuestionData ? { questionData: editedQuestionData } : {}),
+        },
+      },
+      { new: true },
+    )
+    if (!contentRequest) return response.status(404).json({ error: 'Pending content request not found' })
+
+    let resultQuestionId
+    if (contentRequest.type === 'question-publish') {
+      resultQuestionId = contentRequest.resultQuestionId ?? new mongoose.Types.ObjectId()
+      const existingQuestion = await Question.exists({ _id: resultQuestionId })
+      if (!existingQuestion) {
+        await ContentRequest.updateOne(
+          { _id: contentRequest._id, status: 'processing' },
+          { $set: { resultQuestionId } },
+        )
+        await Question.create({ ...contentRequest.questionData, _id: resultQuestionId })
+      }
+    } else {
+      const grades = contentRequest.grade === 9 || contentRequest.grade === 10
+        ? [9, 10]
+        : [questionBankGrade(contentRequest.grade)]
+      const chapterFilter = { subject: contentRequest.subject, grade: { $in: grades } }
+      if (contentRequest.type === 'chapter-rename') {
+        if (await Question.exists({ ...chapterFilter, chapter: contentRequest.targetChapter })) {
+          await ContentRequest.updateOne({ _id: contentRequest._id, status: 'processing' }, { $set: { status: 'pending' } })
+          return response.status(409).json({ error: 'A chapter with the destination name already exists' })
+        }
+        const result = await Question.updateMany(
+          { ...chapterFilter, chapter: contentRequest.sourceChapter },
+          { $set: { chapter: contentRequest.targetChapter } },
+          { runValidators: true },
+        )
+        if (result.matchedCount === 0) {
+          await ContentRequest.updateOne({ _id: contentRequest._id, status: 'processing' }, { $set: { status: 'pending' } })
+          return response.status(409).json({ error: 'No questions were found in the source chapter' })
+        }
+      } else {
+        const result = await Question.updateMany(
+          { ...chapterFilter, chapter: { $in: contentRequest.sourceChapters } },
+          { $set: { chapter: contentRequest.targetChapter } },
+          { runValidators: true },
+        )
+        if (result.matchedCount === 0) {
+          await ContentRequest.updateOne({ _id: contentRequest._id, status: 'pending' }, { $set: { status: 'pending' } })
+          return response.status(409).json({ error: 'No questions were found in the source chapters' })
+        }
+      }
+    }
+    const approvedRequest = await ContentRequest.findOneAndUpdate(
+      { _id: contentRequest._id, status: 'processing' },
+      { $set: { status: 'approved', resolvedAt: new Date(), ...(resultQuestionId ? { resultQuestionId } : {}) } },
+      { new: true },
+    )
+    response.json(serializeContentRequest(approvedRequest))
+  } catch (error) {
+    if (contentRequest?._id) {
+      await ContentRequest.updateOne(
+        { _id: contentRequest._id, status: 'processing' },
+        { $set: { status: 'pending' } },
+      ).catch((rollbackError) => console.error('Could not restore a failed content request', rollbackError))
+    }
+    next(error)
+  }
+})
 
 app.post('/api/auth/student-account', async (request, response, next) => {
   try {

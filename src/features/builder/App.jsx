@@ -25,6 +25,7 @@ import {
   Printer,
   RotateCcw,
   Search,
+  Send,
   Shield,
   Sigma,
   Shuffle,
@@ -45,6 +46,7 @@ import DuplicateDetector from '../questions/DuplicateDetector.jsx'
 import FirebaseAuthGate from '../auth/FirebaseAuthGate.jsx'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import AdminUsersPanel from '../admin/AdminUsersPanel.jsx'
+import AdminContentRequestsPanel from '../admin/AdminContentRequestsPanel.jsx'
 import StudentActivityPanel from '../admin/StudentActivityPanel.jsx'
 import StudentExamPortal from '../student/StudentExamPortal.jsx'
 import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
@@ -164,6 +166,11 @@ function questionMatchesFilters(question, grade, subject, activeType, selectedCh
     && text.toLowerCase().includes(search.toLowerCase())
 }
 
+function hasPendingPublishRequest(requests, questionId) {
+  return requests.some((contentRequest) => contentRequest.localQuestionId === questionId
+    && ['pending', 'processing'].includes(contentRequest.status))
+}
+
 function getLocalPaperSettings(grade, subject, uid, isAdmin) {
   try {
     const storageKey = isAdmin
@@ -204,6 +211,7 @@ function QuestionPaperBuilder({ user, role }) {
   const [isLoadingMoreQuestions, setIsLoadingMoreQuestions] = useState(false)
   const [questionMeta, setQuestionMeta] = useState({ total: 0, chapters: [], typeCounts: {}, chapterCounts: [] })
   const [localQuestions, setLocalQuestions] = useState(() => getLocalQuestions(user.uid))
+  const [myContentRequests, setMyContentRequests] = useState([])
   const [page, setPage] = useState(() => workspaceState.page === 'builder' || sessionStorage.getItem('question-builder-page') === 'builder' ? 'builder' : 'bank')
   const [builderTab, setBuilderTab] = useState('questions')
   const [activeType, setActiveType] = useState(() => questionTypes.some((type) => type.id === workspaceState.activeType) ? workspaceState.activeType : 'all')
@@ -345,6 +353,64 @@ function QuestionPaperBuilder({ user, role }) {
       setNotice('এই ডিভাইসে প্রশ্ন সংরক্ষণ করা যায়নি; browser storage পরীক্ষা করুন।')
       return false
     }
+  }
+
+  useEffect(() => {
+    if (role !== 'teacher') return undefined
+    let active = true
+    async function loadMyRequests() {
+      try {
+        const response = await authenticatedFetch(`${apiUrl}/content-requests/mine`)
+        if (!response.ok) throw new Error(`Content request API failed with HTTP ${response.status}`)
+        const requests = await response.json()
+        if (!active) return
+        setMyContentRequests(requests)
+        const approvedIds = new Set(requests
+          .filter((contentRequest) => contentRequest.type === 'question-publish' && contentRequest.status === 'approved')
+          .map((contentRequest) => contentRequest.localQuestionId))
+        if (approvedIds.size > 0) {
+          const storedQuestions = getLocalQuestions(user.uid)
+          const remainingQuestions = storedQuestions.filter((question) => !approvedIds.has(question.id))
+          if (remainingQuestions.length !== storedQuestions.length) {
+            try {
+              localStorage.setItem(`question-builder-local-questions-${user.uid}`, JSON.stringify(remainingQuestions))
+              setLocalQuestions(remainingQuestions)
+              setQuestions((current) => current.filter((question) => !approvedIds.has(question.id)))
+            } catch (error) {
+              console.error('Could not remove published questions from local storage', error)
+              setNotice('প্রশ্ন MongoDB-তে প্রকাশ হয়েছে, তবে local কপি সরানো যায়নি।')
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Could not load this account’s content requests', error)
+      }
+    }
+    void loadMyRequests()
+    const refreshInterval = window.setInterval(() => { void loadMyRequests() }, 30000)
+    return () => {
+      active = false
+      window.clearInterval(refreshInterval)
+    }
+  }, [role, user.uid])
+
+  async function submitContentRequest(requestData) {
+    const response = await authenticatedFetch(`${apiUrl}/content-requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestData),
+    })
+    let result
+    try {
+      result = await response.json()
+    } catch {
+      if (response.ok) throw new Error('সার্ভার থেকে অনুরোধের তথ্য পাওয়া যায়নি')
+    }
+    if (!response.ok) {
+      throw new Error(typeof result?.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${response.status} ত্রুটি এসেছে`)
+    }
+    setMyContentRequests((current) => [result, ...current])
+    return result
   }
 
   useEffect(() => {
@@ -496,7 +562,7 @@ function QuestionPaperBuilder({ user, role }) {
   const availableChapters = useMemo(() => [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort(), [questionMeta.chapters, localForContext])
   const mergeableChapters = isAdmin
     ? questionMeta.chapters
-    : [...new Set(localForContext.map((question) => question.chapter).filter(Boolean))].sort()
+    : [...new Set([...questionMeta.chapters, ...localForContext.map((question) => question.chapter)].filter(Boolean))].sort()
   const chapterQuestionCounts = useMemo(() => {
     const counts = new Map((questionMeta.chapterCounts ?? []).map(({ chapter, total, typeCounts = {} }) => [
       chapter,
@@ -621,6 +687,17 @@ function QuestionPaperBuilder({ user, role }) {
           }
           if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${response.status} ত্রুটি এসেছে`)
           updatedCount = result.updatedCount
+        } else if (questionMeta.chapters.includes(sourceChapter)) {
+          await submitContentRequest({
+            type: 'chapter-rename',
+            subject,
+            grade: questionBankGrade(grade),
+            sourceChapter,
+            targetChapter,
+          })
+          setShowChapterRenamer(false)
+          setNotice('অধ্যায়ের নাম পরিবর্তনের অনুরোধ Admin-এর কাছে পাঠানো হয়েছে')
+          return
         } else {
           const matchingQuestions = localQuestions.filter((question) => question.grade === grade
             && question.subject === subject
@@ -689,6 +766,22 @@ function QuestionPaperBuilder({ user, role }) {
           if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : `সার্ভার থেকে HTTP ${response.status} ত্রুটি এসেছে`)
           updatedCount = result.updatedCount
         } else {
+          const mongoChapterSources = sourceChapters.filter((chapter) => questionMeta.chapters.includes(chapter))
+          if (mongoChapterSources.length === sourceChapters.length) {
+            await submitContentRequest({
+              type: 'chapter-merge',
+              subject,
+              grade: questionBankGrade(grade),
+              sourceChapters,
+              targetChapter,
+            })
+            setShowChapterMerger(false)
+            setNotice('অধ্যায় মার্জের অনুরোধ Admin-এর কাছে পাঠানো হয়েছে')
+            return
+          }
+          if (mongoChapterSources.length > 0) {
+            throw new Error('MongoDB ও local অধ্যায় একসঙ্গে মার্জ করা যাবে না; একই storage-এর দুটি অধ্যায় নির্বাচন করুন')
+          }
           const matchingQuestions = localQuestions.filter((question) => question.grade === grade
             && question.subject === subject
             && sourceChapters.includes(question.chapter))
@@ -987,6 +1080,33 @@ function QuestionPaperBuilder({ user, role }) {
     return savedQuestion
   }
 
+  async function requestQuestionPublish(question) {
+    if (!question.isLocal || !question.id.startsWith('local-')) return
+    const existingRequest = myContentRequests.find((contentRequest) => contentRequest.localQuestionId === question.id
+      && ['pending', 'processing', 'approved'].includes(contentRequest.status))
+    if (existingRequest) {
+      setNotice(existingRequest.status === 'approved'
+        ? 'এই প্রশ্নটি ইতিমধ্যে MongoDB-তে প্রকাশ হয়েছে'
+        : 'এই প্রশ্নের অনুরোধ Admin-এর পর্যালোচনায় আছে')
+      return
+    }
+    try {
+      await runWithActivity('প্রশ্ন প্রকাশের অনুরোধ পাঠানো হচ্ছে…', async () => {
+        await submitContentRequest({
+          type: 'question-publish',
+          subject: question.subject,
+          grade: questionBankGrade(question.grade),
+          localQuestionId: question.id,
+          questionData: question,
+        })
+        setNotice('প্রশ্নটি local storage-এ আছে; MongoDB-তে পাঠানোর অনুরোধ Admin-এর কাছে গেছে')
+      })
+    } catch (error) {
+      console.error('Could not request publishing this local question', error)
+      setNotice(error instanceof Error ? `অনুরোধ পাঠানো যায়নি: ${error.message}` : 'অনুরোধ পাঠানো যায়নি; আবার চেষ্টা করুন')
+    }
+  }
+
   async function deleteQuestion(question) {
     const { id } = question
     if (!isAdmin && !question.isLocal) {
@@ -1148,6 +1268,12 @@ function QuestionPaperBuilder({ user, role }) {
     setShowEditor(true)
   }
 
+  async function handleContentRequestResolved(contentRequest) {
+    await refreshQuestionMeta()
+    setDataReloadKey((current) => current + 1)
+    if (contentRequest.type === 'question-publish') notifyQuestionBankCountChanged()
+  }
+
   function changeContext(nextGrade, nextSubject) {
     if (grade !== nextGrade || subject !== nextSubject) {
       setSelected([])
@@ -1225,7 +1351,7 @@ function QuestionPaperBuilder({ user, role }) {
           {isLoadingQuestions && page !== 'bank' && page !== 'activities' && page !== 'users' && <div className="data-loading-banner" aria-busy="true"><LoadingStatus compact className="question-loading-status" label="প্রশ্নগুলো লোড হচ্ছে—একটু অপেক্ষা করুন" detail={`${gradeLabel(grade)} · ${subjectLabel(subject)}-এর প্রশ্ন ও ফরম্যাট আনা হচ্ছে`} /></div>}
           {!isLoadingQuestions && dataMode === 'unavailable' && page !== 'users' && page !== 'activities' && <div className="data-unavailable-banner" role="status"><strong>Server-এর সঙ্গে সংযোগ পাওয়া যায়নি</strong><span>এই account-এর local প্রশ্ন দেখানো হচ্ছে। Main database-এর প্রশ্ন ও settings লোড হয়নি।</span><button type="button" onClick={() => setDataReloadKey((current) => current + 1)}>আবার চেষ্টা করুন</button></div>}
           {page === 'users' && isAdmin
-            ? <AdminUsersPanel apiUrl={apiUrl} currentUserId={user.uid} />
+            ? <><AdminUsersPanel apiUrl={apiUrl} currentUserId={user.uid} /><AdminContentRequestsPanel apiUrl={apiUrl} onResolved={handleContentRequestResolved} /></>
             : page === 'activities'
               ? <StudentActivityPanel apiUrl={apiUrl} />
               : page === 'bank' ? (
@@ -1325,7 +1451,13 @@ function QuestionPaperBuilder({ user, role }) {
                           <td><span className="chapter-pill">{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></td>
                           <td><span className={`type-pill type-${question.type}`}>{typeLabel(question.type, subject)}</span></td>
                           <td className="marks-cell">{bengaliNumber(question.marks)}</td>
-                          <td>{(isAdmin || question.isLocal) && <div className="row-actions"><button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo')} onClick={() => runWithActivity('প্রশ্ন মুছে ফেলা হচ্ছে…', () => deleteQuestion(question))}><Trash2 size={15} /></button></div>}</td>
+                          <td>{(isAdmin || question.isLocal) && <div className="row-actions">
+                            {!isAdmin && question.isLocal && (() => {
+                              const requestStatus = myContentRequests.find((contentRequest) => contentRequest.localQuestionId === question.id
+                                && ['pending', 'processing', 'approved'].includes(contentRequest.status))?.status
+                              return <button type="button" aria-label="প্রশ্ন MongoDB-তে পাঠানোর অনুরোধ" title={requestStatus === 'approved' ? 'MongoDB-তে প্রকাশিত' : requestStatus ? 'Admin-এর পর্যালোচনায়' : 'MongoDB-তে পাঠানোর অনুরোধ'} disabled={Boolean(busyMessage) || Boolean(requestStatus)} onClick={() => void requestQuestionPublish(question)}><Send size={15} /></button>
+                            })()}
+                            <button aria-label="প্রশ্ন সম্পাদনা" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন সম্পাদনা' : 'Main database-এর প্রশ্ন সম্পাদনা'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo') || (!isAdmin && hasPendingPublishRequest(myContentRequests, question.id))} onClick={() => openEditor(question)}><Pencil size={15} /></button><button aria-label="প্রশ্ন মুছুন" title={question.isLocal ? 'এই ডিভাইসের প্রশ্ন মুছুন' : 'Main database-এর প্রশ্ন মুছুন'} disabled={Boolean(busyMessage) || (!question.isLocal && dataMode !== 'mongo') || (!isAdmin && hasPendingPublishRequest(myContentRequests, question.id))} onClick={() => runWithActivity('প্রশ্ন মুছে ফেলা হচ্ছে…', () => deleteQuestion(question))}><Trash2 size={15} /></button></div>}</td>
                         </tr>
                         <tr className="question-preview-row"><td colSpan={6}><QuestionBankPreview id={`question-preview-${question.id}`} question={question} subject={subject} number={index + 1} /></td></tr>
                       </Fragment>
@@ -1431,7 +1563,7 @@ function QuestionPaperBuilder({ user, role }) {
       {showChapterMerger && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyMessage) setShowChapterMerger(false) }}>
         <section className="question-modal chapter-merge-modal" role="dialog" aria-modal="true" aria-labelledby="chapter-merge-title">
           <div className="modal-heading">
-            <div><span className="modal-icon"><GitMerge size={18} /></span><div><h2 id="chapter-merge-title">দুটি অধ্যায় মার্জ করুন</h2><p>দুই অধ্যায়ের সব প্রশ্ন নতুন নামের অধ্যায়ে যাবে</p></div></div>
+            <div><span className="modal-icon"><GitMerge size={18} /></span><div><h2 id="chapter-merge-title">দুটি অধ্যায় মার্জ করুন</h2><p>{isAdmin ? 'দুই অধ্যায়ের সব প্রশ্ন নতুন নামের অধ্যায়ে যাবে' : mergeFirstChapter && mergeSecondChapter && questionMeta.chapters.includes(mergeFirstChapter) && questionMeta.chapters.includes(mergeSecondChapter) ? 'Admin অনুমোদন করলে MongoDB-র প্রশ্নগুলো নতুন অধ্যায়ে যাবে' : 'এই device-এর local প্রশ্নগুলো নতুন অধ্যায়ে যাবে'}</p></div></div>
             <button type="button" className="icon-button" aria-label="বন্ধ করুন" disabled={Boolean(busyMessage)} onClick={() => setShowChapterMerger(false)}><X size={17} /></button>
           </div>
           <form onSubmit={(event) => { event.preventDefault(); void mergeChapters() }}>
@@ -1450,7 +1582,7 @@ function QuestionPaperBuilder({ user, role }) {
             </div>
             <div className="modal-footer">
               <button type="button" className="quiet-button" disabled={Boolean(busyMessage)} onClick={() => setShowChapterMerger(false)}>বাতিল</button>
-              <button type="submit" className="primary-button" disabled={Boolean(busyMessage) || mergeableChapters.length < 2 || !mergedChapterName.trim() || mergeFirstChapter === mergeSecondChapter}><GitMerge size={15} /> মার্জ করুন</button>
+              <button type="submit" className="primary-button" disabled={Boolean(busyMessage) || mergeableChapters.length < 2 || !mergedChapterName.trim() || mergeFirstChapter === mergeSecondChapter}><GitMerge size={15} /> {!isAdmin && questionMeta.chapters.includes(mergeFirstChapter) && questionMeta.chapters.includes(mergeSecondChapter) ? 'Admin-কে অনুরোধ পাঠান' : 'মার্জ করুন'}</button>
             </div>
           </form>
         </section>
@@ -1458,7 +1590,7 @@ function QuestionPaperBuilder({ user, role }) {
       {showChapterRenamer && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busyMessage) setShowChapterRenamer(false) }}>
         <section className="question-modal chapter-rename-modal" role="dialog" aria-modal="true" aria-labelledby="chapter-rename-title">
           <div className="modal-heading">
-            <div><span className="modal-icon"><Pencil size={17} /></span><div><h2 id="chapter-rename-title">অধ্যায়ের নাম পরিবর্তন</h2><p>নির্বাচিত অধ্যায়ের সব প্রশ্নে নতুন নাম প্রয়োগ হবে</p></div></div>
+            <div><span className="modal-icon"><Pencil size={17} /></span><div><h2 id="chapter-rename-title">অধ্যায়ের নাম পরিবর্তন</h2><p>{!isAdmin && questionMeta.chapters.includes(chapterToRename) ? 'Admin অনুমোদন করলে MongoDB-র সব প্রশ্নে নতুন নাম প্রয়োগ হবে' : 'নির্বাচিত অধ্যায়ের সব local প্রশ্নে নতুন নাম প্রয়োগ হবে'}</p></div></div>
             <button type="button" className="icon-button" aria-label="বন্ধ করুন" disabled={Boolean(busyMessage)} onClick={() => setShowChapterRenamer(false)}><X size={17} /></button>
           </div>
           <form onSubmit={(event) => { event.preventDefault(); void renameChapter() }}>
@@ -1471,7 +1603,7 @@ function QuestionPaperBuilder({ user, role }) {
             </div>
             <div className="modal-footer">
               <button type="button" className="quiet-button" disabled={Boolean(busyMessage)} onClick={() => setShowChapterRenamer(false)}>বাতিল</button>
-              <button type="submit" className="primary-button" disabled={Boolean(busyMessage) || !chapterToRename || !renamedChapterName.trim() || renamedChapterName.trim() === chapterToRename || mergeableChapters.includes(renamedChapterName.trim())}><Pencil size={15} /> নাম পরিবর্তন করুন</button>
+              <button type="submit" className="primary-button" disabled={Boolean(busyMessage) || !chapterToRename || !renamedChapterName.trim() || renamedChapterName.trim() === chapterToRename || mergeableChapters.includes(renamedChapterName.trim())}><Pencil size={15} /> {!isAdmin && questionMeta.chapters.includes(chapterToRename) ? 'Admin-কে অনুরোধ পাঠান' : 'নাম পরিবর্তন করুন'}</button>
             </div>
           </form>
         </section>

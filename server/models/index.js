@@ -95,9 +95,30 @@ teacherRoleRequestSchema.index(
   { unique: true, partialFilterExpression: { status: 'pending' } },
 )
 
+const contentRequestSchema = new mongoose.Schema({
+  type: { type: String, enum: ['question-publish', 'chapter-rename', 'chapter-merge'], required: true },
+  userId: { type: String, required: true, index: true },
+  requesterName: { type: String, default: '' },
+  requesterEmail: { type: String, default: '' },
+  requesterPhotoURL: { type: String, default: '' },
+  subject: { type: String, required: true },
+  grade: { type: Number, required: true, min: 5, max: 10 },
+  localQuestionId: { type: String, default: '' },
+  questionData: { type: mongoose.Schema.Types.Mixed },
+  sourceChapter: { type: String, default: '' },
+  sourceChapters: { type: [String], default: [] },
+  targetChapter: { type: String, default: '' },
+  status: { type: String, enum: ['pending', 'processing', 'approved', 'rejected'], default: 'pending', index: true },
+  resultQuestionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+  resolvedAt: { type: Date },
+}, { timestamps: true })
+contentRequestSchema.index({ userId: 1, localQuestionId: 1, status: 1 })
+
 export const Question = mongoose.models.Question ?? mongoose.model('Question', questionSchema)
 export const PaperSettings = mongoose.models.PaperSettings ?? mongoose.model('PaperSettings', paperSettingsSchema)
 export const StudentExamAttempt = mongoose.models.StudentExamAttempt
   ?? mongoose.model('StudentExamAttempt', studentExamAttemptSchema)
 export const TeacherRoleRequest = mongoose.models.TeacherRoleRequest
   ?? mongoose.model('TeacherRoleRequest', teacherRoleRequestSchema)
+export const ContentRequest = mongoose.models.ContentRequest
+  ?? mongoose.model('ContentRequest', contentRequestSchema)
