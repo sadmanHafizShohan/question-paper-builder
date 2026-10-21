@@ -21,6 +21,7 @@ async function readResponse(response) {
 
 function requestTitle(contentRequest) {
   if (contentRequest.type === 'question-publish') return 'প্রশ্ন MongoDB-তে প্রকাশ'
+  if (contentRequest.type === 'answer-appeal') return 'MCQ সঠিক উত্তর সংশোধনের আবেদন'
   if (contentRequest.type === 'chapter-rename') return 'অধ্যায়ের নাম পরিবর্তন'
   return 'অধ্যায় মার্জ'
 }
@@ -157,6 +158,8 @@ export default function AdminContentRequestsPanel({ apiUrl, onResolved }) {
         : requests.length === 0 ? <p className="admin-content-requests-empty">কোনো অপেক্ষমাণ অনুরোধ নেই।</p>
           : <div className="admin-content-request-list">{requests.map((contentRequest) => {
             const question = contentRequest.questionData
+            const isAnswerAppeal = contentRequest.type === 'answer-appeal'
+            const canEditQuestion = contentRequest.type === 'question-publish'
             return (
               <article className="admin-content-request" key={contentRequest.id}>
                 <div className="admin-content-request-copy">
@@ -172,7 +175,7 @@ export default function AdminContentRequestsPanel({ apiUrl, onResolved }) {
                       {contentRequest.requesterPhotoURL && <img src={contentRequest.requesterPhotoURL} alt="" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} />}
                     </span>
                     <span className="admin-content-request-identity">
-                      <strong>{contentRequest.requesterName || 'শিক্ষকের নাম নেই'}</strong>
+                      <strong>{contentRequest.requesterName || (isAnswerAppeal ? 'শিক্ষার্থীর নাম নেই' : 'শিক্ষকের নাম নেই')}</strong>
                       <small>{contentRequest.requesterEmail || contentRequest.uid}</small>
                     </span>
                     <span className="admin-content-request-context">{getGradeLabel(contentRequest.grade)} · {getSubjectLabel(contentRequest.subject)}</span>
@@ -181,7 +184,13 @@ export default function AdminContentRequestsPanel({ apiUrl, onResolved }) {
                   {question
                     ? <div className="admin-content-request-question">
                         <div className="admin-content-request-chapter"><b>অধ্যায়</b><span>{question.chapter || 'অধ্যায় নির্ধারিত নয়'}</span></div>
-                        {editingId === contentRequest.id && draft
+                        {isAnswerAppeal && <div className="admin-answer-appeal-details">
+                          <p><strong>বর্তমান সঠিক উত্তর:</strong> {String.fromCharCode(0x0995 + contentRequest.currentAnswerIndex)} — {question.options?.[contentRequest.currentAnswerIndex]}</p>
+                          <p><strong>শিক্ষার্থীর প্রস্তাব:</strong> {String.fromCharCode(0x0995 + contentRequest.proposedAnswerIndex)} — {question.options?.[contentRequest.proposedAnswerIndex]}</p>
+                          <p><strong>আবেদনের কারণ:</strong> {contentRequest.appealMessage}</p>
+                          <small>পরীক্ষা: {contentRequest.examAttemptId} · প্রশ্ন {bengaliNumber((contentRequest.questionIndex ?? 0) + 1)} · মূল ID: {contentRequest.sourceQuestionId}</small>
+                        </div>}
+                        {canEditQuestion && editingId === contentRequest.id && draft
                           ? <QuestionRequestEditor
                               draft={draft}
                               subject={contentRequest.subject}
@@ -190,7 +199,7 @@ export default function AdminContentRequestsPanel({ apiUrl, onResolved }) {
                           : null}
                         <QuestionBankPreview
                           id={`content-request-preview-${contentRequest.id}`}
-                          question={{ ...(editingId === contentRequest.id && draft ? draftToQuestion(draft) : question), id: contentRequest.id }}
+                          question={{ ...(canEditQuestion && editingId === contentRequest.id && draft ? draftToQuestion(draft) : question), id: contentRequest.id }}
                           subject={contentRequest.subject}
                           number={1}
                         />
@@ -200,7 +209,7 @@ export default function AdminContentRequestsPanel({ apiUrl, onResolved }) {
                       : <p className="admin-content-request-detail">“{contentRequest.sourceChapters.join('” ও “')}” → “{contentRequest.targetChapter}”</p>}
                 </div>
                 <div className="admin-content-request-actions">
-                  {question && <button
+                  {canEditQuestion && <button
                     type="button"
                     className="admin-content-edit"
                     onClick={() => {
@@ -217,8 +226,8 @@ export default function AdminContentRequestsPanel({ apiUrl, onResolved }) {
                   <button type="button" className="admin-content-reject" onClick={() => void decide(contentRequest, 'reject')} disabled={Boolean(busyId)}>
                     <X size={14} /> বাতিল
                   </button>
-                  <button type="button" className="admin-content-approve" onClick={() => void decide(contentRequest, 'approve', editingId === contentRequest.id ? draftToQuestion(draft) : undefined)} disabled={Boolean(busyId) || (editingId === contentRequest.id && (!draft?.prompt.trim() || !draft?.type || !Number.isFinite(Number(draft?.marks)) || Number(draft?.marks) < 1))}>
-                    <Check size={14} /> {busyId === contentRequest.id ? 'প্রয়োগ হচ্ছে…' : editingId === contentRequest.id ? 'সংশোধন করে অনুমোদন' : 'অনুমোদন'}
+                  <button type="button" className="admin-content-approve" onClick={() => void decide(contentRequest, 'approve', canEditQuestion && editingId === contentRequest.id ? draftToQuestion(draft) : undefined)} disabled={Boolean(busyId) || (canEditQuestion && editingId === contentRequest.id && (!draft?.prompt.trim() || !draft?.type || !Number.isFinite(Number(draft?.marks)) || Number(draft?.marks) < 1))}>
+                    <Check size={14} /> {busyId === contentRequest.id ? 'প্রয়োগ হচ্ছে…' : canEditQuestion && editingId === contentRequest.id ? 'সংশোধন করে অনুমোদন' : isAnswerAppeal ? 'উত্তর সংশোধন অনুমোদন' : 'অনুমোদন'}
                   </button>
                 </div>
               </article>

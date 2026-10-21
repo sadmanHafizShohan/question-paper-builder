@@ -4,6 +4,7 @@ import { signOut } from '@firebase/auth'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import { useThemeMode } from '../../shared/theme.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
+import KidSelect from '../../components/ui/KidSelect.jsx'
 import MathMarkup from '../../components/ui/MathMarkup.jsx'
 import AnimatedNumber from '../../components/ui/AnimatedNumber.jsx'
 import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
@@ -11,7 +12,7 @@ import { auth } from '../../shared/firebase.js'
 import { getGradeLabel, getSubjectLabel, grades, subjects } from '../../shared/academic.js'
 import { apiUrl } from '../../shared/api.js'
 import { bengaliNumber } from '../../shared/formatting.js'
-import { FloatingDecorations, Mascot, Podium, StreakBadge, SubjectIcon, XPBar } from './StudentGameUI.jsx'
+import { FloatingDecorations, Mascot, Podium, StreakBadge, XPBar } from './StudentGameUI.jsx'
 import {
   equationMarker,
   examMathTokenPattern,
@@ -30,6 +31,32 @@ const examDurationLabel = (seconds) => {
 }
 const subjectLabel = getSubjectLabel
 const gradeLabel = getGradeLabel
+const subjectOptionDetails = {
+  math: { icon: '🧮', color: '#a78bfa' },
+  'bangla-1': { icon: '📖', color: '#ff8fa3' },
+  'bangla-2': { icon: '✍️', color: '#f9a8d4' },
+  'english-1': { icon: '🔤', color: '#7dd3fc' },
+  'english-2': { icon: '💬', color: '#93c5fd' },
+  'global-studies': { icon: '🌍', color: '#6ee7b7', label: 'বাংলাদেশ ও বিশ্বপরিচয়' },
+  'general-science': { icon: '🧪', color: '#86efac' },
+  islam: { icon: '🕌', color: '#5eead4' },
+  hindu: { icon: '🕉️', color: '#fdba74' },
+  ict: { icon: '💻', color: '#a5b4fc' },
+  Agriculture: { icon: '🌾', color: '#bef264' },
+  HigherMath: { icon: '📐', color: '#c4b5fd' },
+}
+const subjectSelectOptions = subjects.map((item) => ({
+  value: item.id,
+  label: subjectOptionDetails[item.id]?.label ?? item.label,
+  ...subjectOptionDetails[item.id],
+}))
+const selectColors = ['#a78bfa', '#ff8fa3', '#f9a8d4', '#7dd3fc', '#93c5fd', '#6ee7b7']
+const gradeSelectOptions = grades.map((item, index) => ({
+  value: String(item),
+  label: `${gradeLabel(item)} শ্রেণি`,
+  icon: '🎓',
+  color: selectColors[index % selectColors.length],
+}))
 const motivationLines = ['তুমি দারুণ করছ!', 'আজ একটা নতুন রেকর্ড গড়বে?', 'চলো, নতুন কিছু শিখি!']
 const badgeLabels = {
   firstExam: 'প্রথম পরীক্ষা',
@@ -134,6 +161,7 @@ export default function StudentExamPortal({ user }) {
   const [questionIndex, setQuestionIndex] = useState(0)
   const [result, setResult] = useState(null)
   const [answerReview, setAnswerReview] = useState(null)
+  const [appealForms, setAppealForms] = useState({})
   const [showAnswerReview, setShowAnswerReview] = useState(false)
   const [leaderboard, setLeaderboard] = useState(null)
   const [studentFeedback, setStudentFeedback] = useState([])
@@ -158,7 +186,6 @@ export default function StudentExamPortal({ user }) {
   const autoSubmitAttemptId = useRef('')
   const audioContextRef = useRef(null)
   const birdPathRef = useRef(null)
-  const birdFlightAttemptRef = useRef('')
   const birdFlightTimerRef = useRef(0)
   const googlePhotoURL = user.photoURL
     || user.providerData?.find((provider) => provider.providerId === 'google.com')?.photoURL
@@ -269,13 +296,6 @@ export default function StudentExamPortal({ user }) {
     const nextAnswers = { ...answers, [currentQuestion.id]: optionIndex }
     setAnswers(nextAnswers)
     playUiSound('select')
-    const hasAllAnswers = attempt.questions.every((question) => nextAnswers[question.id] !== undefined)
-    if (!hasAllAnswers || birdFlightAttemptRef.current === attempt.attemptId) return
-
-    birdFlightAttemptRef.current = attempt.attemptId
-    setBirdFlyingAway(true)
-    playUiSound('flyAway')
-    birdFlightTimerRef.current = window.setTimeout(() => setBirdFlyingAway(false), reduceMotion ? 450 : 2500)
   }
 
   useEffect(() => {
@@ -324,6 +344,47 @@ export default function StudentExamPortal({ user }) {
       setTeacherRequestError(requestError instanceof Error ? requestError.message : 'Teacher হওয়ার অনুরোধ পাঠানো যায়নি।')
     } finally {
       setTeacherRequestBusy(false)
+    }
+  }
+
+  function updateAppealForm(index, updates) {
+    setAppealForms((current) => ({
+      ...current,
+      [index]: { proposedAnswerIndex: '', message: '', ...current[index], ...updates },
+    }))
+  }
+
+  async function submitAnswerAppeal(index) {
+    const form = appealForms[index] ?? {}
+    const proposedAnswerIndex = Number(form.proposedAnswerIndex)
+    if (!Number.isInteger(proposedAnswerIndex)
+      || proposedAnswerIndex < 0
+      || proposedAnswerIndex > 3
+      || proposedAnswerIndex === answerReview.correctAnswers[index]
+      || !form.message?.trim()) {
+      updateAppealForm(index, { error: 'সঠিক উত্তর হিসেবে অন্য একটি অপশন বেছে নিয়ে কারণ লিখুন।' })
+      return
+    }
+
+    updateAppealForm(index, { status: 'sending', error: '' })
+    try {
+      const response = await authenticatedFetch(`${apiUrl}/student/answer-appeals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attemptId: answerReview.attemptId,
+          questionIndex: index,
+          proposedAnswerIndex,
+          message: form.message.trim(),
+        }),
+      })
+      await readResult(response)
+      updateAppealForm(index, { status: 'pending', error: '' })
+    } catch (appealError) {
+      updateAppealForm(index, {
+        status: '',
+        error: appealError instanceof Error ? appealError.message : 'আবেদনটি পাঠানো যায়নি। আবার চেষ্টা করুন।',
+      })
     }
   }
 
@@ -382,12 +443,12 @@ export default function StudentExamPortal({ user }) {
   async function startExam() {
     playUiSound('launch')
     window.clearTimeout(birdFlightTimerRef.current)
-    birdFlightAttemptRef.current = ''
     setBirdFlyingAway(false)
     setBusy(true)
     setError('')
     setResult(null)
     setAnswerReview(null)
+    setAppealForms({})
     setShowAnswerReview(false)
     setAnswers({})
     setQuestionIndex(0)
@@ -426,6 +487,8 @@ export default function StudentExamPortal({ user }) {
         body: JSON.stringify({ answers: attempt.questions.map((question) => answers[question.id] ?? -1) }),
       })
       const examResult = await readResult(response)
+      setBirdFlyingAway(false)
+      window.clearTimeout(birdFlightTimerRef.current)
       if (!Array.isArray(examResult.correctAnswers)
         || examResult.correctAnswers.length !== attempt.questions.length
         || examResult.correctAnswers.some((answer) => !Number.isInteger(answer) || answer < 0 || answer > 3)
@@ -435,6 +498,7 @@ export default function StudentExamPortal({ user }) {
       }
       playUiSound(examResult.percentage >= 80 ? 'celebrate' : 'encourage')
       setAnswerReview({
+        attemptId: attempt.attemptId,
         questions: attempt.questions,
         selectedAnswers: attempt.questions.map((question) => answers[question.id] ?? -1),
         correctAnswers: examResult.correctAnswers,
@@ -459,10 +523,33 @@ export default function StudentExamPortal({ user }) {
       setAttempt(null)
       await loadLeaderboard()
     } catch (submitError) {
+      setBirdFlyingAway(false)
+      window.clearTimeout(birdFlightTimerRef.current)
       setError(submitError instanceof Error ? submitError.message : 'পরীক্ষার উত্তর জমা দেওয়া যায়নি।')
     } finally {
       setBusy(false)
     }
+  }
+
+  function handleExamSubmit(timeExpired = false) {
+    if (!attempt || busy) return
+    const allQuestionsAnswered = attempt.questions.every((question) => answers[question.id] !== undefined)
+    if (timeExpired || !allQuestionsAnswered) {
+      playUiSound('submit')
+      void submitExam(timeExpired)
+      return
+    }
+
+    setBusy(true)
+    setBirdFlyingAway(true)
+    playUiSound('flyAway')
+    birdFlightTimerRef.current = window.setTimeout(
+      () => {
+        playUiSound('submit')
+        void submitExam(false)
+      },
+      reduceMotion ? 450 : 2300,
+    )
   }
 
   useEffect(() => {
@@ -553,9 +640,37 @@ export default function StudentExamPortal({ user }) {
           {!attempt ? (
             <>
               <div className="student-selectors">
-                <label><span className="student-picker-label"><span aria-hidden="true">🎒</span> শ্রেণি</span><select value={grade} onChange={(event) => { setGrade(Number(event.target.value)); setChapter(''); setChapters([]); setChaptersLoading(true); setLeaderboard(null); setError('') }}>{grades.map((item) => <option value={item} key={item}>{gradeLabel(item)} শ্রেণি</option>)}</select></label>
-                <label><span className="student-picker-label"><SubjectIcon subject={subject} /> বিষয়</span><select value={subject} onChange={(event) => { setSubject(event.target.value); setChapter(''); setChapters([]); setChaptersLoading(true); setLeaderboard(null); setError('') }}>{subjects.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
-                <label><span className="student-picker-label"><span aria-hidden="true">🗺️</span> অধ্যায়</span><select value={chapter} onChange={(event) => setChapter(event.target.value)} disabled={chaptersLoading || chapters.length === 0}><option value="">সব অধ্যায়</option>{chapters.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+                <KidSelect
+                  label="শ্রেণি"
+                  labelIcon="🎓"
+                  options={gradeSelectOptions}
+                  value={String(grade)}
+                  onChange={(nextGrade) => { setGrade(Number(nextGrade)); setChapter(''); setChapters([]); setChaptersLoading(true); setLeaderboard(null); setError('') }}
+                />
+                <KidSelect
+                  label="বিষয়"
+                  labelIcon="📚"
+                  options={subjectSelectOptions}
+                  value={subject}
+                  onChange={(nextSubject) => { setSubject(nextSubject); setChapter(''); setChapters([]); setChaptersLoading(true); setLeaderboard(null); setError('') }}
+                  showMissionBubble
+                />
+                <KidSelect
+                  label="অধ্যায়"
+                  labelIcon="🔢"
+                  options={[
+                    { value: '', label: 'সব অধ্যায়', icon: '📚', color: selectColors[0] },
+                    ...chapters.map((item, index) => ({
+                      value: item,
+                      label: item,
+                      icon: '🔢',
+                      color: selectColors[(index + 1) % selectColors.length],
+                    })),
+                  ]}
+                  value={chapter}
+                  onChange={setChapter}
+                  disabled={chaptersLoading || chapters.length === 0}
+                />
                 <label className="student-time-setting"><span className="student-time-label"><span>⏱️</span> পরীক্ষার সময়: {bengaliNumber(durationMinutes)} মিনিট (সর্বোচ্চ ২০)</span><input type="range" min="1" max="20" step="1" value={durationMinutes} onChange={(event) => setDurationMinutes(Math.min(20, Math.max(1, Number(event.target.value))))} /></label>
               </div>
               <button type="button" className={`student-primary-button student-launch-button${launching ? ' student-launching' : ''}`} onClick={() => { setLaunching(true); window.setTimeout(() => setLaunching(false), 750); void startExam() }} disabled={busy || chaptersLoading}>
@@ -604,7 +719,7 @@ export default function StudentExamPortal({ user }) {
                 <span>{bengaliNumber(selectedCount)} / {bengaliNumber(attempt.questions.length)}টি উত্তর দেওয়া হয়েছে</span>
                 {questionIndex < attempt.questions.length - 1 && !timeExpired
                   ? <button type="button" className="student-primary-button" disabled={busy || timeExpired || answers[currentQuestion.id] === undefined} onClick={() => { playUiSound('next'); setQuestionIndex((current) => current + 1) }}>পরের প্রশ্ন <ArrowRight size={16} /></button>
-                  : <button type="button" className="student-primary-button" disabled={busy || (!timeExpired && selectedCount !== attempt.questions.length)} onClick={() => { playUiSound('submit'); void submitExam(timeExpired) }}>{busy ? <><span className="loading-spinner" aria-hidden="true" /> উত্তর জমা হচ্ছে…</> : timeExpired ? <><Send size={16} /> সময় শেষ—জমা দিন</> : <><Send size={16} /> পরীক্ষা জমা দিন</>}</button>}
+                  : <button type="button" className="student-primary-button" disabled={busy || (!timeExpired && selectedCount !== attempt.questions.length)} onClick={() => handleExamSubmit(timeExpired)}>{busy ? <><span className="loading-spinner" aria-hidden="true" /> {birdFlyingAway ? 'পেঁচু উড়ছে…' : 'উত্তর জমা হচ্ছে…'}</> : timeExpired ? <><Send size={16} /> সময় শেষ—জমা দিন</> : <><Send size={16} /> পরীক্ষা জমা দিন</>}</button>}
               </div>
             </div>
           )}
@@ -648,6 +763,43 @@ export default function StudentExamPortal({ user }) {
                   <small>{correct ? 'সঠিক উত্তর' : selected ? 'আপনার উত্তর' : ''}</small>
                 </div>
               })}</div>
+              {question.appealEligible && <div className="student-answer-appeal">
+                {appealForms[index]?.status === 'pending'
+                  ? <p className="student-answer-appeal-success" role="status">✅ উত্তর সংশোধনের আবেদন Admin-এর কাছে পাঠানো হয়েছে।</p>
+                  : <form onSubmit={(event) => { event.preventDefault(); void submitAnswerAppeal(index) }}>
+                    <strong>উত্তরটি ভুল মনে হচ্ছে?</strong>
+                    <p>আপনার মতে সঠিক উত্তরটি বেছে কারণ লিখে Admin-এর কাছে আবেদন করুন। অনুমোদনের আগে প্রশ্নের উত্তর বদলাবে না।</p>
+                    <label>
+                      <span>আপনার মতে সঠিক উত্তর</span>
+                      <select
+                        value={appealForms[index]?.proposedAnswerIndex ?? ''}
+                        onChange={(event) => updateAppealForm(index, { proposedAnswerIndex: event.target.value, error: '' })}
+                        required
+                      >
+                        <option value="" disabled>একটি অপশন বেছে নিন</option>
+                        {question.options.map((option, optionIndex) => (
+                          <option value={optionIndex} key={optionIndex} disabled={optionIndex === answerReview.correctAnswers[index]}>
+                            {String.fromCharCode(0x0995 + optionIndex)}) {optionIndex === answerReview.correctAnswers[index] ? 'বর্তমান সঠিক উত্তর' : option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>কেন উত্তরটি সংশোধন হওয়া উচিত?</span>
+                      <textarea
+                        value={appealForms[index]?.message ?? ''}
+                        onChange={(event) => updateAppealForm(index, { message: event.target.value, error: '' })}
+                        maxLength={2000}
+                        rows={3}
+                        required
+                      />
+                    </label>
+                    {appealForms[index]?.error && <p className="student-answer-appeal-error" role="alert">{appealForms[index].error}</p>}
+                    <button type="submit" disabled={appealForms[index]?.status === 'sending'}>
+                      {appealForms[index]?.status === 'sending' ? 'আবেদন পাঠানো হচ্ছে…' : 'সংশোধনের আবেদন পাঠান'}
+                    </button>
+                  </form>}
+              </div>}
             </article>
           ))}
         </section>}

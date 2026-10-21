@@ -99,6 +99,12 @@ function serializeContentRequest(contentRequest) {
     sourceChapter: contentRequest.sourceChapter,
     sourceChapters: contentRequest.sourceChapters,
     targetChapter: contentRequest.targetChapter,
+    examAttemptId: contentRequest.examAttemptId ? String(contentRequest.examAttemptId) : '',
+    sourceQuestionId: contentRequest.sourceQuestionId ? String(contentRequest.sourceQuestionId) : '',
+    questionIndex: contentRequest.questionIndex,
+    currentAnswerIndex: contentRequest.currentAnswerIndex,
+    proposedAnswerIndex: contentRequest.proposedAnswerIndex,
+    appealMessage: contentRequest.appealMessage,
     status: contentRequest.status,
     resultQuestionId: contentRequest.resultQuestionId ? String(contentRequest.resultQuestionId) : '',
     createdAt: contentRequest.createdAt,
@@ -309,6 +315,50 @@ app.post('/api/admin/content-requests/:requestId/decision', requireAdmin, async 
         )
         await Question.create({ ...contentRequest.questionData, _id: resultQuestionId })
       }
+    } else if (contentRequest.type === 'answer-appeal') {
+      const question = await Question.findById(contentRequest.sourceQuestionId)
+      const savedOptions = contentRequest.questionData?.options
+      const currentAnswerIndex = question
+        ? answerOptionIndex(question.answer, question.options, question.optionEquations)
+        : -1
+      const sourceIsUnchanged = question?.type === 'mcq'
+        && Array.isArray(savedOptions)
+        && question.options.length === 4
+        && question.options.every((option, index) => option === savedOptions[index])
+        && currentAnswerIndex === contentRequest.currentAnswerIndex
+      if (!sourceIsUnchanged
+        || !Number.isInteger(contentRequest.proposedAnswerIndex)
+        || contentRequest.proposedAnswerIndex < 0
+        || contentRequest.proposedAnswerIndex > 3
+        || contentRequest.proposedAnswerIndex === currentAnswerIndex) {
+        await ContentRequest.updateOne(
+          { _id: contentRequest._id, status: 'processing' },
+          { $set: { status: 'pending' } },
+        )
+        return response.status(409).json({ error: 'আবেদনের পর মূল প্রশ্ন বদলে গেছে বা প্রস্তাবিত উত্তরটি বৈধ নয়। অনুরোধটি আবার যাচাই করুন।' })
+      }
+      const proposedAnswer = String(question.options[contentRequest.proposedAnswerIndex] ?? '').trim()
+        || String(question.optionEquations?.[contentRequest.proposedAnswerIndex] ?? '').trim()
+      if (!proposedAnswer
+        || answerOptionIndex(proposedAnswer, question.options, question.optionEquations) !== contentRequest.proposedAnswerIndex) {
+        await ContentRequest.updateOne(
+          { _id: contentRequest._id, status: 'processing' },
+          { $set: { status: 'pending' } },
+        )
+        return response.status(409).json({ error: 'প্রস্তাবিত অপশনটি মূল প্রশ্নে উত্তর হিসেবে সংরক্ষণ করা যাচ্ছে না।' })
+      }
+      const updateResult = await Question.updateOne(
+        { _id: question._id, answer: question.answer, options: question.options },
+        { $set: { answer: proposedAnswer } },
+        { runValidators: true },
+      )
+      if (updateResult.matchedCount !== 1) {
+        await ContentRequest.updateOne(
+          { _id: contentRequest._id, status: 'processing' },
+          { $set: { status: 'pending' } },
+        )
+        return response.status(409).json({ error: 'মূল প্রশ্নটি একই সময়ে পরিবর্তিত হয়েছে। অনুরোধটি আবার যাচাই করুন।' })
+      }
     } else {
       const grades = contentRequest.grade === 9 || contentRequest.grade === 10
         ? [9, 10]
@@ -352,6 +402,84 @@ app.post('/api/admin/content-requests/:requestId/decision', requireAdmin, async 
         { _id: contentRequest._id, status: 'processing' },
         { $set: { status: 'pending' } },
       ).catch((rollbackError) => console.error('Could not restore a failed content request', rollbackError))
+    }
+    next(error)
+  }
+})
+
+app.post('/api/student/answer-appeals', requireStudent, async (request, response, next) => {
+  try {
+    const { attemptId, questionIndex, proposedAnswerIndex, message } = request.body ?? {}
+    if (!mongoose.isValidObjectId(attemptId)
+      || !Number.isInteger(questionIndex) || questionIndex < 0
+      || !Number.isInteger(proposedAnswerIndex) || proposedAnswerIndex < 0 || proposedAnswerIndex > 3
+      || typeof message !== 'string' || !message.trim() || message.trim().length > 2000) {
+      return response.status(400).json({ error: 'প্রশ্ন, প্রস্তাবিত সঠিক উত্তর এবং আবেদনের কারণ দিন।' })
+    }
+
+    const attempt = await StudentExamAttempt.findOne({
+      _id: attemptId,
+      userId: request.firebaseUser.uid,
+      status: 'completed',
+    })
+    if (!attempt) return response.status(404).json({ error: 'সম্পন্ন পরীক্ষাটি পাওয়া যায়নি।' })
+    const item = attempt.items[questionIndex]
+    if (!item?.sourceQuestionId || proposedAnswerIndex === item.correctOptionIndex) {
+      return response.status(400).json({ error: 'এই প্রশ্নের জন্য নতুন একটি সম্ভাব্য সঠিক উত্তর বেছে নিন।' })
+    }
+
+    const existingAppeal = await ContentRequest.exists({
+      examAttemptId: attempt._id,
+      questionIndex,
+      type: 'answer-appeal',
+    })
+    if (existingAppeal) return response.status(409).json({ error: 'এই প্রশ্নের উত্তর সংশোধনের আবেদন আগেই পাঠানো হয়েছে।' })
+
+    const sourceQuestion = await Question.findById(item.sourceQuestionId).lean()
+    const sourceAnswerIndex = sourceQuestion
+      ? answerOptionIndex(sourceQuestion.answer, sourceQuestion.options, sourceQuestion.optionEquations)
+      : -1
+    if (!sourceQuestion || sourceQuestion.type !== 'mcq'
+      || sourceQuestion.options.length !== 4
+      || !sourceQuestion.options.every((option, index) => option === item.options[index])
+      || sourceAnswerIndex !== item.correctOptionIndex) {
+      return response.status(409).json({ error: 'মূল প্রশ্নটি আর পাওয়া যাচ্ছে না, তাই আবেদন পাঠানো যায়নি।' })
+    }
+
+    const contentRequest = await ContentRequest.create({
+      type: 'answer-appeal',
+      userId: request.firebaseUser.uid,
+      requesterName: request.firebaseUser.name ?? '',
+      requesterEmail: request.firebaseUser.email ?? '',
+      requesterPhotoURL: request.firebaseUser.picture ?? '',
+      subject: attempt.subject,
+      grade: questionBankGrade(attempt.grade),
+      examAttemptId: attempt._id,
+      sourceQuestionId: item.sourceQuestionId,
+      questionIndex,
+      currentAnswerIndex: item.correctOptionIndex,
+      proposedAnswerIndex,
+      appealMessage: message.trim(),
+      questionData: {
+        type: sourceQuestion.type,
+        chapter: sourceQuestion.chapter,
+        prompt: item.prompt,
+        equation: item.equation,
+        inlineEquations: item.inlineEquations,
+        options: item.options,
+        statements: item.statements,
+        statementQuestion: item.statementQuestion,
+        optionEquations: item.optionEquations,
+        optionInlineEquations: item.optionInlineEquations,
+        answer: item.options[item.correctOptionIndex],
+        marks: sourceQuestion.marks,
+        figure: sourceQuestion.figure,
+      },
+    })
+    response.status(201).json({ id: String(contentRequest._id), status: contentRequest.status })
+  } catch (error) {
+    if (error.code === 11000) {
+      return response.status(409).json({ error: 'এই প্রশ্নের উত্তর সংশোধনের আবেদন আগেই পাঠানো হয়েছে।' })
     }
     next(error)
   }
@@ -546,6 +674,7 @@ app.post('/api/student/exams', requireStudent, async (request, response, next) =
       durationMinutes,
       expiresAt,
       items: questions.map(({ question, correctOptionIndex }) => ({
+        sourceQuestionId: question._id,
         prompt: question.prompt,
         equation: question.equation,
         inlineEquations: question.inlineEquations,
@@ -567,6 +696,7 @@ app.post('/api/student/exams', requireStudent, async (request, response, next) =
       serverNow: new Date().toISOString(),
       questions: attempt.items.map((item, index) => ({
         id: String(index),
+        appealEligible: Boolean(item.sourceQuestionId),
         prompt: item.prompt,
         equation: item.equation,
         inlineEquations: item.inlineEquations,

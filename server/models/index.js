@@ -57,6 +57,7 @@ const studentExamAttemptSchema = new mongoose.Schema({
   expiresAt: { type: Date, required: true, index: true },
   status: { type: String, enum: ['in_progress', 'completed'], default: 'in_progress', index: true },
   items: [{
+    sourceQuestionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
     prompt: { type: String, required: true },
     equation: { type: String, default: '' },
     inlineEquations: { type: [String], default: [] },
@@ -96,7 +97,7 @@ teacherRoleRequestSchema.index(
 )
 
 const contentRequestSchema = new mongoose.Schema({
-  type: { type: String, enum: ['question-publish', 'chapter-rename', 'chapter-merge'], required: true },
+  type: { type: String, enum: ['question-publish', 'answer-appeal', 'chapter-rename', 'chapter-merge'], required: true },
   userId: { type: String, required: true, index: true },
   requesterName: { type: String, default: '' },
   requesterEmail: { type: String, default: '' },
@@ -105,6 +106,12 @@ const contentRequestSchema = new mongoose.Schema({
   grade: { type: Number, required: true, min: 5, max: 10 },
   localQuestionId: { type: String, default: '' },
   questionData: { type: mongoose.Schema.Types.Mixed },
+  examAttemptId: { type: mongoose.Schema.Types.ObjectId, ref: 'StudentExamAttempt' },
+  sourceQuestionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+  questionIndex: { type: Number, min: 0 },
+  currentAnswerIndex: { type: Number, min: 0, max: 3 },
+  proposedAnswerIndex: { type: Number, min: 0, max: 3 },
+  appealMessage: { type: String, default: '', maxlength: 2000 },
   sourceChapter: { type: String, default: '' },
   sourceChapters: { type: [String], default: [] },
   targetChapter: { type: String, default: '' },
@@ -113,6 +120,10 @@ const contentRequestSchema = new mongoose.Schema({
   resolvedAt: { type: Date },
 }, { timestamps: true })
 contentRequestSchema.index({ userId: 1, localQuestionId: 1, status: 1 })
+contentRequestSchema.index(
+  { examAttemptId: 1, questionIndex: 1 },
+  { unique: true, partialFilterExpression: { type: 'answer-appeal' } },
+)
 
 export const Question = mongoose.models.Question ?? mongoose.model('Question', questionSchema)
 export const PaperSettings = mongoose.models.PaperSettings ?? mongoose.model('PaperSettings', paperSettingsSchema)

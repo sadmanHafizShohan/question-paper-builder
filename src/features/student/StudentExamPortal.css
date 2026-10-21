@@ -80,7 +80,6 @@
 .student-mcq-badge { padding: 6px 10px; border-radius: 20px; background: #e8f4ee; color: #16715d; font-size: 11px; font-weight: 700; }
 .student-selectors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; max-width: 860px; }
 .student-selectors label { display: grid; gap: 7px; color: #68756e; font-size: 11px; font-weight: 600; }
-.student-selectors select { min-height: 42px; padding: 0 11px; border: 1px solid #dfe6e1; border-radius: 7px; background: #fff; color: #26352d; }
 .student-selectors .student-time-setting { grid-column: 1 / -1; gap: 9px; }
 .student-time-setting input[type='range'] { width: 100%; accent-color: #16715d; cursor: pointer; }
 .student-primary-button { min-height: 40px; justify-content: center; gap: 8px; margin-top: 17px; padding: 0 16px; border: 0; border-radius: 7px; background: #16715d; color: #fff; cursor: pointer; font-size: 12px; font-weight: 700; }
@@ -122,6 +121,21 @@
 .student-review-question h3>.student-review-number { color: #16715d; }
 .student-review-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .student-review-options>div { display: flex; align-items: flex-start; gap: 9px; padding: 10px; border: 1px solid #e5ebe6; border-radius: 7px; color: #526159; font-size: 12px; line-height: 1.6; }
+.student-answer-appeal { margin-top: 14px; padding: 15px; border: 1px solid #e2d9f4; border-radius: 14px; background: linear-gradient(135deg, #fbf9ff, #f4f9ff); }
+.student-answer-appeal form { display: grid; gap: 10px; }
+.student-answer-appeal form>strong { color: #5b3a91; font-size: 13px; }
+.student-answer-appeal form>p { margin: -5px 0 1px; color: #737b8d; font-size: 11px; line-height: 1.6; }
+.student-answer-appeal label { display: grid; gap: 5px; color: #5d6172; font-size: 11px; font-weight: 700; }
+.student-answer-appeal select,
+.student-answer-appeal textarea { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #ddd5ed; border-radius: 9px; background: #fff; color: #37304a; font: inherit; font-size: 12px; }
+.student-answer-appeal textarea { min-height: 76px; resize: vertical; }
+.student-answer-appeal select:focus,
+.student-answer-appeal textarea:focus { border-color: #8e70c4; outline: 3px solid #8e70c422; }
+.student-answer-appeal form>button { min-height: 44px; justify-self: start; padding: 0 15px; border: 0; border-radius: 10px; background: linear-gradient(135deg, #7654b4, #9975d2); box-shadow: 0 4px 0 #593b90; color: #fff; cursor: pointer; font: inherit; font-size: 11px; font-weight: 800; }
+.student-answer-appeal form>button:active { transform: translateY(3px); box-shadow: 0 1px 0 #593b90; }
+.student-answer-appeal form>button:disabled { cursor: wait; opacity: .7; }
+.student-answer-appeal-error { margin: 0; color: #a54845; font-size: 11px; }
+.student-answer-appeal-success { margin: 0; color: #28734f; font-size: 12px; font-weight: 700; line-height: 1.6; }
 .student-review-options>div.correct { border-color: #b9dec5; background: #f0f8f2; color: #176b43; }
 .student-review-options>div.incorrect { border-color: #efc6c3; background: #fff5f4; color: #a8423c; }
 .student-review-options>div>strong { flex: 0 0 auto; }
@@ -170,7 +184,6 @@ html[data-theme='dark'] .student-mcq-badge { background: #203b2e; color: #a7d8b4
 html[data-theme='dark'] .student-profile-avatar { background: #203b2e; color: #a7d8b4; }
 html[data-theme='dark'] .student-account button,
 html[data-theme='dark'] .student-refresh,
-html[data-theme='dark'] .student-selectors select,
 html[data-theme='dark'] .student-previous-button { border-color: #35463b; background: #202c24; color: #d5e0d8; }
 html[data-theme='dark'] .student-teacher-request { border-color: #365844; background: #1b2a20; }
 html[data-theme='dark'] .student-teacher-request button { border-color: #365844; background: #202c24; color: #a7d8b4; }
@@ -187,6 +200,14 @@ html[data-theme='dark'] .student-result>button { border-color: #365844; backgrou
 html[data-theme='dark'] .student-review-question { border-color: #2a3930; }
 html[data-theme='dark'] .student-review-options>div.correct { border-color: #365844; background: #1b2a20; color: #a7d8b4; }
 html[data-theme='dark'] .student-review-options>div.incorrect { border-color: #70443e; background: #352421; color: #f19c91; }
+html[data-theme='dark'] .student-answer-appeal { border-color: #493b61; background: linear-gradient(135deg, #282235, #202a35); }
+html[data-theme='dark'] .student-answer-appeal form>strong { color: #d2baff; }
+html[data-theme='dark'] .student-answer-appeal form>p,
+html[data-theme='dark'] .student-answer-appeal label { color: #b8b0c8; }
+html[data-theme='dark'] .student-answer-appeal select,
+html[data-theme='dark'] .student-answer-appeal textarea { border-color: #493b61; background: #211d2b; color: #eee8f7; }
+html[data-theme='dark'] .student-answer-appeal-success { color: #a7d8b4; }
+html[data-theme='dark'] .student-answer-appeal-error { color: #f19c91; }
 html[data-theme='dark'] .student-my-rank,
 html[data-theme='dark'] .student-own-row { background: #1b2a20; }
 html[data-theme='dark'] .student-my-rank span,

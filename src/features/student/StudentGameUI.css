@@ -709,18 +709,6 @@
 	font-size: 17px;
 }
 
-.student-portal .student-selectors select {
-	min-height: 52px;
-	border: 1px solid #e6dcf5;
-	border-radius: 15px;
-	background: #fcfaff;
-	color: #44335f;
-	font-family: inherit;
-	font-size: 15px;
-	font-weight: 700;
-}
-
-.student-portal .student-selectors select:focus-visible,
 .student-portal button:focus-visible,
 .student-portal input:focus-visible {
 	outline: 3px solid #a88be9;
@@ -1102,7 +1090,7 @@
 	border-radius: 16px;
 	background: #fff;
 	box-shadow: 0 3px 0 #eee7f6;
-	color: #40315e;
+	color: #704bc4;
 	font-size: clamp(18px, 2.4vw, 22px);
 	font-weight: 800;
 	line-height: 1.75;
@@ -1581,7 +1569,7 @@
 }
 
 .student-portal .student-review-question h3 {
-	color: #46375f;
+	color: #704bc4;
 	font-size: 17px;
 	font-weight: 800;
 	line-height: 1.8;
@@ -2180,12 +2168,6 @@ html[data-theme='dark'] .student-portal .student-time-label {
 	color: #d2c4e9;
 }
 
-html[data-theme='dark'] .student-portal .student-selectors select {
-	border-color: #493a5e;
-	background: #2b2539;
-	color: #f0eaff;
-}
-
 html[data-theme='dark'] .student-portal .student-time-setting,
 html[data-theme='dark'] .student-portal .student-exam-path {
 	border-color: #3b4c5b;
@@ -2234,7 +2216,7 @@ html[data-theme='dark'] .student-portal .student-question legend {
 	border-color: #493b5a;
 	background: #332b42;
 	box-shadow: 0 3px 0 #292337;
-	color: #f1eaff;
+	color: #c6aaff;
 }
 
 html[data-theme='dark'] .student-portal .student-question legend > .student-question-number,
@@ -2283,7 +2265,7 @@ html[data-theme='dark'] .student-portal .student-answer-review {
 
 html[data-theme='dark'] .student-portal .student-answer-review > h2,
 html[data-theme='dark'] .student-portal .student-review-question h3 {
-	color: #f0e8ff;
+	color: #c6aaff;
 }
 
 html[data-theme='dark'] .student-portal .student-answer-review > h2::before {

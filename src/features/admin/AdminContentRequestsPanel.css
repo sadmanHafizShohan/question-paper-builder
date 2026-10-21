@@ -23,6 +23,10 @@
 .admin-content-request-time { color: #718078; font-size: 10px; }
 .admin-content-request-time::before { content: 'পাঠানো: '; color: #929d96; }
 .admin-content-request-question { display: grid; gap: 7px; }
+.admin-answer-appeal-details { display: grid; gap: 5px; padding: 10px 12px; border: 1px solid #e4dcf4; border-radius: 8px; background: #faf8ff; }
+.admin-answer-appeal-details p { margin: 0; color: #596174; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.admin-answer-appeal-details p strong { color: #604394; }
+.admin-answer-appeal-details small { color: #83869a; font-size: 9px; overflow-wrap: anywhere; }
 .admin-content-request-chapter { display: flex; flex-wrap: wrap; gap: 7px; color: #536359; font-size: 11px; }
 .admin-content-request-chapter b { color: #28734f; }
 .admin-content-request-question .bank-question-preview { max-width: none; margin: 0; gap: 8px; }
@@ -64,6 +68,10 @@ html[data-theme='dark'] .admin-content-request-context,
 html[data-theme='dark'] .admin-content-request-time { color: #b3c0b7; }
 html[data-theme='dark'] .admin-content-request-time::before { color: #9eaea3; }
 html[data-theme='dark'] .admin-content-request-chapter { color: #b3c0b7; }
+html[data-theme='dark'] .admin-answer-appeal-details { border-color: #493b61; background: #282235; }
+html[data-theme='dark'] .admin-answer-appeal-details p { color: #c4bbd4; }
+html[data-theme='dark'] .admin-answer-appeal-details p strong { color: #d2baff; }
+html[data-theme='dark'] .admin-answer-appeal-details small { color: #a59bb8; }
 html[data-theme='dark'] .admin-question-editor { border-color: #365844; background: #1b2a20; }
 html[data-theme='dark'] .admin-question-edit-field { color: #b3c0b7; }
 html[data-theme='dark'] .admin-question-edit-field input,
