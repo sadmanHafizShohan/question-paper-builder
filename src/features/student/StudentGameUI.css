@@ -6,6 +6,8 @@
 	--kid-blue: #bde9ff;
 	--kid-coral: #ffb4a7;
 	position: relative;
+	width: 100%;
+	min-width: 0;
 	isolation: isolate;
 	background:
 		radial-gradient(ellipse at 9% 6%, #f4eaff 0, transparent 29rem),
@@ -353,8 +355,11 @@
 }
 
 .student-portal .student-content {
-	width: min(1080px, calc(100% - 40px));
+	box-sizing: border-box;
+	width: min(1120px, 100%);
 	margin: 30px auto 68px;
+	padding-right: 20px;
+	padding-left: 20px;
 }
 
 .student-portal .student-question-bank-total {
@@ -1888,7 +1893,11 @@
 	}
 
 	.student-portal .student-content {
-		width: min(100% - 28px, 680px);
+		box-sizing: border-box;
+		width: 100%;
+		max-width: 708px;
+		padding-right: 14px;
+		padding-left: 14px;
 		margin-top: 22px;
 	}
 
@@ -1939,19 +1948,65 @@
 @media (max-width: 520px) {
 	.student-portal .student-header {
 		min-height: 66px;
+		gap: 6px;
+		padding-right: 8px;
+		padding-left: 8px;
 	}
 
 	.student-portal .student-brand > span {
-		width: 39px;
-		height: 39px;
+		width: 34px;
+		height: 34px;
 	}
 
-	.student-portal .student-brand strong { font-size: 17px; }
-	.student-portal .student-brand small { font-size: 10px; }
-	.student-portal .student-account { gap: 5px; }
-	.student-portal .student-profile-avatar { width: 36px; height: 36px; flex-basis: 36px; }
-	.student-portal .student-account .student-motion-toggle { width: 40px; overflow: hidden; font-size: 0; }
-	.student-portal .student-content { width: calc(100% - 22px); margin: 16px auto 40px; }
+	.student-portal .student-brand { min-width: 0; gap: 6px; }
+	.student-portal .student-brand strong { font-size: 15px; }
+	.student-portal .student-brand small { font-size: 9px; }
+	.student-portal .student-account {
+		min-width: 0;
+		gap: 3px;
+	}
+	.student-portal .student-account button {
+		width: 32px;
+		min-width: 32px;
+		height: 36px;
+		flex: 0 0 32px;
+		padding: 0;
+	}
+	.student-portal .student-account .student-teacher-nav-button {
+		width: 32px;
+		min-width: 32px;
+		flex-basis: 32px;
+	}
+	.student-portal .student-account button svg {
+		width: 15px;
+		height: 15px;
+	}
+	.student-portal .student-profile-avatar {
+		width: 32px;
+		height: 32px;
+		flex-basis: 32px;
+	}
+	.student-portal .student-account .student-motion-toggle {
+		width: 32px;
+		min-width: 32px;
+		flex-basis: 32px;
+		justify-content: center;
+		padding: 0;
+		overflow: hidden;
+		font-size: 0;
+	}
+	.student-portal .student-account .student-motion-toggle::before {
+		font-size: 16px;
+		line-height: 1;
+	}
+	.student-portal .student-account .student-motion-toggle[aria-pressed='true']::before { content: '✨'; }
+	.student-portal .student-account .student-motion-toggle[aria-pressed='false']::before { content: '🐢'; }
+	.student-portal .student-content {
+		width: 100%;
+		padding-right: 11px;
+		padding-left: 11px;
+		margin: 16px auto 40px;
+	}
 	.student-portal .student-question-bank-total { margin-bottom: 12px; }
 	.student-portal .student-collectibles { gap: 8px; }
 	.student-portal .student-streak-badge, .student-portal .student-star-badge { padding: 9px; }
@@ -2005,8 +2060,38 @@
 	.student-portal .student-podium-avatar { width: 42px; height: 42px; }
 	.student-portal .student-podium-place-1 .student-podium-avatar { width: 52px; height: 52px; }
 	.student-portal .student-podium-place strong { font-size: 11px; }
-	.student-portal .student-leaderboard { min-width: 490px; }
-	.student-portal .student-content-exam-active { width: calc(100% - 16px); }
+	.student-portal .student-leaderboard {
+		width: 100%;
+		min-width: 0;
+		table-layout: fixed;
+	}
+	.student-portal .student-leaderboard th,
+	.student-portal .student-leaderboard td {
+		padding: 8px 5px;
+		overflow-wrap: anywhere;
+	}
+	.student-portal .student-leaderboard th:first-child,
+	.student-portal .student-leaderboard td:first-child { width: 42px; }
+	.student-portal .student-leaderboard th:nth-child(3),
+	.student-portal .student-leaderboard td:nth-child(3) { width: 76px; }
+	.student-portal .student-leaderboard th:last-child,
+	.student-portal .student-leaderboard td:last-child { width: 52px; }
+	.student-portal .student-rank-person {
+		width: 100%;
+		min-width: 0;
+		gap: 5px;
+	}
+	.student-portal .student-rank-avatar { width: 28px; height: 28px; flex-basis: 28px; }
+	.student-portal .student-rank-person > span:last-child {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.student-portal .student-content-exam-active {
+		width: 100%;
+		max-width: none;
+		padding-right: 8px;
+		padding-left: 8px;
+	}
 }
 
 .student-portal.student-reduce-motion *,
