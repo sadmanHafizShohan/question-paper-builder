@@ -89,10 +89,6 @@ export default function KidSelect({
 
   return (
     <div className={`kid-select${open ? ' is-open' : ''}${disabled ? ' is-disabled' : ''}`} ref={rootRef}>
-      <div className="kid-select-label">
-        <span className="kid-select-label-icon" aria-hidden="true">{labelIcon}</span>
-        <span>{label}</span>
-      </div>
       <button
         ref={triggerRef}
         type="button"
