@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
+  Award,
   BookOpen,
   Building2,
   Check,
@@ -13,16 +14,19 @@ import {
   GraduationCap,
   Layers3,
   Menu,
+  Moon,
   Printer,
   Search,
   Shapes,
   Sparkles,
+  Sun,
   Users,
   X,
 } from 'lucide-react'
 import './PublicLandingPage.css'
 import QuestionBankTotal from '../../components/question-bank/QuestionBankTotal.jsx'
 import { apiUrl } from '../../shared/api.js'
+import { useThemeMode } from '../../shared/theme.js'
 
 const features = [
   {
@@ -91,6 +95,10 @@ const audiences = [
   },
 ]
 
+const subjects = ['গণিত', 'পদার্থবিজ্ঞান', 'রসায়ন', 'জীববিজ্ঞান', 'ইংরেজি', 'বাংলা', 'ICT', 'ইতিহাস', 'ভূগোল']
+const platformTools = ['প্রশ্ন ব্যাংক', 'MCQ', 'সৃজনশীল', 'Excel ইম্পোর্ট', 'PDF প্রিন্ট', 'অনলাইন পরীক্ষা', 'লিডারবোর্ড', 'কোচিং ম্যানেজমেন্ট', 'ব্যাচ ও ফি']
+const mathSymbols = ['∑', 'π', '√', 'x²', 'Δ', '∞', 'θ', '÷']
+
 const steps = [
   {
     number: '০১',
@@ -104,9 +112,36 @@ const steps = [
   },
   {
     number: '০৩',
-    title: 'প্রশ্নপত্র তৈরি করুন এবং ব্যবহার করুন।',
-    description: 'প্রিভিউ দেখে তৈরি প্রশ্নপত্র PDF হিসেবে সংরক্ষণ বা প্রিন্ট করুন।',
+    title: 'প্রশ্নপত্র তৈরি ও পরীক্ষা নিন।',
+    description: 'প্রশ্নপত্র প্রিভিউ দেখে PDF হিসেবে সংরক্ষণ বা অনলাইন পরীক্ষা নিন।',
   },
+  {
+    number: '০৪',
+    title: 'ফলাফল ও অগ্রগতি দেখুন।',
+    description: 'পরীক্ষার ফলাফল পর্যালোচনা করে শিক্ষার্থীর অগ্রগতি বুঝুন।',
+  },
+]
+
+const scoreHistory = [
+  { label: '১ম', value: 45 },
+  { label: '২য়', value: 62 },
+  { label: '৩য়', value: 55 },
+  { label: '৪র্থ', value: 78 },
+  { label: '৫ম', value: 70 },
+  { label: '৬ষ্ঠ', value: 92 },
+]
+
+const leaderboard = [
+  { name: 'রিয়া সুলতানা', score: '৯৮' },
+  { name: 'তানভীর আহমেদ', score: '৯৪' },
+  { name: 'মিম আক্তার', score: '৯১' },
+]
+
+const dashboardStats = [
+  { value: '৩', title: 'প্রশ্নের ধরন', detail: 'MCQ, সৃজনশীল, সংক্ষিপ্ত', progress: 76 },
+  { value: '৪', title: 'সহজ ধাপ', detail: 'খুঁজুন থেকে ফলাফল', progress: 88 },
+  { value: '৩', title: 'ভূমিকা', detail: 'শিক্ষক, শিক্ষার্থী, প্রতিষ্ঠান', progress: 66 },
+  { value: '১', title: 'ক্লিকে PDF', detail: 'প্রিভিউ দেখে প্রিন্ট', progress: 94 },
 ]
 
 function PaperPreview() {
@@ -188,10 +223,186 @@ function PlatformIllustration() {
   )
 }
 
+function ResultsInsights() {
+  return (
+    <div className="landing-insights-grid">
+      <article className="landing-insight-card">
+        <div className="landing-insight-heading">
+          <span className="landing-insight-icon"><Sparkles size={18} /></span>
+          <div><h3>ফলাফল বিশ্লেষণ</h3><p>প্রতিটি পরীক্ষার পর অগ্রগতি এক নজরে।</p></div>
+        </div>
+        <div className="landing-score-chart" role="img" aria-label="ছয়টি পরীক্ষায় নম্বরের উন্নতির বার চার্ট">
+          {scoreHistory.map(({ label, value }) => (
+            <div className="landing-score-column" key={label}>
+              <span className="landing-score-value">{value}%</span>
+              <i style={{ '--score-height': `${value}%` }} />
+              <small>{label}</small>
+            </div>
+          ))}
+        </div>
+        <p className="landing-chart-caption">পরপর ছয়টি পরীক্ষার গড় নম্বর</p>
+      </article>
+
+      <article className="landing-insight-card landing-leaderboard-card">
+        <div className="landing-insight-heading">
+          <span className="landing-insight-icon landing-insight-icon-warm"><Award size={19} /></span>
+          <div><h3>লিডারবোর্ড</h3><p>সেরাদের অগ্রগতি দেখে নিন।</p></div>
+        </div>
+        <div className="landing-leaderboard">
+          {leaderboard.map(({ name, score }, index) => (
+            <div className="landing-leader-row" key={name}>
+              <span className={`landing-leader-rank landing-leader-rank-${index + 1}`}>০{index + 1}</span>
+              <span className="landing-leader-avatar">{name.slice(0, 1)}</span>
+              <strong>{name}</strong>
+              <b>{score}<small> পয়েন্ট</small></b>
+            </div>
+          ))}
+        </div>
+      </article>
+    </div>
+  )
+}
+
+function DashboardShowcase() {
+  return (
+    <>
+      <div className="landing-dashboard-stats">
+        {dashboardStats.map(({ value, title, detail, progress }, index) => (
+          <article className="landing-dashboard-stat" key={title}>
+            <div className={`landing-stat-ring landing-stat-ring-${index + 1}`} style={{ '--progress': `${progress}%` }}>
+              <span>{value}</span>
+            </div>
+            <h3>{title}</h3>
+            <p>{detail}</p>
+          </article>
+        ))}
+      </div>
+      <div className="landing-dashboard-grid">
+        <article className="landing-dashboard-card landing-exam-card">
+          <div className="landing-exam-heading">
+            <span className="landing-timer-ring"><Clock3 size={24} /></span>
+            <div><h3>অনলাইন পরীক্ষা</h3><p>সময় শেষ হওয়ার আগেই উত্তর দিন</p></div>
+            <span className="landing-exam-status"><i /> চলছে</span>
+          </div>
+          <div className="landing-exam-question">
+            <small>প্রশ্ন ০৭ <span>•</span> গণিত</small>
+            <strong>২ + ৩ × ৪ = ?</strong>
+          </div>
+          <div className="landing-exam-options">
+            <span>ক) ২০</span>
+            <span>খ) ১০</span>
+            <span className="is-selected">গ) ১৪ <Check size={15} /></span>
+            <span>ঘ) ২৪</span>
+          </div>
+          <div className="landing-exam-progress"><i /></div>
+          <div className="landing-exam-footer"><span>সময় বাকি</span><strong>১২:৪৮</strong><span>০৭ / ২০</span></div>
+        </article>
+
+        <article className="landing-dashboard-card landing-progress-card">
+          <div className="landing-insight-heading">
+            <span className="landing-insight-icon"><CheckCircle2 size={18} /></span>
+            <div><h3>অগ্রগতি ও উত্তরের হিসাব</h3><p>আপনার শেখার অগ্রগতি</p></div>
+          </div>
+          <svg className="landing-progress-chart" viewBox="0 0 320 150" role="img" aria-label="পরীক্ষার ফলাফলে উন্নতির রেখাচিত্র">
+            <defs>
+              <linearGradient id="landing-chart-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="var(--landing-accent)" stopOpacity=".28" />
+                <stop offset="1" stopColor="var(--landing-accent)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path className="landing-progress-area" d="M8 126 C38 117 45 95 78 101 S116 70 148 76 S190 49 220 55 S270 25 312 15 V142 H8 Z" />
+            <path className="landing-progress-line" d="M8 126 C38 117 45 95 78 101 S116 70 148 76 S190 49 220 55 S270 25 312 15" />
+            <circle cx="148" cy="76" r="4" />
+            <circle cx="312" cy="15" r="5" />
+          </svg>
+          <div className="landing-answer-summary">
+            <div className="landing-answer-donut" role="img" aria-label="সঠিক উত্তর ৬০ শতাংশ, আংশিক ২৫ শতাংশ, ভুল ১৫ শতাংশ">
+              <span>৮৫<small>%</small></span>
+            </div>
+            <ul>
+              <li><i className="answer-correct" />সঠিক উত্তর <strong>৬০%</strong></li>
+              <li><i className="answer-partial" />আংশিক <strong>২৫%</strong></li>
+              <li><i className="answer-wrong" />ভুল উত্তর <strong>১৫%</strong></li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </>
+  )
+}
+
+function CurriculumOrbit() {
+  const mobileOrbitAngles = [[70, 250], [0, 105, 180], [45, 135, 225, 315]]
+
+  return (
+    <section className="landing-curriculum landing-section" aria-labelledby="landing-curriculum-title">
+      <div className="landing-curriculum-inner">
+        <div className="landing-curriculum-visual" aria-hidden="true">
+          {[subjects.slice(0, 2), subjects.slice(2, 5), subjects.slice(5)].map((ringSubjects, ringIndex) => (
+            <div className={`landing-subject-orbit landing-subject-orbit-${ringIndex + 1}`} key={ringIndex}>
+              {ringSubjects.map((subject, subjectIndex) => {
+                const angle = (360 / ringSubjects.length) * subjectIndex + ringIndex * 25
+                const mobileAngle = mobileOrbitAngles[ringIndex][subjectIndex]
+                return (
+                  <span
+                    className="landing-subject-node"
+                    key={subject}
+                    style={{
+                      '--node-angle': `${angle}deg`,
+                      '--counter-angle': `${angle * -1}deg`,
+                      '--mobile-node-angle': `${mobileAngle}deg`,
+                      '--mobile-counter-angle': `${mobileAngle * -1}deg`,
+                    }}
+                  >
+                    <i>{subject}</i>
+                  </span>
+                )
+              })}
+            </div>
+          ))}
+          <div className="landing-curriculum-core"><BookOpen size={29} /><strong>প্রশ্নঘর</strong></div>
+          <span className="landing-curriculum-spark curriculum-spark-one"><Sparkles size={18} /></span>
+          <span className="landing-curriculum-spark curriculum-spark-two"><Sparkles size={14} /></span>
+        </div>
+        <div className="landing-curriculum-copy">
+          <span className="landing-section-kicker">সব বিষয় এক জায়গায়</span>
+          <h2 id="landing-curriculum-title">প্রশ্নঘরকে ঘিরে ঘোরে পুরো পাঠ্যক্রম</h2>
+          <p>শ্রেণি, বিষয় আর অধ্যায় ধরে সাজানো প্রশ্ন ব্যাংক—যেকোনো বিষয় থেকে প্রশ্ন বেছে নিন বা নিজের প্রশ্ন যোগ করুন।</p>
+          <ul>
+            <li><Check size={16} />শ্রেণি অনুযায়ী বিষয় সাজানো</li>
+            <li><Check size={16} />অধ্যায়ভিত্তিক প্রশ্ন</li>
+            <li><Check size={16} />নিজের প্রশ্ন যোগ ও সম্পাদনা</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function PublicLandingPage() {
   const pageRef = useRef(null)
+  const scrollProgressRef = useRef(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [darkMode, setDarkMode] = useThemeMode()
   const closeMenu = () => setMenuOpen(false)
+
+  useEffect(() => {
+    const updateScrollProgress = () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight
+      const progress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0
+      if (scrollProgressRef.current) {
+        scrollProgressRef.current.style.transform = `scaleX(${progress})`
+      }
+    }
+
+    updateScrollProgress()
+    window.addEventListener('scroll', updateScrollProgress, { passive: true })
+    window.addEventListener('resize', updateScrollProgress)
+    return () => {
+      window.removeEventListener('scroll', updateScrollProgress)
+      window.removeEventListener('resize', updateScrollProgress)
+    }
+  }, [])
 
   useEffect(() => {
     const page = pageRef.current
@@ -273,6 +484,9 @@ export default function PublicLandingPage() {
           const revealGroups = [
             ['.landing-feature-card', '.landing-feature-grid'],
             ['.landing-step', '.landing-steps'],
+            ['.landing-insight-card', '.landing-insights-grid'],
+            ['.landing-dashboard-stat', '.landing-dashboard-stats'],
+            ['.landing-dashboard-card', '.landing-dashboard-grid'],
             ['.landing-audience-card', '.landing-audience-grid'],
             ['.landing-flow-node', '.landing-flow-visual'],
           ]
@@ -294,7 +508,7 @@ export default function PublicLandingPage() {
           })
 
           gsap.utils.toArray(
-            '.landing-section-heading, .landing-about-mark, .landing-about > div:nth-child(2), .landing-developer-photo-wrap, .landing-developer-copy, .landing-faq-list',
+            '.landing-section-heading, .landing-about-mark, .landing-about > div:nth-child(2), .landing-curriculum-copy, .landing-developer-photo-wrap, .landing-developer-copy, .landing-faq-list',
             page,
           ).forEach((element) => {
             gsap.from(element, {
@@ -324,6 +538,7 @@ export default function PublicLandingPage() {
 
   return (
     <div className="public-landing" ref={pageRef}>
+      <div className="landing-scroll-progress" ref={scrollProgressRef} aria-hidden="true" />
       <header className="landing-header">
         <div className="landing-header-inner">
           <a className="landing-brand" href="#" aria-label="প্রশ্নঘর হোম">
@@ -343,10 +558,21 @@ export default function PublicLandingPage() {
             <a href="#" onClick={closeMenu}>হোম</a>
             <a href="#features" onClick={closeMenu}>ফিচার</a>
             <a href="#how-it-works" onClick={closeMenu}>যেভাবে কাজ করে</a>
+            <a href="#dashboard" onClick={closeMenu}>পরীক্ষা</a>
             <a href="#roles" onClick={closeMenu}>কার জন্য</a>
-            <a href="#about" onClick={closeMenu}>আমাদের কথা</a>
-            <a href="#developer" onClick={closeMenu}>ডেভেলপার</a>
+            <a href="#developer" onClick={closeMenu}>আমাদের কথা</a>
+            <a href="#faq" onClick={closeMenu}>জিজ্ঞাসা</a>
             <div className="landing-nav-actions">
+              <button
+                className="landing-theme-toggle"
+                type="button"
+                aria-label={darkMode ? 'লাইট মোড চালু করুন' : 'ডার্ক মোড চালু করুন'}
+                aria-pressed={darkMode}
+                title={darkMode ? 'লাইট মোড' : 'ডার্ক মোড'}
+                onClick={() => setDarkMode((current) => !current)}
+              >
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
               <a className="landing-login-link" href="#/login" onClick={closeMenu}>লগইন</a>
               <a className="landing-register-link" href="#/register" onClick={closeMenu}>নিবন্ধন <ArrowRight size={15} /></a>
             </div>
@@ -356,6 +582,12 @@ export default function PublicLandingPage() {
 
       <main>
         <section className="landing-hero">
+          <div className="landing-hero-grid" aria-hidden="true" />
+          <div className="landing-hero-glow landing-hero-glow-blue" aria-hidden="true" />
+          <div className="landing-hero-glow landing-hero-glow-green" aria-hidden="true" />
+          <div className="landing-math-symbols" aria-hidden="true">
+            {mathSymbols.map((symbol, index) => <span key={symbol} style={{ '--symbol-index': index }}>{symbol}</span>)}
+          </div>
           <div className="landing-hero-inner">
             <div className="landing-hero-copy">
               <span className="landing-eyebrow"><span /> শিক্ষক · শিক্ষার্থী · শিক্ষা প্রতিষ্ঠান</span>
@@ -372,6 +604,15 @@ export default function PublicLandingPage() {
           </div>
           <div className="landing-hero-bottom" aria-hidden="true" />
         </section>
+
+        <div className="landing-marquees" aria-label="প্রশ্নঘরের বিষয় ও টুলসমূহ">
+          <div className="landing-marquee-track" aria-hidden="true">
+            {[...subjects, ...subjects].map((subject, index) => <span key={`${subject}-${index}`}>{subject}<i>✦</i></span>)}
+          </div>
+          <div className="landing-marquee-track landing-marquee-reverse" aria-hidden="true">
+            {[...platformTools, ...platformTools].map((tool, index) => <span key={`${tool}-${index}`}>{tool}<i>✦</i></span>)}
+          </div>
+        </div>
 
         <section className="landing-features landing-section" id="features">
           <div className="landing-section-heading">
@@ -396,7 +637,7 @@ export default function PublicLandingPage() {
         <section className="landing-work-section" id="how-it-works">
           <div className="landing-section landing-work-inner">
             <div className="landing-section-heading landing-work-heading">
-              <span className="landing-section-kicker">সহজ তিনটি ধাপ</span>
+              <span className="landing-section-kicker">সহজ চারটি ধাপ</span>
               <h2>ভাবনা থেকে প্রশ্নপত্র</h2>
               <p>আপনার পাঠের চাহিদা অনুযায়ী প্রশ্ন বেছে নিন, তারপর তৈরি প্রশ্নপত্রটি ব্যবহার করুন।</p>
             </div>
@@ -417,6 +658,7 @@ export default function PublicLandingPage() {
                 </div>
               ))}
             </div>
+            <ResultsInsights />
             <div className="landing-steps">
               {steps.map((step) => (
                 <article className="landing-step" key={step.number}>
@@ -428,6 +670,19 @@ export default function PublicLandingPage() {
             </div>
           </div>
         </section>
+
+        <section className="landing-dashboard-section landing-section" id="dashboard">
+          <div className="landing-dashboard-inner">
+            <div className="landing-section-heading">
+              <span className="landing-section-kicker">এক নজরে</span>
+              <h2>কাজ চলে, ফলাফল ফোটে—চোখের সামনেই</h2>
+              <p>পরীক্ষা, সময় আর অগ্রগতি—সবকিছু জীবন্ত ড্যাশবোর্ডে।</p>
+            </div>
+            <DashboardShowcase />
+          </div>
+        </section>
+
+        <CurriculumOrbit />
 
         <section className="landing-audience-section landing-section" id="roles">
           <div className="landing-section-heading">
