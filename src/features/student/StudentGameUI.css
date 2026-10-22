@@ -1891,6 +1891,9 @@
 		padding: 0 9px;
 		font-size: 11px;
 	}
+	.student-portal .student-account .student-motion-toggle {
+		display: none;
+	}
 
 	.student-portal .student-content {
 		box-sizing: border-box;
@@ -1948,48 +1951,48 @@
 @media (max-width: 520px) {
 	.student-portal .student-header {
 		min-height: 66px;
-		gap: 6px;
-		padding-right: 8px;
-		padding-left: 8px;
+		gap: 8px;
+		padding-right: 10px;
+		padding-left: 10px;
 	}
 
 	.student-portal .student-brand > span {
-		width: 34px;
-		height: 34px;
+		width: 36px;
+		height: 36px;
 	}
 
-	.student-portal .student-brand { min-width: 0; gap: 6px; }
-	.student-portal .student-brand strong { font-size: 15px; }
-	.student-portal .student-brand small { font-size: 9px; }
+	.student-portal .student-brand { min-width: 0; gap: 8px; }
+	.student-portal .student-brand strong { font-size: 16px; }
+	.student-portal .student-brand small { font-size: 10px; }
 	.student-portal .student-account {
 		min-width: 0;
-		gap: 3px;
+		gap: 5px;
 	}
 	.student-portal .student-account button {
-		width: 32px;
-		min-width: 32px;
-		height: 36px;
-		flex: 0 0 32px;
+		width: 34px;
+		min-width: 34px;
+		height: 38px;
+		flex: 0 0 34px;
 		padding: 0;
 	}
 	.student-portal .student-account .student-teacher-nav-button {
-		width: 32px;
-		min-width: 32px;
-		flex-basis: 32px;
+		width: 34px;
+		min-width: 34px;
+		flex-basis: 34px;
 	}
 	.student-portal .student-account button svg {
 		width: 15px;
 		height: 15px;
 	}
 	.student-portal .student-profile-avatar {
-		width: 32px;
-		height: 32px;
-		flex-basis: 32px;
+		width: 34px;
+		height: 34px;
+		flex-basis: 34px;
 	}
 	.student-portal .student-account .student-motion-toggle {
-		width: 32px;
-		min-width: 32px;
-		flex-basis: 32px;
+		width: 34px;
+		min-width: 34px;
+		flex-basis: 34px;
 		justify-content: center;
 		padding: 0;
 		overflow: hidden;
