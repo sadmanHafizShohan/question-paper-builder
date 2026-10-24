@@ -1581,11 +1581,18 @@ router.patch('/centers/:centerId/fees/:feeId/void', requireCenterMembership, req
     if (!mongoose.isValidObjectId(feeId)) return response.status(400).json({ error: 'Invalid fee receipt' })
     const { centerId } = request.coachingMembership
     const record = await CoachingFeeRecord.findOneAndUpdate(
-      { _id: feeId, centerId, status: 'active' },
+      {
+        _id: feeId,
+        centerId,
+        $or: [
+          { status: 'active' },
+          { status: { $exists: false } },
+        ],
+      },
       { $set: { status: 'voided', voidedAt: new Date(), voidedBy: request.firebaseUser.uid, voidReason: reason } },
       { new: true, runValidators: true },
     )
-    if (!record) return response.status(404).json({ error: 'Active fee receipt not found in this center' })
+    if (!record) return response.status(404).json({ error: 'Active fee receipt not found in this center; it may already be voided' })
     await CoachingAuditEvent.create({
       centerId,
       actorId: request.firebaseUser.uid,
