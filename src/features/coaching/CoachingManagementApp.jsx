@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ArrowLeft, BookOpen, Building2, CalendarCheck, Check, ClipboardList, Clock3, Download, FileText, GraduationCap, Megaphone, Moon, Pencil, Plus, Printer, Receipt, RefreshCw, Search, Sun, Trash2, UserRound, Users, X } from 'lucide-react'
+import { AlertTriangle, Archive, ArrowLeft, BookOpen, Building2, CalendarCheck, Check, ClipboardList, Clock3, Download, FileText, GraduationCap, Megaphone, Moon, Pencil, Plus, Printer, Receipt, RefreshCw, Search, Sun, Trash2, UserRound, Users, X } from 'lucide-react'
 import authenticatedFetch from '../../shared/authenticatedFetch.js'
 import LoadingStatus from '../../components/ui/LoadingStatus.jsx'
 import { bengaliNumber } from '../../shared/formatting.js'
@@ -26,6 +26,15 @@ const navigationGroups = [
   { id: 'setup', label: 'প্রস্তুতি ও তালিকা' },
   { id: 'daily', label: 'দৈনন্দিন পরিচালনা' },
 ]
+
+const dailyActionDescriptions = {
+  attendance: 'আজকের হাজিরা নিন',
+  schedule: 'ক্লাসের সময়সূচি দেখুন',
+  fees: 'ফি সংগ্রহ ও রসিদ',
+  operations: 'বকেয়া তালিকা ও রিপোর্ট',
+  exams: 'পরীক্ষা নিন, ফলাফল দিন',
+  notices: 'শিক্ষার্থী ও অভিভাবককে জানান',
+}
 
 function localDateValue() {
   const date = new Date()
@@ -103,6 +112,7 @@ function emptyAdmissionForm() {
     dateOfBirth: '',
     previousGrade: '',
     grade: '7',
+    monthlyFee: '',
     phone: '',
     email: '',
     photoURL: '',
@@ -314,6 +324,8 @@ export default function CoachingManagementApp({ user, role, onBack }) {
   const [teacherForm, setTeacherForm] = useState({ name: '', phone: '', email: '', subjects: '' })
   const [batchForm, setBatchForm] = useState({ name: '', grade: '7', subject: '', teacherId: '', schedule: '' })
   const [enrollmentForm, setEnrollmentForm] = useState({ batchId: '', studentId: '' })
+  const [batchPanelMode, setBatchPanelMode] = useState('enroll')
+  const [batchPanelOpen, setBatchPanelOpen] = useState(true)
   const [centerForm, setCenterForm] = useState({ name: '', address: '', contactPhone: '' })
   const [attendanceBatchId, setAttendanceBatchId] = useState('')
   const [attendanceDate, setAttendanceDate] = useState(localDateValue)
@@ -325,6 +337,12 @@ export default function CoachingManagementApp({ user, role, onBack }) {
   const [feeFormMonth, setFeeFormMonth] = useState(() => localDateValue().slice(0, 7))
   const [feeRecords, setFeeRecords] = useState([])
   const [feeSummary, setFeeSummary] = useState({ total: 0, count: 0, truncated: false })
+  const [monthlyFeeReport, setMonthlyFeeReport] = useState(null)
+  const [monthlyFeeLoadedKey, setMonthlyFeeLoadedKey] = useState('')
+  const [monthlyFeeGrade, setMonthlyFeeGrade] = useState('all')
+  const [monthlyFeeBatch, setMonthlyFeeBatch] = useState('all')
+  const [monthlyFeeStatus, setMonthlyFeeStatus] = useState('all')
+  const [monthlyPaymentMethod, setMonthlyPaymentMethod] = useState('cash')
   const [feeLoadedKey, setFeeLoadedKey] = useState('')
   const [feeRefreshToken, setFeeRefreshToken] = useState(0)
   const [feeForm, setFeeForm] = useState({ studentId: '', amount: '', paymentDate: localDateValue(), category: 'tuition', method: 'cash', reference: '', note: '' })
@@ -363,6 +381,24 @@ export default function CoachingManagementApp({ user, role, onBack }) {
   const selectedExam = exams.find((exam) => exam.id === selectedExamId) ?? null
   const canManage = ['owner', 'manager'].includes(activeCenter?.role)
   const endpoint = activeCenter ? `/centers/${encodeURIComponent(activeCenter.id)}` : ''
+  const currentDate = new Date()
+  const greeting = currentDate.getHours() < 5 ? 'শুভ রাত্রি'
+    : currentDate.getHours() < 12 ? 'সুপ্রভাত'
+      : currentDate.getHours() < 16 ? 'শুভ দুপুর'
+        : currentDate.getHours() < 18 ? 'শুভ বিকেল' : 'শুভ সন্ধ্যা'
+  const formattedToday = new Intl.DateTimeFormat('bn-BD', { dateStyle: 'full' }).format(currentDate)
+  const weekStart = new Date(currentDate)
+  weekStart.setDate(currentDate.getDate() - ((currentDate.getDay() + 1) % 7))
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + index)
+    return {
+      date,
+      label: date.toLocaleDateString('bn-BD', { weekday: 'short' }),
+      number: date.toLocaleDateString('bn-BD', { day: 'numeric' }),
+      isToday: date.toDateString() === currentDate.toDateString(),
+    }
+  })
   const availableTabs = useMemo(() => tabs.filter((tab) => canManage
     || ['overview', 'batches'].includes(tab.id)
     || (activeCenter?.role === 'teacher' && ['teachers', 'attendance', 'schedule', 'exams', 'notices'].includes(tab.id))
@@ -436,6 +472,9 @@ export default function CoachingManagementApp({ user, role, onBack }) {
     ? `${activeCenter.id}:${selectedAttendanceBatchId}:${attendanceDate}:${attendanceRefreshToken}`
     : ''
   const feeQueryKey = activeCenter ? `${activeCenter.id}:${feeMonth}:${feeRefreshToken}` : ''
+  const monthlyFeeReportQueryKey = activeCenter
+    ? `${activeCenter.id}:${feeMonth}:${monthlyFeeGrade}:${monthlyFeeBatch}:${monthlyFeeStatus}:${feeRefreshToken}`
+    : ''
   const examsQueryKey = activeCenter ? `${activeCenter.id}:${canManage ? examStatusFilter : 'active'}:${examRefreshToken}` : ''
   const examResultsQueryKey = activeCenter && selectedExamId
     ? `${activeCenter.id}:${selectedExamId}:${examResultsRefreshToken}`
@@ -497,6 +536,28 @@ export default function CoachingManagementApp({ user, role, onBack }) {
       })
     return () => { active = false }
   }, [activeTab, endpoint, feeMonth, feeQueryKey])
+
+  useEffect(() => {
+    if (activeTab !== 'fees' || !feeQueryKey) return undefined
+    let active = true
+    const query = new URLSearchParams({ month: feeMonth, status: monthlyFeeStatus })
+    if (monthlyFeeGrade !== 'all') query.set('grade', monthlyFeeGrade)
+    if (monthlyFeeBatch !== 'all') query.set('batchId', monthlyFeeBatch)
+    authenticatedFetch(`${apiUrl}/coaching${endpoint}/fees/monthly?${query}`)
+      .then(readResponse)
+      .then((result) => {
+        if (!active) return
+        setMonthlyFeeReport(result)
+        setMonthlyFeeLoadedKey(monthlyFeeReportQueryKey)
+      })
+      .catch((loadError) => {
+        if (!active) return
+        setMonthlyFeeReport(null)
+        setMonthlyFeeLoadedKey(monthlyFeeReportQueryKey)
+        setError(messageOf(loadError, 'মাসিক ফি রিপোর্ট লোড করা যায়নি।'))
+      })
+    return () => { active = false }
+  }, [activeTab, endpoint, feeMonth, feeQueryKey, monthlyFeeBatch, monthlyFeeGrade, monthlyFeeReportQueryKey, monthlyFeeStatus])
 
   useEffect(() => {
     if (activeTab !== 'exams' || !examsQueryKey) return undefined
@@ -686,6 +747,29 @@ export default function CoachingManagementApp({ user, role, onBack }) {
       await loadOverview()
     } catch (updateError) {
       setError(messageOf(updateError, 'শিক্ষার্থীর তথ্য আপডেট করা যায়নি।'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function updateMonthlyFeeStatus(student, status) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await readResponse(await authenticatedFetch(
+        `${apiUrl}/coaching${endpoint}/fees/monthly/${encodeURIComponent(student.studentId)}/status`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ month: feeMonth, status, method: monthlyPaymentMethod }),
+        },
+      ))
+      setMonthlyFeeReport(result)
+      setFeeRefreshToken((current) => current + 1)
+      setNotice(`${student.studentName}-এর ${feeMonth} মাসের ফি ${status === 'paid' ? 'জমা' : 'বকেয়া'} হিসেবে সংরক্ষিত হয়েছে।`)
+    } catch (updateError) {
+      setError(messageOf(updateError, 'মাসিক ফি স্ট্যাটাস পরিবর্তন করা যায়নি।'))
     } finally {
       setBusy(false)
     }
@@ -928,6 +1012,8 @@ export default function CoachingManagementApp({ user, role, onBack }) {
     { id: 'batches', title: 'ব্যাচ তৈরি', detail: 'ব্যাচে শিক্ষার্থী যুক্ত করুন', count: overview?.batches.length ?? 0, icon: BookOpen },
   ]
   const setupProgress = setupTasks.filter((task) => task.count > 0).length
+  const activeEnrollmentCount = overview?.enrollments.filter((enrollment) => enrollment.status === 'active').length ?? 0
+  const batchesWithoutTeacher = overview?.batches.filter((batch) => !batch.teacherId).length ?? 0
 
   function navigateToTab(tabId) {
     setDirectorySearch('')
@@ -936,6 +1022,8 @@ export default function CoachingManagementApp({ user, role, onBack }) {
 
   function openBatchEnrollment(batchId) {
     setEnrollmentForm({ batchId, studentId: '' })
+    setBatchPanelMode('enroll')
+    setBatchPanelOpen(true)
     window.requestAnimationFrame(() => {
       document.getElementById('coaching-enrollment-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     })
@@ -1006,16 +1094,18 @@ export default function CoachingManagementApp({ user, role, onBack }) {
   }
 
   return (
-    <main className="coaching-app">
+    <main className={`coaching-app coaching-app-${activeTab}`}>
       <header className="coaching-topbar">
         <div className="coaching-brand">
           <span className="coaching-brand-mark"><Building2 size={20} /></span>
           <span><strong>কোচিং ম্যানেজমেন্ট</strong><small>প্রশ্নঘর · আলাদা workspace</small></span>
         </div>
         <div className="coaching-topbar-actions">
-          <span className="coaching-account-name">{user.displayName || user.email}</span>
+          <span className="coaching-account">
+            <span className="coaching-account-avatar" aria-hidden="true">{(user.displayName || user.email || 'U').charAt(0).toUpperCase()}</span>
+            <span className="coaching-account-name">{user.displayName || user.email}</span>
+          </span>
           {centers.length > 0 && <label className="coaching-center-picker">
-            <span>সেন্টার</span>
             <select value={activeCenter?.id ?? ''} onChange={(event) => { setSelectedCenterId(event.target.value); setOverview(null); setStudentSummary(null); navigateToTab('overview'); setAttendanceBatchId(''); setSelectedExamId(''); setError('') }}>
               {centers.map((center) => <option key={center.id} value={center.id}>{center.name} · {roleLabel(center.role)}</option>)}
             </select>
@@ -1038,12 +1128,25 @@ export default function CoachingManagementApp({ user, role, onBack }) {
         </div>
       </header>
 
-      <div className="coaching-content">
-        <section className="coaching-page-heading">
-          <div><span className="coaching-eyebrow">কেন্দ্রভিত্তিক পরিচালনা</span><h1>{activeCenter?.name ?? 'আপনার কোচিং সেন্টার'}</h1><p>শিক্ষার্থী, শিক্ষক, ব্যাচ, attendance, schedule, fee, ফলাফল ও notice পরিচালনা করুন।</p></div>
-          {activeCenter && <span className="coaching-role-badge">{roleLabel(activeCenter.role)}</span>}
-        </section>
+      <section className="coaching-hero">
+        <Building2 className="coaching-hero-watermark" aria-hidden="true" />
+        <div className="coaching-hero-inner">
+          <div className="coaching-hero-copy">
+            <span className="coaching-hero-eyebrow">কেন্দ্রভিত্তিক পরিচালনা</span>
+            <h1>{activeCenter?.name ?? 'আপনার কোচিং সেন্টার'}</h1>
+            <p>শিক্ষার্থী, শিক্ষক, ব্যাচ, attendance, schedule, fee, ফলাফল ও notice পরিচালনা করুন।</p>
+          </div>
+          <div className="coaching-hero-meta">
+            <strong>{greeting}, {user.displayName || 'ব্যবহারকারী'}</strong>
+            <div>
+              <span>{formattedToday}</span>
+              {activeCenter && <span className="coaching-hero-role"><i />{roleLabel(activeCenter.role)}</span>}
+            </div>
+          </div>
+        </div>
+      </section>
 
+      <div className="coaching-content">
         {error && <div className="coaching-alert coaching-alert-error" role="alert">{error}</div>}
         {notice && <div className="coaching-alert coaching-alert-success" role="status"><Check size={16} />{notice}</div>}
 
@@ -1112,7 +1215,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                 </nav>
               </aside>
               <div className="coaching-workspace-main">
-                {activeTabInfo && <section className={`coaching-section-heading coaching-section-${activeTab}`}>
+                {activeTabInfo && activeTab !== 'batches' && <section className={`coaching-section-heading coaching-section-${activeTab}`}>
                   <span className="coaching-section-icon"><activeTabInfo.icon size={22} /></span>
                   <div><span className="coaching-eyebrow">{navigationGroups.find((group) => group.id === activeTabInfo.group)?.label}</span><h2>{activeTabInfo.label}</h2><p>{activeTabInfo.description}</p></div>
                 </section>}
@@ -1123,41 +1226,63 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                   <article className="coaching-stat"><span><Users size={18} /></span><small>শিক্ষক</small><strong>{bengaliNumber(overview.teachers.length)}</strong></article>
                   <article className="coaching-stat"><span><BookOpen size={18} /></span><small>সক্রিয় ব্যাচ</small><strong>{bengaliNumber(overview.batches.length)}</strong></article>
                   <article className="coaching-stat"><span><ClipboardList size={18} /></span><small>Enrollment</small><strong>{bengaliNumber(overview.enrollments.filter((enrollment) => enrollment.status === 'active').length)}</strong></article>
-                  {dashboard?.due && <article className="coaching-stat coaching-stat-due" role="button" tabIndex="0" onClick={() => navigateToTab('operations')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') navigateToTab('operations') }}><span><Receipt size={18} /></span><small>মাসিক বকেয়া</small><strong>{formatCurrency(dashboard.due.overdue)}</strong><small>{bengaliNumber(dashboard.due.overdueStudents)} জনের সময় পেরিয়েছে</small></article>}
+                  {dashboard?.due && <article className="coaching-stat coaching-stat-due" role="button" tabIndex="0" onClick={() => navigateToTab('operations')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') navigateToTab('operations') }}><span><Receipt size={18} /></span><small>মাসিক বকেয়া</small><div className="coaching-stat-value"><strong>{formatCurrency(dashboard.due.overdue)}</strong><small>{bengaliNumber(dashboard.due.overdueStudents)} জনের সময় পেরিয়েছে</small></div></article>}
                 </div>
+                {dashboard?.monthlyFees && <section className="coaching-monthly-finance" aria-label="মাসিক ফি সারাংশ">
+                  {[
+                    ['এই মাসে প্রত্যাশিত', dashboard.monthlyFees.current.expected, 'current'],
+                    ['এই মাসে আদায়', dashboard.monthlyFees.current.collected, 'collected'],
+                    ['এই মাসে বকেয়া', dashboard.monthlyFees.current.outstanding, 'due'],
+                    ['আগামী মাসে প্রত্যাশিত', dashboard.monthlyFees.next.expected, 'next'],
+                    ['গত মাসে আদায়', dashboard.monthlyFees.previous.collected, 'collected'],
+                    ['গত মাসে বকেয়া', dashboard.monthlyFees.previous.outstanding, 'due'],
+                  ].map(([label, amount, kind]) => <article className={`coaching-monthly-finance-card coaching-monthly-finance-${kind}`} key={label}>
+                    <small>{label}</small><strong>{formatCurrency(amount)}</strong>
+                  </article>)}
+                </section>}
                 {dashboard && <div className="coaching-management-grid coaching-today-grid">
                   <section className="coaching-panel coaching-list-panel">
                     <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">আজকের ক্লাস</span><h2>{formatDate(dashboard.date)} · {bengaliNumber(dashboard.todaySessions.length)}টি</h2></div><button type="button" className="coaching-button coaching-button-muted" onClick={() => navigateToTab('schedule')}>ক্যালেন্ডার</button></div>
-                    {!dashboard.todaySessions.length ? <p className="coaching-muted">আজ কোনো ক্লাস নির্ধারিত নেই।</p>
+                    <div className="coaching-week-strip" aria-label="এই সপ্তাহ">
+                      {weekDays.map((day) => <div className={day.isToday ? 'is-today' : ''} key={day.date.toISOString()}>
+                        <span>{day.label}</span><strong>{day.number}</strong>
+                      </div>)}
+                    </div>
+                    {!dashboard.todaySessions.length ? <div className="coaching-empty-state coaching-empty-state-today" role="status">আজ কোনো ক্লাস নির্ধারিত নেই।</div>
                       : <div className="coaching-record-list">{dashboard.todaySessions.map((session) => <article className="coaching-record" key={session.id}><span className="coaching-record-avatar"><Clock3 size={17} /></span><span className="coaching-record-main"><strong>{session.batchId?.name || 'ব্যাচ'} · {session.title || session.batchId?.subject}</strong><small>{session.startTime}–{session.endTime} · শিক্ষক {session.batchId?.teacherId?.name || 'নির্ধারিত নয়'}</small><small>{session.marked} / {session.enrolled} জনের হাজিরা · {session.attendancePending ? `${bengaliNumber(session.attendancePending)} জনের বাকি` : 'হাজিরা সম্পূর্ণ'}</small></span>{canManage || activeCenter.role === 'teacher' ? <button type="button" className="coaching-button coaching-button-muted" onClick={() => { setAttendanceBatchId(session.batchId?.id ?? session.batchId?._id); setAttendanceDate(dashboard.date); navigateToTab('attendance') }}>হাজিরা</button> : null}</article>)}</div>}
                   </section>
                   <section className="coaching-panel coaching-list-panel">
                     <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">শিগগিরই</span><h2>আসন্ন ক্লাস ও পরীক্ষা</h2></div></div>
-                    {!dashboard.upcomingSessions.length && !dashboard.upcomingExams.length ? <p className="coaching-muted">আগামী ৩০ দিনে কোনো ক্লাস বা পরীক্ষা নেই।</p>
+                    {!dashboard.upcomingSessions.length && !dashboard.upcomingExams.length ? <div className="coaching-empty-state coaching-empty-state-upcoming" role="status">আগামী ৩০ দিনে কোনো ক্লাস বা পরীক্ষা নেই।</div>
                       : <div className="coaching-record-list">{[...dashboard.upcomingSessions.map((item) => ({ ...item, kind: 'session' })), ...dashboard.upcomingExams.map((item) => ({ ...item, kind: 'exam', date: item.examDate }))].sort((left, right) => left.date.localeCompare(right.date)).slice(0, 8).map((item) => <article className="coaching-record" key={`${item.kind}:${item.id}`}><span className="coaching-record-avatar">{item.kind === 'exam' ? <FileText size={17} /> : <CalendarCheck size={17} />}</span><span className="coaching-record-main"><strong>{item.kind === 'exam' ? item.title : item.title || item.batchId?.subject} · {item.batchId?.name || 'ব্যাচ'}</strong><small>{formatDate(item.date)}{item.kind === 'session' ? ` · ${item.startTime}–${item.endTime}` : ''}</small></span></article>)}</div>}
                   </section>
                 </div>}
-                <section className="coaching-panel">
-                  {canManage ? <>
+                {canManage && <section className="coaching-daily-work">
+                  <h2>দৈনন্দিন কাজ</h2>
+                  <div className="coaching-quick-actions">
+                    {availableTabs.filter((tab) => ['attendance', 'schedule', 'fees', 'operations', 'exams', 'notices'].includes(tab.id)).map((tab) => {
+                      const Icon = tab.icon
+                      return <button type="button" key={tab.id} onClick={() => navigateToTab(tab.id)}>
+                        <Icon size={21} />
+                        <span className="coaching-quick-action-copy"><strong>{tab.label}</strong><small>{dailyActionDescriptions[tab.id]}</small></span>
+                        <ArrowLeft size={18} className="coaching-quick-action-arrow" />
+                      </button>
+                    })}
+                  </div>
+                </section>}
+                {canManage ? <section className="coaching-panel coaching-setup-panel">
                     <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">প্রথমবার সেটআপ</span><h2>৩ ধাপে আপনার সেন্টার প্রস্তুত করুন</h2><p>শিক্ষার্থী ও শিক্ষক যোগ করে ব্যাচ তৈরি করুন। প্রতিটি ধাপ এখান থেকেই খুলবে।</p></div><strong className="coaching-setup-count">{bengaliNumber(setupProgress)} / {bengaliNumber(setupTasks.length)} সম্পন্ন</strong></div>
                     <div className="coaching-setup-progress" role="progressbar" aria-label="সেন্টার সেটআপ অগ্রগতি" aria-valuemin="0" aria-valuemax={setupTasks.length} aria-valuenow={setupProgress}><span style={{ width: `${setupProgress / setupTasks.length * 100}%` }} /></div>
                     <div className="coaching-setup-list">{setupTasks.map((task, index) => {
-                      const Icon = task.icon
                       const complete = task.count > 0
                       return <button type="button" className={`coaching-setup-step${complete ? ' complete' : ''}`} key={task.id} onClick={() => navigateToTab(task.id)}>
                         <span className="coaching-setup-step-number">{complete ? <Check size={16} /> : bengaliNumber(index + 1)}</span>
-                        <Icon size={19} className="coaching-setup-step-icon" />
                         <span className="coaching-setup-step-copy"><strong>{task.title}</strong><small>{complete ? `${bengaliNumber(task.count)}টি যোগ হয়েছে` : task.detail}</small></span>
                         <span className="coaching-setup-step-action">{complete ? 'আরও যোগ' : 'শুরু করুন'} <ArrowLeft size={14} /></span>
                       </button>
                     })}</div>
-                    <div className="coaching-quick-links"><span>দৈনন্দিন কাজ</span><div className="coaching-quick-actions">
-                      {availableTabs.filter((tab) => ['attendance', 'schedule', 'fees', 'operations', 'exams', 'notices'].includes(tab.id)).map((tab) => {
-                        const Icon = tab.icon
-                        return <button type="button" key={tab.id} onClick={() => navigateToTab(tab.id)}><Icon size={18} /><span>{tab.label}</span><ArrowLeft size={14} className="coaching-quick-action-arrow" /></button>
-                      })}
-                    </div></div>
-                  </> : <>
+                  </section>
+                  : <section className="coaching-panel">
                     <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">দ্রুত কাজ শুরু করুন</span><h2>কোন কাজটি করবেন?</h2><p>আপনার account-এর অনুমতি অনুযায়ী একটি বিভাগ বেছে নিন।</p></div></div>
                     <div className="coaching-quick-actions">
                       {availableTabs.filter((tab) => tab.id !== 'overview').map((tab) => {
@@ -1165,8 +1290,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                         return <button type="button" key={tab.id} onClick={() => navigateToTab(tab.id)}><Icon size={18} /><span>{tab.label}</span><ArrowLeft size={14} className="coaching-quick-action-arrow" /></button>
                       })}
                     </div>
-                  </>}
-                </section>
+                  </section>}
                 {canManage && <section className="coaching-panel coaching-members-panel">
                   <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">Access control</span><h2>Center team <span>{bengaliNumber(overview.members.length)}</span></h2><p>Email দিয়ে বিদ্যমান Firebase account-কে center role দিন। Profile-এ email যোগ করা মানেই login access দেওয়া নয়।</p></div></div>
                   <form className="coaching-member-form" onSubmit={(event) => void submitForm(
@@ -1213,7 +1337,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                   <form className="coaching-form coaching-admission-form" onSubmit={(event) => void submitForm(
                     event,
                     `${endpoint}/students`,
-                    { ...studentForm, grade: Number(studentForm.grade) },
+                    { ...studentForm, grade: Number(studentForm.grade), monthlyFee: Number(studentForm.monthlyFee || 0) },
                     'ভর্তি ফরম অনলাইনে সংরক্ষণ হয়েছে।',
                     () => setStudentForm(emptyAdmissionForm()),
                     setLastSavedStudent,
@@ -1225,6 +1349,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                         <label>শিক্ষার্থীর নাম (ইংরেজিতে)<input maxLength="120" value={studentForm.englishName} onChange={(event) => setStudentForm((current) => ({ ...current, englishName: event.target.value }))} /></label>
                         <label>ফরম নং / Student ID<input required maxLength="40" value={studentForm.studentCode} onChange={(event) => setStudentForm((current) => ({ ...current, studentCode: event.target.value }))} /></label>
                         <label>জন্ম তারিখ<input type="date" value={studentForm.dateOfBirth} onChange={(event) => setStudentForm((current) => ({ ...current, dateOfBirth: event.target.value }))} /></label>
+                        <label>মাসিক বেতন (টাকা)<input type="number" min="0" max="100000000" step="1" value={studentForm.monthlyFee} onChange={(event) => setStudentForm((current) => ({ ...current, monthlyFee: event.target.value }))} placeholder="যেমন: ১৫০০" /></label>
                       </div>
                     </div>
                     <details className="coaching-admission-more">
@@ -1284,7 +1409,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                 <section className="coaching-panel coaching-list-panel coaching-student-list-panel">                <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">অনলাইনে সংরক্ষিত ভর্তি ফরম</span><h2>শিক্ষার্থী <span>{bengaliNumber(overview.students.length)}</span></h2><p>যেকোনো সময় তালিকা থেকে ভর্তি ফরম প্রিন্ট করুন।</p></div><label className="coaching-list-search"><Search size={16} /><input aria-label="শিক্ষার্থী খুঁজুন" type="search" value={directorySearch} onChange={(event) => setDirectorySearch(event.target.value)} placeholder="নাম, ID বা ফোন দিয়ে খুঁজুন" /></label></div>
                 {overview.students.length === 0 ? <p className="coaching-muted">এখনো কোনো শিক্ষার্থী profile নেই।</p> : visibleStudents.length === 0 ? <p className="coaching-muted">এই খোঁজের সঙ্গে মেলে এমন শিক্ষার্থী নেই।</p> : <div className="coaching-record-list">{visibleStudents.map((student) => <article className="coaching-record coaching-student-record" key={student.id}>
                     <span className="coaching-record-avatar coaching-student-avatar">{student.photoURL ? <img src={student.photoURL} alt={`${student.name}-এর প্রোফাইল`} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none' }} /> : <GraduationCap size={17} />}</span>
-                    <span className="coaching-record-main"><strong>{student.name}</strong><small>ID: {student.studentCode} · {gradeLabel(student.grade)}</small><small>{[student.phone, student.email, student.guardianName && `অভিভাবক: ${student.guardianName}`, student.guardianPhone && `অভিভাবক ফোন: ${student.guardianPhone}`].filter(Boolean).join(' · ') || 'যোগাযোগের তথ্য নেই'}</small></span>
+                    <span className="coaching-record-main"><strong>{student.name}</strong><small>ID: {student.studentCode} · {gradeLabel(student.grade)} · মাসিক বেতন {formatCurrency(student.monthlyFee ?? 0)}</small><small>{[student.phone, student.email, student.guardianName && `অভিভাবক: ${student.guardianName}`, student.guardianPhone && `অভিভাবক ফোন: ${student.guardianPhone}`].filter(Boolean).join(' · ') || 'যোগাযোগের তথ্য নেই'}</small></span>
                     {canManage && <span className="coaching-student-actions">
                       <button type="button" className="coaching-button coaching-button-muted coaching-student-profile-action" onClick={() => void openStudentSummary(student)}><UserRound size={14} /> প্রোফাইল</button>
                       <button type="button" className="coaching-icon-button" aria-label={`${student.name} ভর্তি ফর্ম প্রিন্ট করুন`} title="ভর্তি ফর্ম প্রিন্ট" onClick={() => printStudentAdmissionForm(student)}><Printer size={15} /></button>
@@ -1300,6 +1425,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                           guardianPhone: student.guardianPhone || '',
                           guardianWhatsAppOptIn: Boolean(student.guardianWhatsAppOptIn),
                           photoURL: student.photoURL || '',
+                          monthlyFee: String(student.monthlyFee ?? 0),
                         })
                       }}><Pencil size={15} /></button>
                       <button type="button" className="coaching-icon-button coaching-icon-danger" aria-label={`${student.name} সরান`} disabled={busy} onClick={() => void deactivateStudent(student)}><Trash2 size={15} /></button>
@@ -1307,6 +1433,7 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                     {editingStudentId === student.id && <form className="coaching-form coaching-student-edit" onSubmit={(event) => void updateStudent(event, student)}>
                       <label>শিক্ষার্থীর নাম<input required maxLength="120" value={studentEditForm?.name ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, name: event.target.value }))} /></label>
                       <div className="coaching-form-row"><label>Student ID<input required maxLength="40" value={studentEditForm?.studentCode ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, studentCode: event.target.value }))} /></label><label>শ্রেণি<select value={studentEditForm?.grade ?? '7'} onChange={(event) => setStudentEditForm((current) => ({ ...current, grade: event.target.value }))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label></div>
+                      <label>মাসিক বেতন (টাকা)<input type="number" min="0" max="100000000" step="1" required value={studentEditForm?.monthlyFee ?? '0'} onChange={(event) => setStudentEditForm((current) => ({ ...current, monthlyFee: event.target.value }))} /></label>
                       <div className="coaching-form-row"><label>ফোন<input maxLength="30" value={studentEditForm?.phone ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, phone: event.target.value }))} /></label><label>ইমেইল<input type="email" maxLength="254" value={studentEditForm?.email ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, email: event.target.value }))} /></label></div>
                       <div className="coaching-form-row"><label>অভিভাবকের নাম<input maxLength="120" value={studentEditForm?.guardianName ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, guardianName: event.target.value }))} /></label><label>অভিভাবকের ফোন<input maxLength="30" value={studentEditForm?.guardianPhone ?? ''} onChange={(event) => setStudentEditForm((current) => ({ ...current, guardianPhone: event.target.value }))} /></label></div>
                       <label className="coaching-consent-check"><input type="checkbox" checked={Boolean(studentEditForm?.guardianWhatsAppOptIn)} onChange={(event) => setStudentEditForm((current) => ({ ...current, guardianWhatsAppOptIn: event.target.checked }))} /> অভিভাবকের WhatsApp reminder অনুমতি</label>
@@ -1336,40 +1463,75 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                 </section>
               </div>}
 
-              {activeTab === 'batches' && <div className="coaching-management-grid">
-                {canManage && <div className="coaching-form-stack">
-                  <section className="coaching-panel">
-                    <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">ক্লাস ব্যবস্থাপনা</span><h2>নতুন ব্যাচ তৈরি</h2></div></div>
-                    <form className="coaching-form" onSubmit={(event) => void submitForm(event, `${endpoint}/batches`, { ...batchForm, grade: Number(batchForm.grade), teacherId: batchForm.teacherId || null }, 'ব্যাচ তৈরি হয়েছে।', () => setBatchForm({ name: '', grade: '7', subject: '', teacherId: '', schedule: '' }))}>
-                      <label>ব্যাচের নাম<input required maxLength="120" value={batchForm.name} onChange={(event) => setBatchForm((current) => ({ ...current, name: event.target.value }))} placeholder="যেমন: সকাল ব্যাচ" /></label>
-                      <div className="coaching-form-row"><label>শ্রেণি<select value={batchForm.grade} onChange={(event) => setBatchForm((current) => ({ ...current, grade: event.target.value }))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label><label>বিষয়<input required maxLength="80" value={batchForm.subject} onChange={(event) => setBatchForm((current) => ({ ...current, subject: event.target.value }))} /></label></div>
-                      <label>দায়িত্বপ্রাপ্ত শিক্ষক<select value={batchForm.teacherId} onChange={(event) => setBatchForm((current) => ({ ...current, teacherId: event.target.value }))}><option value="">এখন নির্ধারিত নয়</option>{overview.teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
-                      <label>সময়সূচি<input maxLength="300" value={batchForm.schedule} onChange={(event) => setBatchForm((current) => ({ ...current, schedule: event.target.value }))} placeholder="যেমন: শনি, সোম, বুধ · বিকাল ৪টা" /></label>
-                      <button type="submit" className="coaching-button coaching-button-primary" disabled={busy}><Plus size={15} /> ব্যাচ সংরক্ষণ</button>
-                    </form>
+              {activeTab === 'batches' && <div className="coaching-batches-page">
+                <div className="coaching-batches-heading">
+                  <div><span className="coaching-eyebrow">প্রস্তুতি ও তালিকা</span><h2>ব্যাচ</h2><p>ক্লাসের ব্যাচ তৈরি করুন এবং শিক্ষার্থী যুক্ত করুন।</p></div>
+                  {canManage && <button type="button" className="coaching-button coaching-button-primary" onClick={() => { setBatchPanelMode('new'); setBatchPanelOpen(true) }}><Plus size={16} /> নতুন ব্যাচ</button>}
+                </div>
+                <div className="coaching-batch-summary">
+                  <article><strong>{bengaliNumber(overview.batches.length)}</strong><span>মোট ব্যাচ</span></article>
+                  <article><strong>{bengaliNumber(activeEnrollmentCount)}</strong><span>ব্যাচ থাকা শিক্ষার্থী</span></article>
+                  {batchesWithoutTeacher > 0 && <div className="coaching-batch-warning"><AlertTriangle size={17} /><span>{bengaliNumber(batchesWithoutTeacher)}টি ব্যাচে শিক্ষক নির্ধারিত নেই</span></div>}
+                </div>
+                <div className={`coaching-batches-layout${batchPanelOpen && canManage ? ' has-action-panel' : ''}`}>
+                  <section className="coaching-panel coaching-list-panel coaching-batches-list">
+                    <div className="coaching-panel-heading">
+                      <div><span className="coaching-eyebrow">ক্লাসের তালিকা</span><h2>ব্যাচ <span>{bengaliNumber(overview.batches.length)}</span></h2></div>
+                      <label className="coaching-list-search"><Search size={16} /><input aria-label="ব্যাচ খুঁজুন" type="search" value={directorySearch} onChange={(event) => setDirectorySearch(event.target.value)} placeholder="ব্যাচ, বিষয় বা শিক্ষক দিয়ে খুঁজুন" /></label>
+                    </div>
+                    {overview.batches.length === 0 ? <p className="coaching-muted">এখনো কোনো ব্যাচ তৈরি করা হয়নি।</p> : visibleBatches.length === 0 ? <p className="coaching-muted">এই খোঁজের সঙ্গে মেলে এমন ব্যাচ নেই।</p> : <div className="coaching-record-list">{visibleBatches.map((batch) => {
+                      const enrolled = overview.enrollments.filter((enrollment) => enrollment.status === 'active' && (enrollment.batchId?.id ?? enrollment.batchId) === batch.id)
+                      return <article className="coaching-record coaching-batch-record" key={batch.id}>
+                        <span className="coaching-record-avatar"><BookOpen size={19} /></span>
+                        <span className="coaching-record-main">
+                          <strong>{batch.name}<span className="coaching-batch-student-pill">{bengaliNumber(enrolled.length)} জন</span></strong>
+                          <small>{gradeLabel(batch.grade)} <i /> {batch.subject}</small>
+                          <small><CalendarCheck size={13} /> {batch.schedule || 'সময়সূচি নেই'}</small>
+                          {!batch.teacherId && <span className="coaching-batch-unassigned">শিক্ষক নির্ধারিত নয়</span>}
+                        </span>
+                        <span className="coaching-batch-count">{bengaliNumber(enrolled.length)}<small>শিক্ষার্থী</small></span>
+                        <span className="coaching-batch-actions">
+                          {canManage && <button type="button" className="coaching-button coaching-button-muted" onClick={() => openBatchEnrollment(batch.id)} disabled={!overview.students.length}><Users size={14} /> শিক্ষার্থী যোগ</button>}
+                          <button type="button" className="coaching-button coaching-button-muted" onClick={() => { setAttendanceBatchId(batch.id); navigateToTab('attendance') }}><CalendarCheck size={14} /> হাজিরা নিন</button>
+                        </span>
+                      </article>
+                    })}</div>}
                   </section>
-                  <section className="coaching-panel">
-                    <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">শিক্ষার্থী অন্তর্ভুক্তি</span><h2>ব্যাচে শিক্ষার্থী যোগ</h2></div></div>
-                    <form id="coaching-enrollment-form" className="coaching-form" onSubmit={(event) => {
-                      event.preventDefault()
-                      if (!enrollmentForm.batchId || !enrollmentForm.studentId) {
-                        setError('Enrollment-এর জন্য একটি ব্যাচ এবং শিক্ষার্থী নির্বাচন করুন।')
-                        return
-                      }
-                      void submitForm(event, `${endpoint}/batches/${encodeURIComponent(enrollmentForm.batchId)}/enrollments`, { studentId: enrollmentForm.studentId }, 'শিক্ষার্থীকে ব্যাচে যুক্ত করা হয়েছে।', () => setEnrollmentForm({ batchId: '', studentId: '' }))
-                    }}>
-                      <label>ব্যাচ<select required value={enrollmentForm.batchId} onChange={(event) => setEnrollmentForm((current) => ({ ...current, batchId: event.target.value }))}><option value="">ব্যাচ নির্বাচন করুন</option>{overview.batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name} · {batch.subject}</option>)}</select></label>
-                      <label>শিক্ষার্থী<select required value={enrollmentForm.studentId} onChange={(event) => setEnrollmentForm((current) => ({ ...current, studentId: event.target.value }))}><option value="">শিক্ষার্থী নির্বাচন করুন</option>{overview.students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.studentCode}</option>)}</select></label>
-                      <button type="submit" className="coaching-button coaching-button-primary" disabled={busy || !overview.batches.length || !overview.students.length}><Plus size={15} /> ব্যাচে যুক্ত করুন</button>
-                    </form>
-                  </section>
-                </div>}
-                <section className="coaching-panel coaching-list-panel"><div className="coaching-panel-heading"><div><span className="coaching-eyebrow">ক্লাসের তালিকা</span><h2>ব্যাচ <span>{bengaliNumber(overview.batches.length)}</span></h2></div><label className="coaching-list-search"><Search size={16} /><input aria-label="ব্যাচ খুঁজুন" type="search" value={directorySearch} onChange={(event) => setDirectorySearch(event.target.value)} placeholder="ব্যাচ, বিষয় বা শিক্ষক দিয়ে খুঁজুন" /></label></div>
-                  {overview.batches.length === 0 ? <p className="coaching-muted">এখনো কোনো ব্যাচ তৈরি করা হয়নি।</p> : visibleBatches.length === 0 ? <p className="coaching-muted">এই খোঁজের সঙ্গে মেলে এমন ব্যাচ নেই।</p> : <div className="coaching-record-list">{visibleBatches.map((batch) => {
-                    const enrolled = overview.enrollments.filter((enrollment) => enrollment.status === 'active' && (enrollment.batchId?.id ?? enrollment.batchId) === batch.id)
-                    return <article className="coaching-record coaching-batch-record" key={batch.id}><span className="coaching-record-avatar"><BookOpen size={17} /></span><span className="coaching-record-main"><strong>{batch.name}</strong><small>{gradeLabel(batch.grade)} · {batch.subject} · {batch.teacherId?.name || 'শিক্ষক নির্ধারিত নয়'}</small><small>{batch.schedule || 'সময়সূচি নেই'}{canManage ? ` · ${bengaliNumber(enrolled.length)} জন শিক্ষার্থী` : ''}</small></span><span className="coaching-batch-actions">{canManage && <button type="button" className="coaching-button coaching-button-muted" onClick={() => openBatchEnrollment(batch.id)} disabled={!overview.students.length}><Plus size={14} /> শিক্ষার্থী যোগ</button>}<button type="button" className="coaching-button coaching-button-muted" onClick={() => { setAttendanceBatchId(batch.id); navigateToTab('attendance') }}><CalendarCheck size={14} /> হাজিরা নিন</button></span></article>
-                  })}</div>}
-                </section>
+                  {batchPanelOpen && canManage && <section className="coaching-panel coaching-batch-action-panel">
+                    <div className="coaching-batch-panel-toolbar">
+                      <div className="coaching-batch-panel-tabs" role="tablist" aria-label="ব্যাচের কাজ বেছে নিন">
+                        <button type="button" role="tab" aria-selected={batchPanelMode === 'new'} className={batchPanelMode === 'new' ? 'active' : ''} onClick={() => setBatchPanelMode('new')}>নতুন ব্যাচ</button>
+                        <button type="button" role="tab" aria-selected={batchPanelMode === 'enroll'} className={batchPanelMode === 'enroll' ? 'active' : ''} onClick={() => setBatchPanelMode('enroll')}>শিক্ষার্থী যোগ</button>
+                      </div>
+                      <button type="button" className="coaching-icon-button" aria-label="ফর্ম বন্ধ করুন" onClick={() => setBatchPanelOpen(false)}><X size={16} /></button>
+                    </div>
+                    {batchPanelMode === 'new' ? <>
+                      <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">ব্যাচের তালিকা</span><h2>নতুন ব্যাচ তৈরি</h2></div></div>
+                      <form className="coaching-form" onSubmit={(event) => void submitForm(event, `${endpoint}/batches`, { ...batchForm, grade: Number(batchForm.grade), teacherId: batchForm.teacherId || null }, 'ব্যাচ তৈরি হয়েছে।', () => setBatchForm({ name: '', grade: '7', subject: '', teacherId: '', schedule: '' }))}>
+                        <label>ব্যাচের নাম<input required maxLength="120" value={batchForm.name} onChange={(event) => setBatchForm((current) => ({ ...current, name: event.target.value }))} placeholder="যেমন: সকাল ব্যাচ" /></label>
+                        <div className="coaching-form-row"><label>শ্রেণি<select value={batchForm.grade} onChange={(event) => setBatchForm((current) => ({ ...current, grade: event.target.value }))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label><label>বিষয়<input required maxLength="80" value={batchForm.subject} onChange={(event) => setBatchForm((current) => ({ ...current, subject: event.target.value }))} /></label></div>
+                        <label>দায়িত্বপ্রাপ্ত শিক্ষক<select value={batchForm.teacherId} onChange={(event) => setBatchForm((current) => ({ ...current, teacherId: event.target.value }))}><option value="">এখন নির্ধারিত নয়</option>{overview.teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}</select></label>
+                        <label>সময়সূচি<input maxLength="300" value={batchForm.schedule} onChange={(event) => setBatchForm((current) => ({ ...current, schedule: event.target.value }))} placeholder="যেমন: শনি, সোম, বুধ · বিকাল ৪টা" /></label>
+                        <div className="coaching-inline-actions"><button type="submit" className="coaching-button coaching-button-primary" disabled={busy}><Plus size={15} /> ব্যাচ তৈরি করুন</button><button type="button" className="coaching-button coaching-button-muted" onClick={() => setBatchPanelOpen(false)}>বাতিল</button></div>
+                      </form>
+                    </> : <>
+                      <div className="coaching-panel-heading"><div><span className="coaching-eyebrow">শিক্ষার্থী অন্তর্ভুক্তি</span><h2>ব্যাচে শিক্ষার্থী যোগ</h2></div></div>
+                      <form id="coaching-enrollment-form" className="coaching-form" onSubmit={(event) => {
+                        event.preventDefault()
+                        if (!enrollmentForm.batchId || !enrollmentForm.studentId) {
+                          setError('Enrollment-এর জন্য একটি ব্যাচ এবং শিক্ষার্থী নির্বাচন করুন।')
+                          return
+                        }
+                        void submitForm(event, `${endpoint}/batches/${encodeURIComponent(enrollmentForm.batchId)}/enrollments`, { studentId: enrollmentForm.studentId }, 'শিক্ষার্থীকে ব্যাচে যুক্ত করা হয়েছে।', () => setEnrollmentForm({ batchId: '', studentId: '' }))
+                      }}>
+                        <label>ব্যাচ<select required value={enrollmentForm.batchId} onChange={(event) => setEnrollmentForm((current) => ({ ...current, batchId: event.target.value }))}><option value="">ব্যাচ নির্বাচন করুন</option>{overview.batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name} · {batch.subject}</option>)}</select></label>
+                        <label>শিক্ষার্থী<select required value={enrollmentForm.studentId} onChange={(event) => setEnrollmentForm((current) => ({ ...current, studentId: event.target.value }))}><option value="">শিক্ষার্থী নির্বাচন করুন</option>{overview.students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.studentCode}</option>)}</select></label>
+                        <p className="coaching-muted">শুধু সক্রিয় শিক্ষার্থীরাই ব্যাচে যুক্ত হবে।</p>
+                        <div className="coaching-inline-actions"><button type="submit" className="coaching-button coaching-button-primary" disabled={busy || !overview.batches.length || !overview.students.length}><Plus size={15} /> ব্যাচে যুক্ত করুন</button><button type="button" className="coaching-button coaching-button-muted" onClick={() => setBatchPanelOpen(false)}>বাতিল</button></div>
+                      </form>
+                    </>}
+                  </section>}
+                </div>
               </div>}
 
               {activeTab === 'attendance' && <section className="coaching-panel">
@@ -1502,6 +1664,25 @@ export default function CoachingManagementApp({ user, role, onBack }) {
                         <button type="button" className="coaching-icon-button" aria-label={`${record.studentId?.name || 'শিক্ষার্থী'}-এর invoice প্রিন্ট`} onClick={() => printInvoice(record)}><Printer size={15} /></button>
                       </article>)}</div>}
                   {feeSummary.truncated && <p className="coaching-muted">সারাংশে সব {bengaliNumber(feeSummary.count)}টি receipt অন্তর্ভুক্ত; তালিকায় সর্বশেষ ৫০০টি দেখানো হচ্ছে।</p>}
+                </section>
+                <section className="coaching-panel coaching-monthly-report">
+                  <div className="coaching-panel-heading">
+                    <div><span className="coaching-eyebrow">মাসভিত্তিক শিক্ষার্থী ফি</span><h2>{feeMonth} · প্রত্যাশিত {formatCurrency(monthlyFeeReport?.expected ?? 0)}</h2><p>আদায় {formatCurrency(monthlyFeeReport?.collected ?? 0)} · বকেয়া {formatCurrency(monthlyFeeReport?.outstanding ?? 0)}</p></div>
+                    <button type="button" className="coaching-button coaching-button-muted" onClick={() => setFeeRefreshToken((current) => current + 1)} disabled={monthlyFeeLoadedKey !== monthlyFeeReportQueryKey}><RefreshCw size={14} /> রিফ্রেশ</button>
+                  </div>
+                  <div className="coaching-monthly-filters">
+                    <label>শ্রেণি<select value={monthlyFeeGrade} onChange={(event) => setMonthlyFeeGrade(event.target.value)}><option value="all">সব শ্রেণি</option>{[...new Set(overview.students.map((student) => student.grade))].sort((first, second) => first - second).map((grade) => <option key={grade} value={grade}>{gradeLabel(grade)}</option>)}</select></label>
+                    <label>ব্যাচ<select value={monthlyFeeBatch} onChange={(event) => setMonthlyFeeBatch(event.target.value)}><option value="all">সব ব্যাচ</option>{overview.batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.name} · {batch.subject}</option>)}</select></label>
+                    <label>পেমেন্ট স্ট্যাটাস<select value={monthlyFeeStatus} onChange={(event) => setMonthlyFeeStatus(event.target.value)}><option value="all">সব</option><option value="paid">জমা</option><option value="unpaid">বকেয়া</option></select></label>
+                    <label>পেমেন্ট পদ্ধতি<select value={monthlyPaymentMethod} onChange={(event) => setMonthlyPaymentMethod(event.target.value)}>{Object.entries(paymentMethodLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                  </div>
+                  {monthlyFeeLoadedKey !== monthlyFeeReportQueryKey ? <div className="coaching-loading"><LoadingStatus label="মাসিক ফি রিপোর্ট লোড হচ্ছে…" /></div>
+                    : !monthlyFeeReport?.rows.length ? <p className="coaching-muted">এই মাস ও ফিল্টারে কোনো শিক্ষার্থীর রেকর্ড নেই।</p>
+                      : <div className="coaching-monthly-student-list">{monthlyFeeReport.rows.map((row) => <article className={`coaching-monthly-student coaching-monthly-student-${row.status}`} key={row.studentId}>
+                        <div className="coaching-monthly-student-main"><strong>{row.studentName}</strong><small>{row.studentCode} · {gradeLabel(row.grade)} · মাসিক ফি {formatCurrency(row.monthlyFee)}</small></div>
+                        <div className="coaching-monthly-student-balance"><span className={`coaching-monthly-status coaching-monthly-status-${row.status}`}>{row.status === 'paid' ? 'জমা' : row.monthlyFee ? 'বকেয়া' : 'ফি নির্ধারিত নয়'}</span><small>জমা {formatCurrency(row.collected)} · বাকি {formatCurrency(row.outstanding)}</small><small>{row.paymentDate ? `পরিশোধের তারিখ ${formatDate(row.paymentDate)}` : 'পরিশোধের তারিখ নেই'}</small></div>
+                        {row.monthlyFee > 0 && (row.status !== 'paid' || row.linkedReceiptId) && <button type="button" className={`coaching-button ${row.status === 'paid' ? 'coaching-button-muted' : 'coaching-button-primary'}`} disabled={busy || (!canManage && activeCenter.role !== 'accountant')} onClick={() => void updateMonthlyFeeStatus(row, row.status === 'paid' ? 'unpaid' : 'paid')}>{row.status === 'paid' ? 'পেমেন্ট সংশোধন' : 'জমা হিসেবে চিহ্নিত করুন'}</button>}
+                      </article>)}</div>}
                 </section>
               </div>}
 

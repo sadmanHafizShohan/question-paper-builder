@@ -70,8 +70,10 @@ const coachingStudentSchema = new mongoose.Schema({
   previousGrade: { type: String, default: '', trim: true, maxlength: 40 },
   photoURL: { type: String, default: '', trim: true, maxlength: 500 },
   grade: { type: Number, min: 1, max: 12, required: true },
+  monthlyFee: { type: Number, default: 0, min: 0, max: 100_000_000 },
   linkedUserId: { type: String, default: '' },
   status: { type: String, enum: ['active', 'inactive'], default: 'active', index: true },
+  inactiveAt: { type: Date },
   createdBy: { type: String, required: true },
 }, { timestamps: true })
 coachingStudentSchema.index({ centerId: 1, studentCode: 1 }, { unique: true })
@@ -159,6 +161,7 @@ coachingClassSessionSchema.index({ centerId: 1, batchId: 1, date: 1 })
 const coachingFeeRecordSchema = new mongoose.Schema({
   centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
+  monthlyFeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingMonthlyFee', default: undefined },
   feeMonth: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
   amount: { type: Number, required: true, min: 1, max: 100_000_000 },
   paymentDate: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
@@ -174,11 +177,21 @@ const coachingFeeRecordSchema = new mongoose.Schema({
 }, { timestamps: true })
 coachingFeeRecordSchema.index({ centerId: 1, feeMonth: 1, paymentDate: -1 })
 coachingFeeRecordSchema.index({ centerId: 1, studentId: 1, feeMonth: 1 })
+coachingFeeRecordSchema.index({ monthlyFeeId: 1 }, { unique: true, sparse: true })
+
+const coachingMonthlyFeeSchema = new mongoose.Schema({
+  centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
+  feeMonth: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
+  amount: { type: Number, required: true, min: 0, max: 100_000_000 },
+  dueDay: { type: Number, default: 10, min: 1, max: 28 },
+}, { timestamps: true })
+coachingMonthlyFeeSchema.index({ centerId: 1, studentId: 1, feeMonth: 1 }, { unique: true })
 
 const coachingFeePlanSchema = new mongoose.Schema({
   centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
-  monthlyAmount: { type: Number, required: true, min: 1, max: 100_000_000 },
+  monthlyAmount: { type: Number, required: true, min: 0, max: 100_000_000 },
   startsMonth: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
   dueDay: { type: Number, default: 10, min: 1, max: 28 },
   updatedBy: { type: String, required: true },
@@ -283,6 +296,8 @@ export const CoachingFeeRecord = mongoose.models.CoachingFeeRecord
   ?? mongoose.model('CoachingFeeRecord', coachingFeeRecordSchema)
 export const CoachingFeePlan = mongoose.models.CoachingFeePlan
   ?? mongoose.model('CoachingFeePlan', coachingFeePlanSchema)
+export const CoachingMonthlyFee = mongoose.models.CoachingMonthlyFee
+  ?? mongoose.model('CoachingMonthlyFee', coachingMonthlyFeeSchema)
 export const CoachingGuardianContact = mongoose.models.CoachingGuardianContact
   ?? mongoose.model('CoachingGuardianContact', coachingGuardianContactSchema)
 export const CoachingWhatsAppMessage = mongoose.models.CoachingWhatsAppMessage

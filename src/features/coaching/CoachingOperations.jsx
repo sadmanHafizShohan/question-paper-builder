@@ -285,10 +285,10 @@ export default function CoachingOperations({ endpoint, role, students, batches, 
         <form className="coaching-form" onSubmit={(event) => void saveFeePlan(event)}>
           <label>শিক্ষার্থী<select required value={planForm.studentId} onChange={(event) => setPlanForm((current) => ({ ...current, studentId: event.target.value }))}><option value="">শিক্ষার্থী বাছুন</option>{students.map((student) => <option key={student.id} value={student.id}>{student.name} · {student.studentCode}</option>)}</select></label>
           <div className="coaching-form-row">
-            <label>মাসিক ফি<input type="number" min="1" step="1" required value={planForm.monthlyAmount} onChange={(event) => setPlanForm((current) => ({ ...current, monthlyAmount: event.target.value }))} /></label>
+            <label>মাসিক ফি<input type="number" min="0" step="1" required value={planForm.monthlyAmount} onChange={(event) => setPlanForm((current) => ({ ...current, monthlyAmount: event.target.value }))} /></label>
             <label>বকেয়া তারিখ<input type="number" min="1" max="28" required value={planForm.dueDay} onChange={(event) => setPlanForm((current) => ({ ...current, dueDay: event.target.value }))} /></label>
           </div>
-          <label>যে মাস থেকে কার্যকর<input type="month" required value={planForm.startsMonth} onChange={(event) => setPlanForm((current) => ({ ...current, startsMonth: event.target.value }))} /></label>
+          <label>যে মাস থেকে কার্যকর<input type="month" min={currentMonth()} required value={planForm.startsMonth} onChange={(event) => setPlanForm((current) => ({ ...current, startsMonth: event.target.value }))} /></label>
           <button type="submit" className="coaching-button coaching-button-primary" disabled={busy || !students.length}><Save size={15} /> ফি পরিকল্পনা সংরক্ষণ</button>
         </form>
         </details>

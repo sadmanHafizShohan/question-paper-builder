@@ -14,6 +14,7 @@ import {
   CoachingEnrollment,
   CoachingFeePlan,
   CoachingFeeRecord,
+  CoachingMonthlyFee,
   CoachingGuardianContact,
   CoachingMembership,
   CoachingNotice,
@@ -290,6 +291,136 @@ async function getFeeDueRows(centerId, month, asOfDate = dhakaDateValue(), stude
   }
 }
 
+async function getMonthlyFeeReport(centerId, month, filters = {}) {
+  const existingSnapshots = await CoachingMonthlyFee.find({ centerId, feeMonth: month }).select('studentId').lean()
+  const monthStart = new Date(`${month}-01T00:00:00.000Z`)
+  const monthEnd = new Date(`${monthAfter(month)}-01T00:00:00.000Z`)
+  const students = await CoachingStudent.find({
+    centerId,
+    createdAt: { $lt: monthEnd },
+    $or: [
+      { status: 'active' },
+      { inactiveAt: { $gte: monthStart } },
+      {
+        _id: { $in: existingSnapshots.map((snapshot) => snapshot.studentId) },
+        $or: [{ inactiveAt: { $exists: false } }, { inactiveAt: { $gte: monthStart } }],
+      },
+    ],
+  })
+    .select('name studentCode grade monthlyFee')
+    .sort({ name: 1 })
+    .lean()
+  const studentIds = students.map((student) => student._id)
+  const plans = studentIds.length
+    ? await CoachingFeePlan.find({ centerId, studentId: { $in: studentIds }, startsMonth: { $lte: month } })
+      .sort({ startsMonth: 1 })
+      .lean()
+    : []
+  const planByStudent = new Map()
+  for (const plan of plans) planByStudent.set(String(plan.studentId), plan)
+
+  for (const student of students) {
+    const plan = planByStudent.get(String(student._id))
+    const amount = plan?.monthlyAmount ?? student.monthlyFee ?? 0
+    if (amount < 1) continue
+    try {
+      await CoachingMonthlyFee.updateOne(
+        { centerId, studentId: student._id, feeMonth: month },
+        { $setOnInsert: { amount, dueDay: plan?.dueDay ?? 10 } },
+        { upsert: true, runValidators: true },
+      )
+    } catch (error) {
+      if (error.code !== 11000) throw error
+    }
+  }
+
+  let enrollments = []
+  if (filters.batchId && mongoose.isValidObjectId(filters.batchId)) {
+    enrollments = await CoachingEnrollment.find({
+      centerId,
+      batchId: filters.batchId,
+      studentId: { $in: studentIds },
+      enrolledAt: { $lt: monthEnd },
+    }).select('studentId status enrolledAt history').lean()
+  }
+  const batchStudentIds = filters.batchId ? new Set(enrollments
+    .filter((enrollment) => {
+      const history = enrollment.history
+        .filter((event) => new Date(event.date).getTime() < monthEnd.getTime())
+        .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
+      return history.length ? history[0].action !== 'withdrawn' : enrollment.status === 'active'
+    })
+    .map((item) => String(item.studentId))) : null
+  const snapshots = studentIds.length
+    ? await CoachingMonthlyFee.find({ centerId, studentId: { $in: studentIds }, feeMonth: month }).lean()
+    : []
+  const snapshotByStudent = new Map(snapshots.map((snapshot) => [String(snapshot.studentId), snapshot]))
+  const payments = studentIds.length
+    ? await CoachingFeeRecord.find({
+      centerId,
+      studentId: { $in: studentIds },
+      feeMonth: month,
+      category: 'tuition',
+      status: { $ne: 'voided' },
+    }).select('studentId amount paymentDate monthlyFeeId').sort({ paymentDate: -1, createdAt: -1 }).lean()
+    : []
+  const paymentByStudent = new Map()
+  for (const payment of payments) {
+    const key = String(payment.studentId)
+    const current = paymentByStudent.get(key) ?? { amount: 0, paymentDate: '', linkedReceiptId: '' }
+    current.amount += payment.amount
+    current.paymentDate ||= payment.paymentDate
+    if (payment.monthlyFeeId) current.linkedReceiptId = String(payment._id)
+    paymentByStudent.set(key, current)
+  }
+
+  const rows = students
+    .filter((student) => !filters.grade || String(student.grade) === String(filters.grade))
+    .filter((student) => !batchStudentIds || batchStudentIds.has(String(student._id)))
+    .map((student) => {
+      const snapshot = snapshotByStudent.get(String(student._id))
+      const payment = paymentByStudent.get(String(student._id)) ?? { amount: 0, paymentDate: '', linkedReceiptId: '' }
+      const amount = snapshot?.amount ?? 0
+      return {
+        studentId: String(student._id),
+        studentName: student.name,
+        studentCode: student.studentCode,
+        grade: student.grade,
+        monthlyFee: amount,
+        collected: payment.amount,
+        outstanding: Math.max(0, amount - payment.amount),
+        status: amount > 0 && payment.amount >= amount ? 'paid' : 'unpaid',
+        paymentDate: payment.paymentDate,
+        linkedReceiptId: payment.linkedReceiptId,
+      }
+    })
+    .filter((row) => !filters.status || filters.status === 'all' || row.status === filters.status)
+
+  const expected = rows.reduce((total, row) => total + row.monthlyFee, 0)
+  const collected = rows.reduce((total, row) => total + row.collected, 0)
+  return { month, expected, collected, outstanding: Math.max(0, expected - collected), rows }
+}
+
+async function refreshMonthlyFeeSnapshots(centerId, studentId, startsMonth) {
+  const minimumMonth = startsMonth < dhakaDateValue().slice(0, 7)
+    ? dhakaDateValue().slice(0, 7)
+    : startsMonth
+  const [plans, snapshots] = await Promise.all([
+    CoachingFeePlan.find({ centerId, studentId }).sort({ startsMonth: 1 }).lean(),
+    CoachingMonthlyFee.find({ centerId, studentId, feeMonth: { $gte: minimumMonth } })
+      .select('feeMonth')
+      .lean(),
+  ])
+  await Promise.all(snapshots.map(async (snapshot) => {
+    const effectivePlan = [...plans].reverse().find((item) => item.startsMonth <= snapshot.feeMonth)
+    if (!effectivePlan) return
+    await CoachingMonthlyFee.updateOne(
+      { centerId, studentId, feeMonth: snapshot.feeMonth },
+      { $set: { amount: effectivePlan.monthlyAmount, dueDay: effectivePlan.dueDay } },
+    )
+  }))
+}
+
 async function teacherCanAccessBatch(batch, membership, userId, centerId) {
   if (membership.role !== 'teacher') return true
   return Boolean(batch.teacherId && await CoachingTeacher.exists({
@@ -538,7 +669,9 @@ router.get('/centers/:centerId/dashboard', requireCenterMembership, async (reque
     const tillDate = tillDateValue.toISOString().slice(0, 10)
     const batchIds = await getMemberBatchIds(centerId, request.coachingMembership)
     const scopedBatches = batchIds ? { batchId: { $in: batchIds } } : {}
-    const [todaySessions, upcomingSessions, upcomingExams, dueSummary] = await Promise.all([
+    const canViewFees = ['owner', 'manager', 'accountant'].includes(role)
+    const currentMonth = today.slice(0, 7)
+    const [todaySessions, upcomingSessions, upcomingExams, dueSummary, monthlyFees, nextMonthFees, previousMonthFees] = await Promise.all([
       CoachingClassSession.find({ centerId, date: today, status: 'scheduled', ...scopedBatches })
         .populate({ path: 'batchId', select: 'name subject teacherId', populate: { path: 'teacherId', select: 'name' } })
         .sort({ startTime: 1 }).limit(100).lean(),
@@ -553,9 +686,12 @@ router.get('/centers/:centerId/dashboard', requireCenterMembership, async (reque
             ...(batchIds ? { batchId: { $in: batchIds } } : {}),
           }).populate({ path: 'batchId', select: 'name subject' }).sort({ examDate: 1 }).limit(50).lean()
         : Promise.resolve([]),
-      ['owner', 'manager', 'accountant'].includes(role)
+      canViewFees
         ? getFeeDueRows(centerId, today.slice(0, 7), today)
         : Promise.resolve(null),
+      canViewFees ? getMonthlyFeeReport(centerId, currentMonth) : Promise.resolve(null),
+      canViewFees ? getMonthlyFeeReport(centerId, monthAfter(currentMonth)) : Promise.resolve(null),
+      canViewFees ? getMonthlyFeeReport(centerId, monthAfter(currentMonth, -1)) : Promise.resolve(null),
     ])
     const sessionsWithAttendance = await Promise.all(todaySessions.map(async (session) => {
       const batchId = session.batchId?._id ?? session.batchId
@@ -573,6 +709,11 @@ router.get('/centers/:centerId/dashboard', requireCenterMembership, async (reque
         overdue: dueSummary.totalOverdue,
         students: dueSummary.studentsWithDue,
         overdueStudents: dueSummary.overdueStudents,
+      } : null,
+      monthlyFees: monthlyFees ? {
+        current: monthlyFees,
+        next: nextMonthFees,
+        previous: previousMonthFees,
       } : null,
     })
   } catch (error) {
@@ -666,6 +807,10 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
     if (!Number.isInteger(normalizedGrade) || normalizedGrade < 1 || normalizedGrade > 12) {
       return response.status(400).json({ error: 'Student grade must be between 1 and 12' })
     }
+    const monthlyFee = request.body.monthlyFee === undefined ? 0 : Number(request.body.monthlyFee)
+    if (!Number.isSafeInteger(monthlyFee) || monthlyFee < 0 || monthlyFee > 100_000_000) {
+      return response.status(400).json({ error: 'Monthly fee must be a whole number between 0 and 100,000,000 BDT' })
+    }
     if (request.body.dateOfBirth && !isCalendarDate(request.body.dateOfBirth)) {
       return response.status(400).json({ error: 'Provide date of birth in YYYY-MM-DD format' })
     }
@@ -688,6 +833,7 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
         normalizeOptionalString(request.body[field], field, maxLength),
       ])),
       grade: normalizedGrade,
+      monthlyFee,
       phone: typeof request.body.phone === 'string' ? request.body.phone.trim().slice(0, 30) : '',
       email,
       linkedUserId: account?.uid ?? '',
@@ -702,6 +848,21 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
       photoURL: normalizePhotoURL(request.body.photoURL),
       createdBy: request.firebaseUser.uid,
     })
+    if (monthlyFee > 0) {
+      try {
+        await CoachingFeePlan.create({
+          centerId: request.params.centerId,
+          studentId: student._id,
+          monthlyAmount: monthlyFee,
+          startsMonth: dhakaDateValue().slice(0, 7),
+          dueDay: 10,
+          updatedBy: request.firebaseUser.uid,
+        })
+      } catch (error) {
+        await student.deleteOne()
+        throw error
+      }
+    }
     if (guardianWhatsAppOptIn) {
       await CoachingAuditEvent.create({
         centerId: request.params.centerId,
@@ -715,7 +876,7 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
     response.status(201).json(serialize(student.toObject()))
   } catch (error) {
     if (error.code === 11000) return response.status(409).json({ error: 'This student ID is already used in the center' })
-    if (error instanceof Error && error.message.startsWith('Student name')) return response.status(400).json({ error: error.message })
+    if (error instanceof Error && (error.message.startsWith('Student name') || error.message.startsWith('Monthly fee'))) return response.status(400).json({ error: error.message })
     if (error instanceof Error && error.message.startsWith('Student ID')) return response.status(400).json({ error: error.message })
     if (error instanceof Error && error.message.startsWith('Email')) return response.status(400).json({ error: error.message })
     if (error instanceof Error && error.message.startsWith('Student photo URL')) return response.status(400).json({ error: error.message })
@@ -730,6 +891,7 @@ router.patch('/centers/:centerId/students/:studentId', requireCenterMembership, 
     if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Invalid student profile' })
     const student = await CoachingStudent.findOne({ _id: studentId, centerId: request.params.centerId, status: 'active' })
     if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
+    const previousMonthlyFee = student.monthlyFee
 
     const { name, studentCode, grade, phone, email, guardianName, guardianPhone, photoURL, dateOfBirth } = request.body ?? {}
     if (name !== undefined) student.name = normalizeRequiredString(name, 'Student name', 120)
@@ -743,6 +905,13 @@ router.patch('/centers/:centerId/students/:studentId', requireCenterMembership, 
         return response.status(400).json({ error: 'Student grade must be between 1 and 12' })
       }
       student.grade = normalizedGrade
+    }
+    if (request.body.monthlyFee !== undefined) {
+      const monthlyFee = Number(request.body.monthlyFee)
+      if (!Number.isSafeInteger(monthlyFee) || monthlyFee < 0 || monthlyFee > 100_000_000) {
+        return response.status(400).json({ error: 'Monthly fee must be a whole number between 0 and 100,000,000 BDT' })
+      }
+      student.monthlyFee = monthlyFee
     }
     if (phone !== undefined) student.phone = typeof phone === 'string' ? phone.trim().slice(0, 30) : ''
     if (email !== undefined) {
@@ -781,6 +950,25 @@ router.patch('/centers/:centerId/students/:studentId', requireCenterMembership, 
     }
     if (photoURL !== undefined) student.photoURL = normalizePhotoURL(photoURL)
     await student.save()
+    if (request.body.monthlyFee !== undefined) {
+      const startsMonth = dhakaDateValue().slice(0, 7)
+      await CoachingFeePlan.findOneAndUpdate(
+        { centerId: request.params.centerId, studentId, startsMonth },
+        { $set: { monthlyAmount: student.monthlyFee, startsMonth, dueDay: 10, updatedBy: request.firebaseUser.uid } },
+        { upsert: true, runValidators: true },
+      )
+      await refreshMonthlyFeeSnapshots(request.params.centerId, studentId, startsMonth)
+      if (previousMonthlyFee !== student.monthlyFee) {
+        await CoachingAuditEvent.create({
+          centerId: request.params.centerId,
+          actorId: request.firebaseUser.uid,
+          action: 'fee-plan.updated',
+          entityType: 'student',
+          entityId: String(student._id),
+          details: { before: { monthlyAmount: previousMonthlyFee }, after: { monthlyAmount: student.monthlyFee, startsMonth } },
+        })
+      }
+    }
     if (request.body.guardianWhatsAppOptIn !== undefined) {
       await CoachingAuditEvent.create({
         centerId: request.params.centerId,
@@ -908,7 +1096,7 @@ router.delete('/centers/:centerId/students/:studentId', requireCenterMembership,
     if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Invalid student profile' })
     const student = await CoachingStudent.findOneAndUpdate(
       { _id: studentId, centerId: request.params.centerId, status: 'active' },
-      { $set: { status: 'inactive' } },
+      { $set: { status: 'inactive', inactiveAt: new Date() } },
       { new: true, runValidators: true },
     )
     if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
@@ -1224,14 +1412,129 @@ router.get('/centers/:centerId/fees/due', requireCenterMembership, requireCenter
   }
 })
 
+router.get('/centers/:centerId/fees/monthly', requireCenterMembership, requireCenterRoles(...managementRoles, 'accountant'), async (request, response, next) => {
+  try {
+    const { month, grade, batchId, status } = request.query
+    if (!isFeeMonth(month)) return response.status(400).json({ error: 'Provide a valid fee month in YYYY-MM format' })
+    if (grade !== undefined && (!/^\d{1,2}$/.test(grade) || Number(grade) < 1 || Number(grade) > 12)) {
+      return response.status(400).json({ error: 'Choose a valid class' })
+    }
+    if (batchId !== undefined && !mongoose.isValidObjectId(batchId)) return response.status(400).json({ error: 'Choose a valid batch' })
+    if (status !== undefined && !['all', 'paid', 'unpaid'].includes(status)) {
+      return response.status(400).json({ error: 'Choose paid, unpaid, or all fee statuses' })
+    }
+    response.json(await getMonthlyFeeReport(request.coachingMembership.centerId, month, { grade, batchId, status }))
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.put('/centers/:centerId/fees/monthly/:studentId/status', requireCenterMembership, requireCenterRoles(...managementRoles, 'accountant'), async (request, response, next) => {
+  try {
+    const { studentId } = request.params
+    const { month, status, paymentDate, method = 'cash' } = request.body ?? {}
+    if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Choose a valid student' })
+    if (!isFeeMonth(month)) return response.status(400).json({ error: 'Provide a valid fee month in YYYY-MM format' })
+    if (!['paid', 'unpaid'].includes(status)) return response.status(400).json({ error: 'Choose paid or unpaid status' })
+    if (!['cash', 'bank', 'mobile_banking', 'other'].includes(method)) return response.status(400).json({ error: 'Choose a valid payment method' })
+    const { centerId } = request.coachingMembership
+    const student = await CoachingStudent.findOne({ _id: studentId, centerId }).select('name monthlyFee status inactiveAt').lean()
+    if (!student) return response.status(404).json({ error: 'Student profile not found in this center' })
+    if (student.status !== 'active' && student.inactiveAt
+      && month > student.inactiveAt.toISOString().slice(0, 7)) {
+      return response.status(409).json({ error: 'A fee status cannot be recorded after the student became inactive' })
+    }
+    await getMonthlyFeeReport(centerId, month)
+    const snapshot = await CoachingMonthlyFee.findOne({ centerId, studentId, feeMonth: month })
+    if (!snapshot || snapshot.amount < 1) return response.status(409).json({ error: 'This student has no monthly tuition fee for the selected month' })
+
+    let record = await CoachingFeeRecord.findOne({ centerId, monthlyFeeId: snapshot._id })
+    const previousPayment = record ? {
+      amount: record.amount,
+      paymentDate: record.paymentDate,
+      method: record.method,
+      status: record.status,
+    } : null
+    if (status === 'paid') {
+      const paidRecords = await CoachingFeeRecord.find({
+        centerId,
+        studentId,
+        feeMonth: month,
+        category: 'tuition',
+        status: { $ne: 'voided' },
+        ...(record ? { _id: { $ne: record._id } } : {}),
+      }).select('amount').lean()
+      const alreadyPaid = paidRecords.reduce((total, item) => total + item.amount, 0)
+      const remaining = Math.max(0, snapshot.amount - alreadyPaid)
+      if (remaining < 1) return response.status(409).json({ error: 'This month is already fully paid through the fee ledger' })
+      const receivedOn = paymentDate ?? dhakaDateValue()
+      if (!isCalendarDate(receivedOn) || !isTodayOrEarlier(receivedOn)) {
+        return response.status(400).json({ error: 'Provide a valid payment date that is not in the future' })
+      }
+      if (record) {
+        record.amount = remaining
+        record.paymentDate = receivedOn
+        record.method = method
+        record.status = 'active'
+        record.voidedAt = undefined
+        record.voidedBy = ''
+        record.voidReason = ''
+        await record.save()
+      } else {
+        record = await CoachingFeeRecord.create({
+          centerId,
+          studentId,
+          monthlyFeeId: snapshot._id,
+          feeMonth: month,
+          amount: remaining,
+          paymentDate: receivedOn,
+          category: 'tuition',
+          method,
+          reference: '',
+          note: 'Monthly tuition status payment',
+          recordedBy: request.firebaseUser.uid,
+        })
+      }
+    } else {
+      if (!record || record.status === 'voided') return response.status(409).json({ error: 'No active monthly fee payment exists to correct' })
+      record.status = 'voided'
+      record.voidedAt = new Date()
+      record.voidedBy = request.firebaseUser.uid
+      record.voidReason = 'Monthly fee status corrected to unpaid'
+      await record.save()
+    }
+    await CoachingAuditEvent.create({
+      centerId,
+      actorId: request.firebaseUser.uid,
+      action: status === 'paid' ? 'monthly-fee.marked-paid' : 'monthly-fee.marked-unpaid',
+      entityType: 'monthly-fee',
+      entityId: String(snapshot._id),
+      details: {
+        studentId: String(studentId),
+        feeMonth: month,
+        before: previousPayment,
+        after: { amount: record.amount, paymentDate: record.paymentDate, method: record.method, status: record.status },
+        receiptId: String(record._id),
+      },
+    })
+    response.json(await getMonthlyFeeReport(centerId, month))
+  } catch (error) {
+    if (error.code === 11000) return response.status(409).json({ error: 'A monthly payment already exists for this student and month' })
+    next(error)
+  }
+})
+
 router.put('/centers/:centerId/fees/plans', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
   try {
     const { studentId, monthlyAmount, startsMonth, dueDay = 10 } = request.body ?? {}
     if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Choose a valid student' })
-    if (!Number.isSafeInteger(monthlyAmount) || monthlyAmount < 1 || monthlyAmount > 100_000_000) {
-      return response.status(400).json({ error: 'Monthly fee must be a whole number between 1 and 100,000,000 BDT' })
+    if (!Number.isSafeInteger(monthlyAmount) || monthlyAmount < 0 || monthlyAmount > 100_000_000) {
+      return response.status(400).json({ error: 'Monthly fee must be a whole number between 0 and 100,000,000 BDT' })
     }
     if (!isFeeMonth(startsMonth)) return response.status(400).json({ error: 'Provide a valid start month in YYYY-MM format' })
+    if (startsMonth < dhakaDateValue().slice(0, 7)) {
+      return response.status(400).json({ error: 'Fee plans cannot be changed retroactively; use the current or a future month' })
+    }
     if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28) return response.status(400).json({ error: 'Fee due day must be between 1 and 28' })
     const { centerId } = request.coachingMembership
     const student = await CoachingStudent.exists({ _id: studentId, centerId, status: 'active' })
@@ -1242,6 +1545,13 @@ router.put('/centers/:centerId/fees/plans', requireCenterMembership, requireCent
       { $set: { monthlyAmount, startsMonth, dueDay, updatedBy: request.firebaseUser.uid } },
       { new: true, upsert: true, runValidators: true },
     ).populate({ path: 'studentId', select: 'name studentCode' })
+    const currentMonth = dhakaDateValue().slice(0, 7)
+    const updatedPlans = await CoachingFeePlan.find({ centerId, studentId }).sort({ startsMonth: 1 }).lean()
+    const currentPlan = [...updatedPlans].reverse().find((item) => item.startsMonth <= currentMonth)
+    if (currentPlan) {
+      await CoachingStudent.updateOne({ _id: studentId, centerId }, { $set: { monthlyFee: currentPlan.monthlyAmount } })
+    }
+    await refreshMonthlyFeeSnapshots(centerId, studentId, startsMonth)
     await CoachingAuditEvent.create({
       centerId,
       actorId: request.firebaseUser.uid,
@@ -1309,6 +1619,20 @@ router.post('/centers/:centerId/fees', requireCenterMembership, requireCenterRol
     const { centerId } = request.coachingMembership
     const student = await CoachingStudent.exists({ _id: studentId, centerId, status: 'active' })
     if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
+    if (category === 'tuition') {
+      await getMonthlyFeeReport(centerId, feeMonth)
+      const snapshot = await CoachingMonthlyFee.findOne({ centerId, studentId, feeMonth }).select('amount').lean()
+      if (snapshot?.amount > 0) {
+        const existingTuition = await CoachingFeeRecord.aggregate([
+          { $match: { centerId: new mongoose.Types.ObjectId(String(centerId)), studentId: new mongoose.Types.ObjectId(String(studentId)), feeMonth, category: 'tuition', status: { $ne: 'voided' } } },
+          { $group: { _id: null, total: { $sum: '$amount' } } },
+        ])
+        const remaining = Math.max(0, snapshot.amount - (existingTuition[0]?.total ?? 0))
+        if (remaining < 1 || amount > remaining) {
+          return response.status(409).json({ error: `Tuition receipts already cover this month; maximum remaining amount is ${remaining} BDT` })
+        }
+      }
+    }
     const record = await CoachingFeeRecord.create({
       centerId,
       studentId,
