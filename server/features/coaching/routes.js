@@ -1,20 +1,26 @@
 import express from 'express'
+import process from 'node:process'
 import mongoose from 'mongoose'
 import { firebaseAdminAuth } from '../../config/firebaseAdmin.js'
 import {
   CoachingBatch,
   CoachingAttendance,
+  CoachingAuditEvent,
+  CoachingClassSession,
   CoachingCenter,
   CoachingCenterRequest,
   CoachingExam,
   CoachingExamResult,
   CoachingEnrollment,
+  CoachingFeePlan,
   CoachingFeeRecord,
+  CoachingGuardianContact,
   CoachingMembership,
   CoachingNotice,
   CoachingNoticeRead,
   CoachingStudent,
   CoachingTeacher,
+  CoachingWhatsAppMessage,
 } from '../../models/coaching.js'
 
 const router = express.Router()
@@ -171,6 +177,119 @@ function isFeeMonth(value) {
   return typeof value === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(value)
 }
 
+function dhakaDateValue(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  return ['year', 'month', 'day']
+    .map((type) => parts.find((part) => part.type === type)?.value)
+    .join('-')
+}
+
+function monthAfter(value, offset = 1) {
+  const [year, month] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1 + offset, 1))
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function normalizeWhatsAppPhone(value) {
+  const compact = String(value ?? '').replace(/[\s()-]/g, '')
+  if (/^01[3-9]\d{8}$/.test(compact)) return `880${compact.slice(1)}`
+  if (/^\+8801[3-9]\d{8}$/.test(compact)) return compact.slice(1)
+  if (/^8801[3-9]\d{8}$/.test(compact)) return compact
+  if (/^\+[1-9]\d{7,14}$/.test(compact)) return compact.slice(1)
+  if (/^[1-9]\d{7,14}$/.test(compact)) return compact
+  return ''
+}
+
+async function getFeeDueRows(centerId, month, asOfDate = dhakaDateValue(), studentIdFilter = null) {
+  const plans = await CoachingFeePlan.find({
+    centerId,
+    ...(studentIdFilter ? { studentId: { $in: studentIdFilter } } : {}),
+  })
+    .populate({ path: 'studentId', match: { status: 'active' }, select: 'name studentCode guardianName guardianPhone guardianWhatsAppOptIn' })
+    .sort({ startsMonth: 1 })
+    .lean()
+  const activePlans = plans.filter((plan) => plan.studentId && plan.startsMonth <= month)
+  const plansByStudent = new Map()
+  for (const plan of activePlans) {
+    const key = String(plan.studentId._id)
+    const studentPlans = plansByStudent.get(key) ?? []
+    studentPlans.push(plan)
+    plansByStudent.set(key, studentPlans)
+  }
+  const studentIds = [...plansByStudent.values()].map((studentPlans) => studentPlans[0].studentId._id)
+  const payments = studentIds.length
+    ? await CoachingFeeRecord.aggregate([
+        { $match: { centerId: new mongoose.Types.ObjectId(String(centerId)), studentId: { $in: studentIds }, category: 'tuition', feeMonth: { $lte: month }, status: { $ne: 'voided' } } },
+        { $group: { _id: { studentId: '$studentId', feeMonth: '$feeMonth' }, paid: { $sum: '$amount' } } },
+      ])
+    : []
+  const paidByStudent = new Map()
+  for (const payment of payments) {
+    const studentId = String(payment._id.studentId)
+    const paidByMonth = paidByStudent.get(studentId) ?? new Map()
+    paidByMonth.set(payment._id.feeMonth, payment.paid)
+    paidByStudent.set(studentId, paidByMonth)
+  }
+  const rows = [...plansByStudent.entries()].map(([studentId, studentPlans]) => {
+    const charges = new Map()
+    studentPlans.forEach((plan, index) => {
+      const nextPlan = studentPlans[index + 1]
+      const lastMonth = nextPlan ? monthAfter(nextPlan.startsMonth, -1) : month
+      if (lastMonth < plan.startsMonth) return
+      let chargeMonth = plan.startsMonth
+      while (chargeMonth <= lastMonth) {
+        charges.set(chargeMonth, { amount: plan.monthlyAmount, dueDay: plan.dueDay })
+        chargeMonth = monthAfter(chargeMonth)
+      }
+    })
+    const paidByMonth = paidByStudent.get(studentId) ?? new Map()
+    let billed = 0
+    let paid = 0
+    let due = 0
+    let overdue = 0
+    let credit = 0
+    let nextDueDate = ''
+    for (const [chargeMonth, charge] of charges) {
+      const monthPaid = paidByMonth.get(chargeMonth) ?? 0
+      const monthDue = Math.max(0, charge.amount - monthPaid)
+      billed += charge.amount
+      paid += monthPaid
+      due += monthDue
+      credit += Math.max(0, monthPaid - charge.amount)
+      const dueDate = `${chargeMonth}-${String(charge.dueDay).padStart(2, '0')}`
+      if (dueDate <= asOfDate) overdue += monthDue
+      else if (monthDue && !nextDueDate) nextDueDate = dueDate
+    }
+    const currentPlan = [...studentPlans].reverse().find((plan) => plan.startsMonth <= month)
+    return {
+      id: String(currentPlan._id),
+      student: serialize(currentPlan.studentId),
+      monthlyAmount: currentPlan.monthlyAmount,
+      startsMonth: currentPlan.startsMonth,
+      dueDay: currentPlan.dueDay,
+      billed,
+      paid,
+      due,
+      overdue,
+      notYetDue: Math.max(0, due - overdue),
+      credit,
+      nextDueDate,
+    }
+  })
+  return {
+    rows,
+    totalDue: rows.reduce((total, row) => total + row.due, 0),
+    totalOverdue: rows.reduce((total, row) => total + row.overdue, 0),
+    studentsWithDue: rows.filter((row) => row.due > 0).length,
+    overdueStudents: rows.filter((row) => row.overdue > 0).length,
+  }
+}
+
 async function teacherCanAccessBatch(batch, membership, userId, centerId) {
   if (membership.role !== 'teacher') return true
   return Boolean(batch.teacherId && await CoachingTeacher.exists({
@@ -179,6 +298,24 @@ async function teacherCanAccessBatch(batch, membership, userId, centerId) {
     linkedUserId: userId,
     status: 'active',
   }))
+}
+
+async function hasClassScheduleConflict({ centerId, batch, date, startTime, endTime, excludeSessionId }) {
+  const relatedBatchIds = await CoachingBatch.find({
+    centerId,
+    status: 'active',
+    ...(batch.teacherId ? { teacherId: batch.teacherId } : { _id: batch._id }),
+  }).distinct('_id')
+  const conflict = await CoachingClassSession.exists({
+    centerId,
+    batchId: { $in: relatedBatchIds },
+    date,
+    status: 'scheduled',
+    startTime: { $lt: endTime },
+    endTime: { $gt: startTime },
+    ...(excludeSessionId ? { _id: { $ne: excludeSessionId } } : {}),
+  })
+  return Boolean(conflict)
 }
 
 async function getMemberStudentIds(centerId, userId) {
@@ -367,9 +504,11 @@ router.get('/centers/:centerId/overview', requireCenterMembership, async (reques
               .populate({ path: 'teacherId', select: 'name email' }).sort({ name: 1 }).lean(),
     ])
     const enrollments = managementRoles.includes(role)
-      ? await CoachingEnrollment.find({ centerId, status: 'active' })
+      ? await CoachingEnrollment.find({ centerId })
           .populate({ path: 'studentId', select: 'name studentCode' })
           .populate({ path: 'batchId', select: 'name' })
+          .sort({ updatedAt: -1 })
+          .limit(500)
           .lean()
       : []
     const members = await CoachingMembership.find({
@@ -384,6 +523,57 @@ router.get('/centers/:centerId/overview', requireCenterMembership, async (reques
       students: students.map(serialize),
       batches: batches.map(serialize),
       enrollments: enrollments.map(serialize),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/dashboard', requireCenterMembership, async (request, response, next) => {
+  try {
+    const { centerId, role } = request.coachingMembership
+    const today = dhakaDateValue()
+    const tillDateValue = new Date(`${today}T00:00:00.000Z`)
+    tillDateValue.setUTCDate(tillDateValue.getUTCDate() + 30)
+    const tillDate = tillDateValue.toISOString().slice(0, 10)
+    const batchIds = await getMemberBatchIds(centerId, request.coachingMembership)
+    const scopedBatches = batchIds ? { batchId: { $in: batchIds } } : {}
+    const [todaySessions, upcomingSessions, upcomingExams, dueSummary] = await Promise.all([
+      CoachingClassSession.find({ centerId, date: today, status: 'scheduled', ...scopedBatches })
+        .populate({ path: 'batchId', select: 'name subject teacherId', populate: { path: 'teacherId', select: 'name' } })
+        .sort({ startTime: 1 }).limit(100).lean(),
+      CoachingClassSession.find({ centerId, date: { $gt: today, $lte: tillDate }, status: 'scheduled', ...scopedBatches })
+        .populate({ path: 'batchId', select: 'name subject teacherId', populate: { path: 'teacherId', select: 'name' } })
+        .sort({ date: 1, startTime: 1 }).limit(100).lean(),
+      ['owner', 'manager', 'teacher', 'student'].includes(role)
+        ? CoachingExam.find({
+            centerId,
+            status: 'active',
+            examDate: { $gte: today, $lte: tillDate },
+            ...(batchIds ? { batchId: { $in: batchIds } } : {}),
+          }).populate({ path: 'batchId', select: 'name subject' }).sort({ examDate: 1 }).limit(50).lean()
+        : Promise.resolve([]),
+      ['owner', 'manager', 'accountant'].includes(role)
+        ? getFeeDueRows(centerId, today.slice(0, 7), today)
+        : Promise.resolve(null),
+    ])
+    const sessionsWithAttendance = await Promise.all(todaySessions.map(async (session) => {
+      const batchId = session.batchId?._id ?? session.batchId
+      const enrolled = await CoachingEnrollment.countDocuments({ centerId, batchId, status: 'active' })
+      const marked = await CoachingAttendance.countDocuments({ centerId, batchId, date: today })
+      return { ...serialize(session), enrolled, marked, attendancePending: Math.max(0, enrolled - marked) }
+    }))
+    response.json({
+      date: today,
+      todaySessions: sessionsWithAttendance,
+      upcomingSessions: upcomingSessions.map(serialize),
+      upcomingExams: upcomingExams.map(serialize),
+      due: dueSummary ? {
+        total: dueSummary.totalDue,
+        overdue: dueSummary.totalOverdue,
+        students: dueSummary.studentsWithDue,
+        overdueStudents: dueSummary.overdueStudents,
+      } : null,
     })
   } catch (error) {
     next(error)
@@ -481,6 +671,14 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
     }
     const email = normalizeEmail(request.body.email)
     const account = await findOptionalFirebaseAccount(email)
+    const guardianPhone = typeof request.body.guardianPhone === 'string' ? request.body.guardianPhone.trim().slice(0, 30) : ''
+    const guardianWhatsAppOptIn = request.body.guardianWhatsAppOptIn === true
+    if (request.body.guardianWhatsAppOptIn !== undefined && typeof request.body.guardianWhatsAppOptIn !== 'boolean') {
+      return response.status(400).json({ error: 'WhatsApp consent must be true or false' })
+    }
+    if (guardianWhatsAppOptIn && !guardianPhone) {
+      return response.status(400).json({ error: 'Add a guardian phone number before recording WhatsApp consent' })
+    }
     const student = await CoachingStudent.create({
       centerId: request.params.centerId,
       name: normalizedName,
@@ -494,11 +692,26 @@ router.post('/centers/:centerId/students', requireCenterMembership, requireCente
       email,
       linkedUserId: account?.uid ?? '',
       guardianName: typeof request.body.guardianName === 'string' ? request.body.guardianName.trim().slice(0, 120) : '',
-      guardianPhone: typeof request.body.guardianPhone === 'string' ? request.body.guardianPhone.trim().slice(0, 30) : '',
+      guardianPhone,
+      guardianWhatsAppOptIn,
+      ...(guardianWhatsAppOptIn ? {
+        guardianWhatsAppOptInAt: new Date(),
+        guardianWhatsAppOptInBy: request.firebaseUser.uid,
+      } : {}),
       dateOfBirth: request.body.dateOfBirth || '',
       photoURL: normalizePhotoURL(request.body.photoURL),
       createdBy: request.firebaseUser.uid,
     })
+    if (guardianWhatsAppOptIn) {
+      await CoachingAuditEvent.create({
+        centerId: request.params.centerId,
+        actorId: request.firebaseUser.uid,
+        action: 'whatsapp.consent-recorded',
+        entityType: 'student',
+        entityId: String(student._id),
+        details: { optIn: true },
+      })
+    }
     response.status(201).json(serialize(student.toObject()))
   } catch (error) {
     if (error.code === 11000) return response.status(409).json({ error: 'This student ID is already used in the center' })
@@ -538,19 +751,153 @@ router.patch('/centers/:centerId/students/:studentId', requireCenterMembership, 
       student.linkedUserId = account?.uid ?? ''
     }
     if (guardianName !== undefined) student.guardianName = typeof guardianName === 'string' ? guardianName.trim().slice(0, 120) : ''
+    const previousGuardianPhone = student.guardianPhone
     if (guardianPhone !== undefined) student.guardianPhone = typeof guardianPhone === 'string' ? guardianPhone.trim().slice(0, 30) : ''
+    if (student.guardianPhone !== previousGuardianPhone && request.body.guardianWhatsAppOptIn !== true) {
+      student.guardianWhatsAppOptIn = false
+      student.guardianWhatsAppOptOutAt = new Date()
+    }
+    if (request.body.guardianWhatsAppOptIn !== undefined) {
+      if (typeof request.body.guardianWhatsAppOptIn !== 'boolean') {
+        return response.status(400).json({ error: 'WhatsApp consent must be true or false' })
+      }
+      if (request.body.guardianWhatsAppOptIn && !student.guardianPhone) {
+        return response.status(400).json({ error: 'Add a guardian phone number before recording WhatsApp consent' })
+      }
+      if (student.guardianWhatsAppOptIn !== request.body.guardianWhatsAppOptIn) {
+        student.guardianWhatsAppOptIn = request.body.guardianWhatsAppOptIn
+        if (request.body.guardianWhatsAppOptIn) {
+          student.guardianWhatsAppOptInAt = new Date()
+          student.guardianWhatsAppOptInBy = request.firebaseUser.uid
+          student.guardianWhatsAppOptOutAt = undefined
+        } else {
+          student.guardianWhatsAppOptOutAt = new Date()
+        }
+      }
+    }
     if (dateOfBirth !== undefined) {
       if (dateOfBirth && !isCalendarDate(dateOfBirth)) return response.status(400).json({ error: 'Provide date of birth in YYYY-MM-DD format' })
       student.dateOfBirth = dateOfBirth || ''
     }
     if (photoURL !== undefined) student.photoURL = normalizePhotoURL(photoURL)
     await student.save()
+    if (request.body.guardianWhatsAppOptIn !== undefined) {
+      await CoachingAuditEvent.create({
+        centerId: request.params.centerId,
+        actorId: request.firebaseUser.uid,
+        action: request.body.guardianWhatsAppOptIn ? 'whatsapp.consent-recorded' : 'whatsapp.consent-withdrawn',
+        entityType: 'student',
+        entityId: String(student._id),
+        details: { optIn: student.guardianWhatsAppOptIn },
+      })
+    }
     response.json(serialize(student.toObject()))
   } catch (error) {
     if (error.code === 11000) return response.status(409).json({ error: 'This student ID is already used in the center' })
     if (error instanceof Error && ['Student name', 'Student ID', 'Email', 'Student photo URL', 'Student '].some((prefix) => error.message.startsWith(prefix))) {
       return response.status(400).json({ error: error.message })
     }
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/students/:studentId/summary', requireCenterMembership, async (request, response, next) => {
+  try {
+    const { studentId } = request.params
+    if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Invalid student profile' })
+    const { centerId, role, userId } = request.coachingMembership
+    const student = await CoachingStudent.findOne({ _id: studentId, centerId, status: 'active' }).lean()
+    if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
+
+    const canManage = managementRoles.includes(role)
+    const canSeeFinance = canManage || role === 'accountant'
+    let enrollments
+    if (role === 'student') {
+      if (student.linkedUserId !== userId) return response.status(403).json({ error: 'You can only view your own student profile' })
+      enrollments = await CoachingEnrollment.find({ centerId, studentId }).populate({ path: 'batchId', select: 'name subject grade schedule' }).sort({ updatedAt: -1 }).lean()
+    } else if (role === 'teacher') {
+      const permittedBatchIds = await getMemberBatchIds(centerId, request.coachingMembership)
+      enrollments = await CoachingEnrollment.find({ centerId, studentId, batchId: { $in: permittedBatchIds } })
+        .populate({ path: 'batchId', select: 'name subject grade schedule' })
+        .sort({ updatedAt: -1 })
+        .lean()
+      if (!enrollments.length) return response.status(403).json({ error: 'This student is not in one of your assigned batches' })
+    } else {
+      enrollments = await CoachingEnrollment.find({ centerId, studentId })
+        .populate({ path: 'batchId', select: 'name subject grade schedule' })
+        .sort({ updatedAt: -1 })
+        .lean()
+    }
+
+    const today = dhakaDateValue()
+    const sinceDateValue = new Date(`${today}T00:00:00.000Z`)
+    sinceDateValue.setUTCDate(sinceDateValue.getUTCDate() - 89)
+    const sinceDate = sinceDateValue.toISOString().slice(0, 10)
+    const batchIds = enrollments.map((enrollment) => enrollment.batchId?._id).filter(Boolean)
+    const attendanceFilter = {
+      centerId,
+      studentId,
+      date: { $gte: sinceDate, $lte: today },
+      ...(role === 'teacher' ? { batchId: { $in: batchIds } } : {}),
+    }
+    const [attendanceRecords, attendanceTotals] = await Promise.all([
+      CoachingAttendance.find(attendanceFilter)
+      .populate({ path: 'batchId', select: 'name subject' })
+      .sort({ date: -1 })
+      .limit(100)
+      .lean(),
+      CoachingAttendance.aggregate([
+        { $match: attendanceFilter },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+    ])
+    const attendance = {
+      records: attendanceRecords.map(serialize),
+      totals: attendanceTotals.reduce((totals, item) => {
+        totals[item._id] = item.count
+        return totals
+      }, { present: 0, absent: 0, late: 0, excused: 0 }),
+      since: sinceDate,
+      to: today,
+    }
+    const examResults = await CoachingExamResult.find({
+      centerId,
+      studentId,
+      ...(role === 'teacher' ? { batchId: { $in: batchIds } } : {}),
+    })
+      .populate({ path: 'examId', select: 'title examDate totalMarks status' })
+      .populate({ path: 'batchId', select: 'name subject grade' })
+      .sort({ updatedAt: -1 })
+      .limit(100)
+      .lean()
+    const feeSummary = canSeeFinance
+      ? await getFeeDueRows(centerId, today.slice(0, 7), today, [student._id])
+      : null
+    const contacts = canManage
+      ? await CoachingGuardianContact.find({ centerId, studentId }).sort({ contactedAt: -1 }).limit(50).lean()
+      : []
+    const visibleStudent = serialize(student)
+    if (role === 'teacher') {
+      delete visibleStudent.guardianName
+      delete visibleStudent.guardianPhone
+      delete visibleStudent.guardianWhatsAppOptIn
+      delete visibleStudent.guardianWhatsAppOptInAt
+      delete visibleStudent.guardianWhatsAppOptInBy
+      delete visibleStudent.guardianWhatsAppOptOutAt
+      delete visibleStudent.guardianDistrict
+      delete visibleStudent.guardianPostOffice
+      delete visibleStudent.guardianVillage
+      delete visibleStudent.guardianArea
+    }
+    response.json({
+      student: visibleStudent,
+      enrollments: enrollments.map(serialize),
+      attendance,
+      examResults: examResults.map(serialize),
+      fees: feeSummary?.rows[0] ?? null,
+      contacts: contacts.map(serialize),
+    })
+  } catch (error) {
     next(error)
   }
 })
@@ -565,10 +912,32 @@ router.delete('/centers/:centerId/students/:studentId', requireCenterMembership,
       { new: true, runValidators: true },
     )
     if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
+    const activeEnrollments = await CoachingEnrollment.find(
+      { centerId: request.params.centerId, studentId, status: 'active' },
+    ).select('_id batchId').lean()
     await CoachingEnrollment.updateMany(
       { centerId: request.params.centerId, studentId, status: 'active' },
-      { $set: { status: 'withdrawn' } },
+      {
+        $set: { status: 'withdrawn' },
+        $push: {
+          history: {
+            action: 'withdrawn',
+            note: 'Student profile deactivated',
+            changedBy: request.firebaseUser.uid,
+          },
+        },
+      },
     )
+    if (activeEnrollments.length) {
+      await CoachingAuditEvent.create({
+        centerId: request.params.centerId,
+        actorId: request.firebaseUser.uid,
+        action: 'student.deactivated',
+        entityType: 'student',
+        entityId: String(student._id),
+        details: { withdrawnEnrollments: activeEnrollments.map((enrollment) => String(enrollment._id)) },
+      })
+    }
     response.json({ id: String(student._id), status: student.status })
   } catch (error) {
     next(error)
@@ -649,14 +1018,64 @@ router.post('/centers/:centerId/batches/:batchId/enrollments', requireCenterMemb
       CoachingStudent.exists({ _id: studentId, centerId: request.params.centerId, status: 'active' }),
     ])
     if (!batch || !student) return response.status(404).json({ error: 'Active batch or student not found in this center' })
-    const enrollment = await CoachingEnrollment.findOneAndUpdate(
-      { centerId: request.params.centerId, batchId, studentId },
-      { $set: { status: 'active' }, $setOnInsert: { enrolledAt: new Date() } },
-      { new: true, upsert: true, runValidators: true },
-    )
+    let enrollment = await CoachingEnrollment.findOne({ centerId: request.params.centerId, batchId, studentId })
+    if (!enrollment) {
+      enrollment = await CoachingEnrollment.create({
+        centerId: request.params.centerId,
+        batchId,
+        studentId,
+        status: 'active',
+        enrolledAt: new Date(),
+        history: [{ action: 'enrolled', changedBy: request.firebaseUser.uid }],
+      })
+    } else if (enrollment.status === 'withdrawn') {
+      enrollment.status = 'active'
+      enrollment.enrolledAt = new Date()
+      enrollment.history.push({
+        action: 'reactivated',
+        note: typeof request.body?.note === 'string' ? request.body.note.trim().slice(0, 300) : '',
+        changedBy: request.firebaseUser.uid,
+      })
+      await enrollment.save()
+    }
     response.status(201).json(serialize(enrollment.toObject()))
   } catch (error) {
     if (error.code === 11000) return response.status(409).json({ error: 'Student is already enrolled in this batch' })
+    next(error)
+  }
+})
+
+router.patch('/centers/:centerId/enrollments/:enrollmentId', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const { enrollmentId } = request.params
+    const { status, note } = request.body ?? {}
+    if (!mongoose.isValidObjectId(enrollmentId)) return response.status(400).json({ error: 'Invalid enrollment' })
+    if (!['active', 'withdrawn'].includes(status)) return response.status(400).json({ error: 'Enrollment status must be active or withdrawn' })
+    if (note !== undefined && (typeof note !== 'string' || note.trim().length > 300)) {
+      return response.status(400).json({ error: 'Enrollment note cannot exceed 300 characters' })
+    }
+    const enrollment = await CoachingEnrollment.findOne({ _id: enrollmentId, centerId: request.params.centerId })
+    if (!enrollment) return response.status(404).json({ error: 'Enrollment not found in this center' })
+    if (enrollment.status !== status) {
+      enrollment.status = status
+      if (status === 'active') enrollment.enrolledAt = new Date()
+      enrollment.history.push({
+        action: status === 'withdrawn' ? 'withdrawn' : 'reactivated',
+        note: note?.trim() ?? '',
+        changedBy: request.firebaseUser.uid,
+      })
+      await enrollment.save()
+      await CoachingAuditEvent.create({
+        centerId: request.params.centerId,
+        actorId: request.firebaseUser.uid,
+        action: status === 'withdrawn' ? 'enrollment.withdrawn' : 'enrollment.reactivated',
+        entityType: 'enrollment',
+        entityId: String(enrollment._id),
+        details: { studentId: String(enrollment.studentId), batchId: String(enrollment.batchId), note: note?.trim() ?? '' },
+      })
+    }
+    response.json(serialize(enrollment.toObject()))
+  } catch (error) {
     next(error)
   }
 })
@@ -774,7 +1193,7 @@ router.get('/centers/:centerId/fees', requireCenterMembership, requireCenterRole
         .limit(500)
         .lean(),
       CoachingFeeRecord.aggregate([
-        { $match: { centerId: new mongoose.Types.ObjectId(String(centerId)), feeMonth: month } },
+        { $match: { centerId: new mongoose.Types.ObjectId(String(centerId)), feeMonth: month, status: { $ne: 'voided' } } },
         { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' } } },
       ]),
     ])
@@ -786,6 +1205,88 @@ router.get('/centers/:centerId/fees', requireCenterMembership, requireCenterRole
       records: records.map(serialize),
     })
   } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/fees/due', requireCenterMembership, requireCenterRoles(...managementRoles, 'accountant'), async (request, response, next) => {
+  try {
+    const month = request.query.month
+    if (!isFeeMonth(month)) return response.status(400).json({ error: 'Provide a valid fee month in YYYY-MM format' })
+    const { centerId } = request.coachingMembership
+    const dueSummary = await getFeeDueRows(centerId, month)
+    response.json({
+      month,
+      ...dueSummary,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.put('/centers/:centerId/fees/plans', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const { studentId, monthlyAmount, startsMonth, dueDay = 10 } = request.body ?? {}
+    if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Choose a valid student' })
+    if (!Number.isSafeInteger(monthlyAmount) || monthlyAmount < 1 || monthlyAmount > 100_000_000) {
+      return response.status(400).json({ error: 'Monthly fee must be a whole number between 1 and 100,000,000 BDT' })
+    }
+    if (!isFeeMonth(startsMonth)) return response.status(400).json({ error: 'Provide a valid start month in YYYY-MM format' })
+    if (!Number.isInteger(dueDay) || dueDay < 1 || dueDay > 28) return response.status(400).json({ error: 'Fee due day must be between 1 and 28' })
+    const { centerId } = request.coachingMembership
+    const student = await CoachingStudent.exists({ _id: studentId, centerId, status: 'active' })
+    if (!student) return response.status(404).json({ error: 'Active student profile not found in this center' })
+    const previousPlan = await CoachingFeePlan.findOne({ centerId, studentId, startsMonth }).select('monthlyAmount startsMonth dueDay').lean()
+    const plan = await CoachingFeePlan.findOneAndUpdate(
+      { centerId, studentId, startsMonth },
+      { $set: { monthlyAmount, startsMonth, dueDay, updatedBy: request.firebaseUser.uid } },
+      { new: true, upsert: true, runValidators: true },
+    ).populate({ path: 'studentId', select: 'name studentCode' })
+    await CoachingAuditEvent.create({
+      centerId,
+      actorId: request.firebaseUser.uid,
+      action: 'fee-plan.updated',
+      entityType: 'fee-plan',
+      entityId: String(plan._id),
+      details: {
+        studentId: String(studentId),
+        before: previousPlan ? {
+          monthlyAmount: previousPlan.monthlyAmount,
+          startsMonth: previousPlan.startsMonth,
+          dueDay: previousPlan.dueDay,
+        } : null,
+        after: { monthlyAmount, startsMonth, dueDay },
+      },
+    })
+    response.json(serialize(plan.toObject()))
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.patch('/centers/:centerId/fees/:feeId/void', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const { feeId } = request.params
+    const reason = normalizeRequiredString(request.body?.reason, 'Void reason', 300)
+    if (!mongoose.isValidObjectId(feeId)) return response.status(400).json({ error: 'Invalid fee receipt' })
+    const { centerId } = request.coachingMembership
+    const record = await CoachingFeeRecord.findOneAndUpdate(
+      { _id: feeId, centerId, status: 'active' },
+      { $set: { status: 'voided', voidedAt: new Date(), voidedBy: request.firebaseUser.uid, voidReason: reason } },
+      { new: true, runValidators: true },
+    )
+    if (!record) return response.status(404).json({ error: 'Active fee receipt not found in this center' })
+    await CoachingAuditEvent.create({
+      centerId,
+      actorId: request.firebaseUser.uid,
+      action: 'fee-receipt.voided',
+      entityType: 'fee-receipt',
+      entityId: String(record._id),
+      details: { amount: record.amount, studentId: String(record.studentId), reason },
+    })
+    response.json(serialize(record.toObject()))
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Void reason')) return response.status(400).json({ error: error.message })
     next(error)
   }
 })
@@ -829,13 +1330,453 @@ router.post('/centers/:centerId/fees', requireCenterMembership, requireCenterRol
   }
 })
 
-router.get('/centers/:centerId/exams', requireCenterMembership, requireCenterRoles(...managementRoles, 'teacher', 'student'), async (request, response, next) => {
+router.get('/centers/:centerId/attendance/report', requireCenterMembership, requireCenterRoles(...managementRoles, 'teacher'), async (request, response, next) => {
+  try {
+    const { from, to, batchId } = request.query
+    if (!isCalendarDate(from) || !isCalendarDate(to) || from > to) {
+      return response.status(400).json({ error: 'Choose a valid date range in YYYY-MM-DD format' })
+    }
+    const rangeLength = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000
+    if (rangeLength > 92) return response.status(400).json({ error: 'Attendance reports can cover up to 93 days at a time' })
+    if (batchId && !mongoose.isValidObjectId(batchId)) return response.status(400).json({ error: 'Choose a valid batch' })
+    const { centerId } = request.coachingMembership
+    const permittedBatchIds = await getMemberBatchIds(centerId, request.coachingMembership)
+    if (request.coachingMembership.role === 'teacher') {
+      if (batchId && !permittedBatchIds.some((id) => String(id) === String(batchId))) {
+        return response.status(403).json({ error: 'Teachers can only report on their assigned batches' })
+      }
+    }
+    const scopedBatchIds = batchId
+      ? [batchId]
+      : permittedBatchIds
+        ? permittedBatchIds.map(String)
+        : null
+    const today = dhakaDateValue()
+    const reportEnd = to > today ? today : to
+    const sessions = await CoachingClassSession.find({
+      centerId,
+      date: { $gte: from, $lte: reportEnd },
+      status: 'scheduled',
+      ...(scopedBatchIds ? { batchId: { $in: scopedBatchIds } } : {}),
+    })
+      .populate({ path: 'batchId', select: 'name subject' })
+      .sort({ date: -1, startTime: -1 })
+      .limit(1000)
+      .lean()
+    const sessionBatchIds = [...new Set(sessions.map((session) => String(session.batchId?._id ?? session.batchId)))]
+    const enrollments = sessionBatchIds.length
+      ? await CoachingEnrollment.find({ centerId, batchId: { $in: sessionBatchIds }, status: 'active' })
+          .populate({ path: 'studentId', match: { status: 'active' }, select: 'name studentCode guardianName guardianPhone guardianWhatsAppOptIn' })
+          .populate({ path: 'batchId', select: 'name subject' })
+          .lean()
+      : []
+    const attendance = sessions.length
+      ? await CoachingAttendance.find({
+          centerId,
+          date: { $in: sessions.map((session) => session.date) },
+          batchId: { $in: sessionBatchIds },
+        }).select('studentId batchId date status').lean()
+      : []
+    const attendanceBySessionStudent = new Map(attendance.map((record) => [
+      `${record.date}:${record.batchId}:${record.studentId}`,
+      record.status,
+    ]))
+    const enrollmentsByBatch = new Map()
+    for (const enrollment of enrollments) {
+      if (!enrollment.studentId || !enrollment.batchId) continue
+      const key = String(enrollment.batchId._id)
+      const batchEnrollments = enrollmentsByBatch.get(key) ?? []
+      batchEnrollments.push(enrollment)
+      enrollmentsByBatch.set(key, batchEnrollments)
+    }
+    const grouped = new Map()
+    for (const session of sessions) {
+      const sessionBatchId = String(session.batchId?._id ?? session.batchId)
+      for (const enrollment of enrollmentsByBatch.get(sessionBatchId) ?? []) {
+        const studentId = String(enrollment.studentId._id)
+        const key = `${sessionBatchId}:${studentId}`
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            student: serialize(enrollment.studentId),
+            batch: serialize(session.batchId),
+            counts: { present: 0, absent: 0, late: 0, excused: 0 },
+            consecutiveAbsences: 0,
+            records: [],
+          })
+        }
+        const row = grouped.get(key)
+        const status = attendanceBySessionStudent.get(`${session.date}:${sessionBatchId}:${studentId}`) ?? ''
+        if (status) row.counts[status] += 1
+        row.records.push({ date: session.date, startTime: session.startTime, status })
+      }
+    }
+    const rows = [...grouped.values()]
+    for (const row of rows) {
+      for (const record of row.records) {
+        if (record.status !== 'absent') break
+        row.consecutiveAbsences += 1
+      }
+      if (request.coachingMembership.role === 'teacher') {
+        delete row.student.guardianName
+        delete row.student.guardianPhone
+        delete row.student.guardianWhatsAppOptIn
+      }
+    }
+    response.json({
+      from,
+      to,
+      rows,
+      sessions: sessions.length,
+      totals: rows.reduce((totals, row) => {
+        for (const [status, count] of Object.entries(row.counts)) totals[status] += count
+        return totals
+      }, { present: 0, absent: 0, late: 0, excused: 0 }),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/schedule', requireCenterMembership, async (request, response, next) => {
+  try {
+    const { from, to } = request.query
+    if (!isCalendarDate(from) || !isCalendarDate(to) || from > to) {
+      return response.status(400).json({ error: 'Choose a valid schedule date range in YYYY-MM-DD format' })
+    }
+    const { centerId } = request.coachingMembership
+    const batchIds = await getMemberBatchIds(centerId, request.coachingMembership)
+    const sessions = await CoachingClassSession.find({
+      centerId,
+      date: { $gte: from, $lte: to },
+      ...(batchIds ? { batchId: { $in: batchIds } } : {}),
+    })
+      .populate({ path: 'batchId', select: 'name subject grade teacherId', populate: { path: 'teacherId', select: 'name' } })
+      .sort({ date: 1, startTime: 1 })
+      .limit(500)
+      .lean()
+    response.json({ sessions: sessions.map(serialize) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/centers/:centerId/schedule', requireCenterMembership, requireCenterRoles(...managementRoles, 'teacher'), async (request, response, next) => {
+  try {
+    const { batchId, title = '', date, startTime, endTime } = request.body ?? {}
+    if (!mongoose.isValidObjectId(batchId)) return response.status(400).json({ error: 'Choose a valid batch' })
+    if (!isCalendarDate(date)) return response.status(400).json({ error: 'Choose a valid class date' })
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime) || startTime >= endTime) {
+      return response.status(400).json({ error: 'Choose valid class times with end time after start time' })
+    }
+    if (typeof title !== 'string' || title.trim().length > 120) return response.status(400).json({ error: 'Class topic cannot exceed 120 characters' })
+    const { centerId, userId } = request.coachingMembership
+    const batch = await CoachingBatch.findOne({ _id: batchId, centerId, status: 'active' }).lean()
+    if (!batch) return response.status(404).json({ error: 'Active batch not found in this center' })
+    if (!await teacherCanAccessBatch(batch, request.coachingMembership, userId, centerId)) {
+      return response.status(403).json({ error: 'Teachers can only schedule their assigned batches' })
+    }
+    if (await hasClassScheduleConflict({ centerId, batch, date, startTime, endTime })) {
+      return response.status(409).json({ error: 'This batch or assigned teacher already has a class during that time' })
+    }
+    const session = await CoachingClassSession.create({
+      centerId,
+      batchId,
+      title: title.trim(),
+      date,
+      startTime,
+      endTime,
+      createdBy: request.firebaseUser.uid,
+      history: [{ action: 'scheduled', changedBy: request.firebaseUser.uid }],
+    })
+    const populatedSession = await CoachingClassSession.findById(session._id)
+      .populate({ path: 'batchId', select: 'name subject grade teacherId', populate: { path: 'teacherId', select: 'name' } })
+      .lean()
+    await CoachingAuditEvent.create({
+      centerId,
+      actorId: request.firebaseUser.uid,
+      action: 'class-session.scheduled',
+      entityType: 'class-session',
+      entityId: String(session._id),
+      details: { batchId: String(batchId), date, startTime, endTime },
+    })
+    response.status(201).json(serialize(populatedSession))
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.patch('/centers/:centerId/schedule/:sessionId', requireCenterMembership, requireCenterRoles(...managementRoles, 'teacher'), async (request, response, next) => {
+  try {
+    const { sessionId } = request.params
+    if (!mongoose.isValidObjectId(sessionId)) return response.status(400).json({ error: 'Invalid class session' })
+    const session = await CoachingClassSession.findOne({ _id: sessionId, centerId: request.coachingMembership.centerId })
+    if (!session) return response.status(404).json({ error: 'Class session not found in this center' })
+    const batch = await CoachingBatch.findOne({ _id: session.batchId, centerId: session.centerId, status: 'active' }).lean()
+    if (!batch) return response.status(404).json({ error: 'Active batch not found for this class session' })
+    if (!await teacherCanAccessBatch(batch, request.coachingMembership, request.coachingMembership.userId, session.centerId)) {
+      return response.status(403).json({ error: 'Teachers can only change sessions for their assigned batches' })
+    }
+    const { status, date, startTime, endTime, note } = request.body ?? {}
+    if (status !== undefined && !['scheduled', 'cancelled'].includes(status)) {
+      return response.status(400).json({ error: 'Class status must be scheduled or cancelled' })
+    }
+    if (date !== undefined && !isCalendarDate(date)) return response.status(400).json({ error: 'Choose a valid class date' })
+    if (startTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)) return response.status(400).json({ error: 'Choose a valid start time' })
+    if (endTime !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(endTime)) return response.status(400).json({ error: 'Choose a valid end time' })
+    const nextDate = date ?? session.date
+    const nextStartTime = startTime ?? session.startTime
+    const nextEndTime = endTime ?? session.endTime
+    if (nextStartTime >= nextEndTime) return response.status(400).json({ error: 'Class end time must be after start time' })
+    if (note !== undefined && (typeof note !== 'string' || note.trim().length > 300)) {
+      return response.status(400).json({ error: 'Schedule note cannot exceed 300 characters' })
+    }
+    const nextStatus = status ?? session.status
+    if (nextStatus === 'cancelled' && !note?.trim()) {
+      return response.status(400).json({ error: 'Provide a cancellation reason' })
+    }
+    const changedSchedule = nextDate !== session.date
+      || nextStartTime !== session.startTime
+      || nextEndTime !== session.endTime
+    const statusChanged = nextStatus !== session.status
+    if (changedSchedule || statusChanged) {
+      if (nextStatus === 'scheduled' && await hasClassScheduleConflict({
+        centerId: session.centerId,
+        batch,
+        date: nextDate,
+        startTime: nextStartTime,
+        endTime: nextEndTime,
+        excludeSessionId: session._id,
+      })) {
+        return response.status(409).json({ error: 'This batch or assigned teacher already has a class during that time' })
+      }
+      const previous = { date: session.date, startTime: session.startTime, endTime: session.endTime }
+      session.date = nextDate
+      session.startTime = nextStartTime
+      session.endTime = nextEndTime
+      session.status = nextStatus
+      session.history.push({
+        action: nextStatus === 'cancelled' ? 'cancelled' : 'rescheduled',
+        fromDate: previous.date,
+        fromStartTime: previous.startTime,
+        fromEndTime: previous.endTime,
+        note: note?.trim() ?? '',
+        changedBy: request.firebaseUser.uid,
+      })
+      await session.save()
+      await CoachingAuditEvent.create({
+        centerId: session.centerId,
+        actorId: request.firebaseUser.uid,
+        action: nextStatus === 'cancelled' ? 'class-session.cancelled' : 'class-session.rescheduled',
+        entityType: 'class-session',
+        entityId: String(session._id),
+        details: { before: previous, after: { date: nextDate, startTime: nextStartTime, endTime: nextEndTime }, note: note?.trim() ?? '' },
+      })
+    }
+    const populatedSession = await CoachingClassSession.findById(session._id)
+      .populate({ path: 'batchId', select: 'name subject grade teacherId', populate: { path: 'teacherId', select: 'name' } })
+      .lean()
+    response.json(serialize(populatedSession))
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/guardian-contacts', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
   try {
     const { centerId } = request.coachingMembership
+    const { studentId } = request.query
+    if (studentId && !mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Choose a valid student' })
+    const contacts = await CoachingGuardianContact.find({
+      centerId,
+      ...(studentId ? { studentId } : {}),
+    })
+      .populate({ path: 'studentId', select: 'name studentCode guardianName guardianPhone' })
+      .sort({ contactedAt: -1 })
+      .limit(200)
+      .lean()
+    response.json({ contacts: contacts.map(serialize) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/centers/:centerId/guardian-contacts', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const { studentId, method, reason, note } = request.body ?? {}
+    if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Choose a valid student' })
+    if (!['phone', 'in_person', 'other'].includes(method)) return response.status(400).json({ error: 'Choose a valid contact method' })
+    if (!['fee_due', 'absence', 'academic', 'general'].includes(reason)) return response.status(400).json({ error: 'Choose a valid contact reason' })
+    const normalizedNote = normalizeRequiredString(note, 'Contact note', 1000)
+    const { centerId } = request.coachingMembership
+    const student = await CoachingStudent.exists({ _id: studentId, centerId })
+    if (!student) return response.status(404).json({ error: 'Student profile not found in this center' })
+    const contact = await CoachingGuardianContact.create({
+      centerId,
+      studentId,
+      method,
+      reason,
+      note: normalizedNote,
+      contactedBy: request.firebaseUser.uid,
+    })
+    const populatedContact = await CoachingGuardianContact.findById(contact._id)
+      .populate({ path: 'studentId', select: 'name studentCode guardianName guardianPhone' })
+      .lean()
+    response.status(201).json(serialize(populatedContact))
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Contact note')) return response.status(400).json({ error: error.message })
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/audit-events', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const events = await CoachingAuditEvent.find({ centerId: request.coachingMembership.centerId })
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean()
+    response.json({ events: events.map(serialize) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/whatsapp/status', requireCenterMembership, requireCenterRoles(...managementRoles), async (_request, response) => {
+  response.json({
+    provider: 'meta_cloud',
+    configured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+    templates: {
+      fee_due: Boolean(process.env.WHATSAPP_TEMPLATE_FEE_DUE),
+      absence: Boolean(process.env.WHATSAPP_TEMPLATE_ABSENCE),
+      schedule: Boolean(process.env.WHATSAPP_TEMPLATE_SCHEDULE),
+    },
+  })
+})
+
+router.get('/centers/:centerId/whatsapp/messages', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const messages = await CoachingWhatsAppMessage.find({ centerId: request.coachingMembership.centerId })
+      .populate({ path: 'studentId', select: 'name studentCode' })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean()
+    response.json({ messages: messages.map(serialize) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/centers/:centerId/whatsapp/send-template', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  let messageRecord
+  try {
+    const { studentId, purpose, variables } = request.body ?? {}
+    if (!mongoose.isValidObjectId(studentId)) return response.status(400).json({ error: 'Choose a valid student' })
+    const templateEnvironmentKeys = {
+      fee_due: 'WHATSAPP_TEMPLATE_FEE_DUE',
+      absence: 'WHATSAPP_TEMPLATE_ABSENCE',
+      schedule: 'WHATSAPP_TEMPLATE_SCHEDULE',
+    }
+    if (!Object.hasOwn(templateEnvironmentKeys, purpose)) return response.status(400).json({ error: 'Choose an available reminder purpose' })
+    if (!Array.isArray(variables) || variables.length < 1 || variables.length > 5
+      || variables.some((value) => typeof value !== 'string' || value.length > 200)) {
+      return response.status(400).json({ error: 'Provide 1 to 5 short template parameters' })
+    }
+    const { centerId } = request.coachingMembership
+    const student = await CoachingStudent.findOne({ _id: studentId, centerId, status: 'active' })
+      .select('name guardianPhone guardianWhatsAppOptIn')
+      .lean()
+    if (!student) return response.status(404).json({ error: 'Active student not found in this center' })
+    if (!student.guardianWhatsAppOptIn) return response.status(409).json({ error: 'Guardian WhatsApp opt-in is required before sending' })
+    const recipientPhone = normalizeWhatsAppPhone(student.guardianPhone)
+    if (!recipientPhone) return response.status(400).json({ error: 'Guardian phone must be a valid WhatsApp number' })
+    const templateName = process.env[templateEnvironmentKeys[purpose]]
+    const token = process.env.WHATSAPP_ACCESS_TOKEN
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+    const version = process.env.WHATSAPP_GRAPH_API_VERSION || 'v22.0'
+    if (!templateName || !token || !phoneNumberId) {
+      return response.status(503).json({ error: 'WhatsApp is not configured. Set the server environment variables and approved template before sending.' })
+    }
+    messageRecord = await CoachingWhatsAppMessage.create({
+      centerId,
+      studentId,
+      recipientPhone,
+      templateName,
+      purpose,
+      status: 'queued',
+      sentBy: request.firebaseUser.uid,
+    })
+    let providerResponse
+    try {
+      providerResponse = await fetch(`https://graph.facebook.com/${encodeURIComponent(version)}/${encodeURIComponent(phoneNumberId)}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(15_000),
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: recipientPhone,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'bn' },
+            components: [{
+              type: 'body',
+              parameters: variables.map((text) => ({ type: 'text', text })),
+            }],
+          },
+        }),
+      })
+    } catch (providerError) {
+      messageRecord.status = 'failed'
+      messageRecord.error = providerError instanceof Error ? providerError.message.slice(0, 500) : 'WhatsApp provider request failed'
+      await messageRecord.save()
+      return response.status(502).json({ error: 'Could not connect to WhatsApp provider; the failed attempt was logged.' })
+    }
+    const result = await providerResponse.json().catch(() => null)
+    if (!providerResponse.ok) {
+      messageRecord.status = 'failed'
+      messageRecord.error = result?.error?.message?.slice(0, 500) || `WhatsApp API returned HTTP ${providerResponse.status}`
+      await messageRecord.save()
+      return response.status(502).json({ error: `WhatsApp could not send this template: ${messageRecord.error}` })
+    }
+    messageRecord.status = 'sent'
+    messageRecord.providerMessageId = result?.messages?.[0]?.id || ''
+    await messageRecord.save()
+    await CoachingAuditEvent.create({
+      centerId,
+      actorId: request.firebaseUser.uid,
+      action: 'whatsapp.template-sent',
+      entityType: 'whatsapp-message',
+      entityId: String(messageRecord._id),
+      details: { studentId: String(studentId), purpose, templateName },
+    })
+    response.status(201).json(serialize(messageRecord.toObject()))
+  } catch (error) {
+    if (messageRecord && messageRecord.status === 'queued') {
+      messageRecord.status = 'failed'
+      messageRecord.error = error instanceof Error ? error.message.slice(0, 500) : 'Message processing failed'
+      await messageRecord.save()
+    }
+    next(error)
+  }
+})
+
+router.get('/centers/:centerId/exams', requireCenterMembership, requireCenterRoles(...managementRoles, 'teacher', 'student'), async (request, response, next) => {
+  try {
+    const { centerId, role } = request.coachingMembership
+    const requestedStatus = request.query.status ?? 'active'
+    if (managementRoles.includes(role) && !['active', 'archived', 'all'].includes(requestedStatus)) {
+      return response.status(400).json({ error: 'Exam status must be active, archived or all' })
+    }
+    const statusFilter = managementRoles.includes(role) && requestedStatus !== 'all'
+      ? { status: requestedStatus }
+      : { status: 'active' }
     const batchIds = await getMemberBatchIds(centerId, request.coachingMembership)
     const exams = await CoachingExam.find({
       centerId,
-      status: 'active',
+      ...statusFilter,
       ...(batchIds ? { batchId: { $in: batchIds } } : {}),
     })
       .populate({ path: 'batchId', select: 'name subject grade' })
@@ -881,14 +1822,87 @@ router.post('/centers/:centerId/exams', requireCenterMembership, requireCenterRo
   }
 })
 
+router.patch('/centers/:centerId/exams/:examId', requireCenterMembership, requireCenterRoles(...managementRoles, 'teacher'), async (request, response, next) => {
+  try {
+    const { examId } = request.params
+    if (!mongoose.isValidObjectId(examId)) return response.status(400).json({ error: 'Invalid exam' })
+    const exam = await CoachingExam.findOne({ _id: examId, centerId: request.coachingMembership.centerId, status: 'active' })
+    if (!exam) return response.status(404).json({ error: 'Active exam not found in this center' })
+    const batch = await CoachingBatch.findOne({ _id: exam.batchId, centerId: exam.centerId, status: 'active' }).lean()
+    if (!batch) return response.status(404).json({ error: 'Active batch not found for this exam' })
+    if (!await teacherCanAccessBatch(batch, request.coachingMembership, request.coachingMembership.userId, exam.centerId)) {
+      return response.status(403).json({ error: 'Teachers can only edit exams for their assigned batches' })
+    }
+    const { title, examDate, totalMarks } = request.body ?? {}
+    if (title !== undefined) exam.title = normalizeRequiredString(title, 'Exam title', 120)
+    if (examDate !== undefined) {
+      if (!isCalendarDate(examDate)) return response.status(400).json({ error: 'Provide a valid exam date in YYYY-MM-DD format' })
+      exam.examDate = examDate
+    }
+    if (totalMarks !== undefined) {
+      if (!Number.isSafeInteger(totalMarks) || totalMarks < 1 || totalMarks > 100_000) {
+        return response.status(400).json({ error: 'Total marks must be a whole number between 1 and 100,000' })
+      }
+      const highestResult = await CoachingExamResult.findOne({ centerId: exam.centerId, examId })
+        .sort({ marks: -1 })
+        .select('marks')
+        .lean()
+      if (highestResult && highestResult.marks > totalMarks) {
+        return response.status(409).json({ error: `Full marks cannot be lower than the highest recorded result (${highestResult.marks})` })
+      }
+      exam.totalMarks = totalMarks
+    }
+    await exam.save()
+    await CoachingAuditEvent.create({
+      centerId: exam.centerId,
+      actorId: request.firebaseUser.uid,
+      action: 'exam.updated',
+      entityType: 'exam',
+      entityId: String(exam._id),
+      details: { title: exam.title, examDate: exam.examDate, totalMarks: exam.totalMarks },
+    })
+    response.json(serialize(exam.toObject()))
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Exam title')) return response.status(400).json({ error: error.message })
+    next(error)
+  }
+})
+
+router.patch('/centers/:centerId/exams/:examId/status', requireCenterMembership, requireCenterRoles(...managementRoles), async (request, response, next) => {
+  try {
+    const { examId } = request.params
+    const { status } = request.body ?? {}
+    if (!mongoose.isValidObjectId(examId)) return response.status(400).json({ error: 'Invalid exam' })
+    if (!['active', 'archived'].includes(status)) return response.status(400).json({ error: 'Exam status must be active or archived' })
+    const exam = await CoachingExam.findOne({ _id: examId, centerId: request.coachingMembership.centerId })
+    if (!exam) return response.status(404).json({ error: 'Exam not found in this center' })
+    if (exam.status === status) return response.json(serialize(exam.toObject()))
+    exam.status = status
+    await exam.save()
+    await CoachingAuditEvent.create({
+      centerId: exam.centerId,
+      actorId: request.firebaseUser.uid,
+      action: status === 'archived' ? 'exam.archived' : 'exam.restored',
+      entityType: 'exam',
+      entityId: String(exam._id),
+      details: { title: exam.title, status },
+    })
+    response.json(serialize(exam.toObject()))
+  } catch (error) {
+    next(error)
+  }
+})
+
 router.get('/centers/:centerId/exams/:examId/results', requireCenterMembership, requireCenterRoles(...managementRoles, 'teacher', 'student'), async (request, response, next) => {
   try {
     if (!mongoose.isValidObjectId(request.params.examId)) return response.status(400).json({ error: 'Invalid exam' })
     const { centerId, userId, role } = request.coachingMembership
-    const exam = await CoachingExam.findOne({ _id: request.params.examId, centerId, status: 'active' })
+    const exam = await CoachingExam.findOne({ _id: request.params.examId, centerId })
       .populate({ path: 'batchId', select: 'name subject grade' })
       .lean()
-    if (!exam) return response.status(404).json({ error: 'Active exam not found in this center' })
+    if (!exam || (exam.status === 'archived' && !managementRoles.includes(role))) {
+      return response.status(404).json({ error: 'Active exam not found in this center' })
+    }
     const batch = await CoachingBatch.findOne({ _id: exam.batchId?._id ?? exam.batchId, centerId, status: 'active' }).lean()
     if (!batch) return response.status(404).json({ error: 'Active batch not found for this exam' })
     if (!await teacherCanAccessBatch(batch, request.coachingMembership, userId, centerId)) {
@@ -1003,6 +2017,12 @@ router.put('/centers/:centerId/exams/:examId/results', requireCenterMembership, 
       return response.status(400).json({ error: 'Results can only be recorded for active students enrolled in this exam batch' })
     }
 
+    const previousResults = await CoachingExamResult.find({
+      centerId,
+      examId,
+      studentId: { $in: studentIds },
+    }).select('studentId marks remarks').lean()
+    const previousByStudent = new Map(previousResults.map((result) => [String(result.studentId), result]))
     await CoachingExamResult.bulkWrite(normalizedEntries.map((entry) => ({
       updateOne: {
         filter: { centerId, examId, studentId: entry.studentId },
@@ -1017,6 +2037,23 @@ router.put('/centers/:centerId/exams/:examId/results', requireCenterMembership, 
         upsert: true,
       },
     })))
+    await CoachingAuditEvent.create({
+      centerId,
+      actorId: request.firebaseUser.uid,
+      action: 'exam-results.saved',
+      entityType: 'exam',
+      entityId: String(exam._id),
+      details: {
+        title: exam.title,
+        changes: normalizedEntries.map((entry) => ({
+          studentId: entry.studentId,
+          before: previousByStudent.has(entry.studentId)
+            ? { marks: previousByStudent.get(entry.studentId).marks, remarks: previousByStudent.get(entry.studentId).remarks }
+            : null,
+          after: { marks: entry.marks, remarks: entry.remarks },
+        })),
+      },
+    })
     response.json({ saved: normalizedEntries.length, examId })
   } catch (error) {
     if (error.code === 11000) return response.status(409).json({ error: 'Results changed at the same time; reload and try again' })

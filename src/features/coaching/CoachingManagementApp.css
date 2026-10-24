@@ -135,6 +135,7 @@
 .coaching-student-avatar { position: relative; overflow: hidden; }
 .coaching-student-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .coaching-student-actions { display: inline-flex; gap: 5px; margin-left: auto; }
+.coaching-student-profile-action { min-height: 30px; padding: 0 9px; }
 .coaching-icon-danger { border-color: #efd5d1; color: #a53f35; }
 .coaching-student-edit { flex: 1 0 100%; padding: 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #f9fbf9; }
 .coaching-invoice-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border: 1px solid #d6e6da; border-radius: 7px; background: #f5fbf6; color: #357451; font-size: 10px; font-weight: 700; }
@@ -146,6 +147,17 @@
 .coaching-address-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .coaching-admission-form label { font-size: 10px; }
 .coaching-student-actions .coaching-icon-button { cursor: pointer; }
+.coaching-modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto; padding: 24px; background: #111a15a8; }
+.coaching-student-summary-modal { width: min(720px, 100%); max-height: min(88vh, 900px); overflow-y: auto; padding: 20px; border: 1px solid #e4ebe5; border-radius: 12px; background: #fff; box-shadow: 0 20px 60px #101a1452; }
+.coaching-student-summary-modal .coaching-panel-heading { position: sticky; top: -20px; z-index: 1; margin: -20px -20px 15px; padding: 18px 20px 12px; border-bottom: 1px solid #edf1ed; background: #fff; }
+.coaching-student-summary-content { display: grid; gap: 12px; }
+.coaching-student-summary-content section { padding: 12px; border: 1px solid #e8eee9; border-radius: 8px; background: #fbfcfb; }
+.coaching-student-summary-content h3 { margin: 0 0 8px; color: #34453b; font-size: 12px; }
+.coaching-student-summary-content h3 small { color: #829087; font-size: 9px; font-weight: 500; }
+.coaching-student-summary-content p { margin: 5px 0; color: #66756b; font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.coaching-summary-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.coaching-summary-stats span { display: grid; gap: 2px; min-width: 74px; padding: 8px; border-radius: 6px; background: #eef5ef; color: #65746a; font-size: 9px; text-align: center; }
+.coaching-summary-stats strong { color: #176b55; font-size: 14px; }
 .coaching-spin { animation: coaching-spin .8s linear infinite; }
 @keyframes coaching-spin { to { transform: rotate(360deg); } }
 
@@ -155,6 +167,12 @@ html[data-theme='dark'] .coaching-panel,
 html[data-theme='dark'] .coaching-tabs,
 html[data-theme='dark'] .coaching-stat,
 html[data-theme='dark'] .coaching-request-card { border-color: #35463b; background: #202c24; }
+html[data-theme='dark'] .coaching-student-summary-modal,html[data-theme='dark'] .coaching-student-summary-modal .coaching-panel-heading { border-color: #35463b; background: #202c24; }
+html[data-theme='dark'] .coaching-student-summary-content section { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-student-summary-content h3 { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-student-summary-content p,html[data-theme='dark'] .coaching-student-summary-content h3 small { color: #a0afa4; }
+html[data-theme='dark'] .coaching-summary-stats span { background: #20372b; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-summary-stats strong { color: #a7d8b4; }
 html[data-theme='dark'] .coaching-brand strong,
 html[data-theme='dark'] .coaching-page-heading h1,
 html[data-theme='dark'] .coaching-panel-heading h2,
@@ -216,6 +234,7 @@ html[data-theme='dark'] .coaching-attendance-row { border-color: #35463b; }
 html[data-theme='dark'] .coaching-attendance-row strong { color: #e2ebe5; }
 html[data-theme='dark'] .coaching-attendance-row small { color: #a0afa4; }
 html[data-theme='dark'] .coaching-exam-option,
+html[data-theme='dark'] .coaching-exam-row,
 html[data-theme='dark'] .coaching-exam-result-row,
 html[data-theme='dark'] .coaching-result-summary,
 html[data-theme='dark'] .coaching-notice-card { border-color: #35463b; }
@@ -237,6 +256,8 @@ html[data-theme='dark'] .coaching-notice-card p { color: #b3c0b7; }
   .coaching-inline-actions { grid-column: 1 / -1; justify-content: flex-end; }
 }
 @media (max-width: 700px) {
+  .coaching-modal-backdrop { align-items: end; padding: 0; }
+  .coaching-student-summary-modal { width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0; }
   .coaching-topbar { align-items: flex-start; flex-direction: column; }
   .coaching-topbar-actions { width: 100%; justify-content: flex-start; }
   .coaching-center-picker { flex: 1; }
@@ -269,4 +290,410 @@ html[data-theme='dark'] .coaching-notice-card p { color: #b3c0b7; }
   .coaching-tabs button { flex: 1 0 auto; }
   .coaching-fee-heading { align-items: flex-start; flex-direction: column; }
   .coaching-fee-heading > label { width: 100%; flex-basis: auto; }
+}
+
+.coaching-app { font-size: 14px; }
+.coaching-button { min-height: 40px; font-size: 12px; }
+.coaching-tabs { flex-wrap: wrap; }
+.coaching-tabs button { min-height: 42px; padding: 0 14px; font-size: 12px; }
+.coaching-center-picker { font-size: 11px; }
+.coaching-center-picker select { min-height: 40px; font-size: 13px; }
+.coaching-page-heading p,.coaching-panel-heading p { font-size: 12px; }
+.coaching-eyebrow { font-size: 11px; }
+.coaching-panel-heading h2 { font-size: 17px; }
+.coaching-form label,.coaching-member-form label,.coaching-attendance-toolbar label,.coaching-fee-heading > label { font-size: 12px; }
+.coaching-form input,.coaching-form select,.coaching-form textarea,
+.coaching-member-form input,.coaching-member-form select,
+.coaching-attendance-toolbar select,.coaching-attendance-toolbar input,.coaching-fee-heading input { min-height: 42px; font-size: 14px; }
+.coaching-stat small { font-size: 12px; }
+.coaching-feature-grid > span,.coaching-record-main small,.coaching-attendance-row small,
+.coaching-exam-option small,.coaching-notice-card small { font-size: 11px; }
+.coaching-record-main strong,.coaching-attendance-row strong,.coaching-exam-option strong,
+.coaching-notice-card strong { font-size: 13px; }
+.coaching-list-search { display: flex; min-width: min(250px, 100%); align-items: center; gap: 8px; padding: 0 10px; border: 1px solid #dfe7e1; border-radius: 7px; color: #829087; }
+.coaching-list-search:focus-within { border-color: #73a98a; outline: 2px solid #73a98a33; }
+.coaching-list-search input { width: 100%; min-width: 0; min-height: 40px; border: 0; outline: 0; background: transparent; color: #34453b; font: inherit; font-size: 12px; }
+.coaching-quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.coaching-quick-actions button { display: flex; min-width: 0; min-height: 62px; align-items: center; gap: 10px; padding: 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #fff; color: #34453b; cursor: pointer; text-align: left; font: inherit; font-size: 13px; font-weight: 700; }
+.coaching-quick-actions button:hover { border-color: #a9ccb5; background: #f5faf6; }
+.coaching-quick-actions button > svg:first-child { flex: 0 0 auto; color: #28734f; }
+.coaching-quick-actions button > span { min-width: 0; flex: 1; }
+.coaching-quick-action-arrow { flex: 0 0 auto; transform: rotate(180deg); color: #829087; }
+.coaching-attendance-bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.coaching-attendance-bulk-actions > span { color: #5c6c61; font-size: 12px; font-weight: 700; }
+.coaching-app :focus-visible { outline: 3px solid #36805b; outline-offset: 2px; }
+html[data-theme='dark'] .coaching-list-search { border-color: #35463b; color: #a0afa4; }
+html[data-theme='dark'] .coaching-list-search input { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-quick-actions button { border-color: #35463b; background: #18221c; color: #e2ebe5; }
+html[data-theme='dark'] .coaching-quick-actions button:hover { border-color: #527761; background: #20372b; }
+html[data-theme='dark'] .coaching-attendance-bulk-actions > span { color: #b3c0b7; }
+
+@media (max-width: 700px) {
+  .coaching-quick-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coaching-panel-heading { flex-wrap: wrap; }
+  .coaching-list-search { width: 100%; }
+  .coaching-attendance-bulk-actions { grid-column: 1 / -1; }
+}
+
+@media (max-width: 460px) {
+  .coaching-quick-actions { grid-template-columns: minmax(0, 1fr); }
+  .coaching-attendance-bulk-actions > span { width: 100%; }
+  .coaching-tabs { flex-wrap: nowrap; }
+}
+
+.coaching-workspace { display: grid; grid-template-columns: 224px minmax(0, 1fr); align-items: start; gap: 18px; }
+.coaching-sidebar { position: sticky; top: 92px; }
+.coaching-sidebar .coaching-tabs { display: grid; gap: 8px; margin: 0; padding: 10px; }
+.coaching-nav-group { display: grid; gap: 3px; }
+.coaching-nav-group-label { padding: 8px 10px 4px; color: #87948b; font-size: 10px; font-weight: 700; }
+.coaching-sidebar .coaching-tabs button { display: flex; min-height: 44px; justify-content: flex-start; padding: 0 10px; border-radius: 7px; color: #536359; font-size: 12px; text-align: left; }
+.coaching-sidebar .coaching-tabs button > span:nth-child(2) { flex: 1; }
+.coaching-sidebar .coaching-tabs button.active { background: #eaf4ee; color: #176b55; box-shadow: inset 3px 0 #16715d; }
+.coaching-sidebar .coaching-tabs button svg { flex: 0 0 auto; }
+.coaching-workspace-main { min-width: 0; }
+.coaching-section-heading { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; padding: 15px 17px; border: 1px solid #dce9df; border-left: 4px solid #28734f; border-radius: 9px; background: linear-gradient(110deg, #f0f8f2, #fff 70%); }
+.coaching-section-icon { display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center; border-radius: 11px; background: #e0f0e5; color: #28734f; }
+.coaching-section-heading h2 { margin: 2px 0 0; color: #26382d; font-size: 20px; }
+.coaching-section-heading p { margin: 3px 0 0; color: #6d7d72; font-size: 12px; line-height: 1.5; }
+.coaching-section-students { border-left-color: #43865c; }
+.coaching-section-teachers { border-left-color: #6478bd; background: linear-gradient(110deg, #f2f4fc, #fff 70%); }
+.coaching-section-teachers .coaching-section-icon { background: #e9ecfa; color: #5367ad; }
+.coaching-section-batches { border-left-color: #bf8735; background: linear-gradient(110deg, #fbf6ec, #fff 70%); }
+.coaching-section-batches .coaching-section-icon { background: #f5ecd9; color: #94651f; }
+.coaching-section-attendance { border-left-color: #30878a; background: linear-gradient(110deg, #eef8f7, #fff 70%); }
+.coaching-section-attendance .coaching-section-icon { background: #def0ee; color: #247477; }
+.coaching-section-fees { border-left-color: #ab6a36; background: linear-gradient(110deg, #fbf4ed, #fff 70%); }
+.coaching-section-fees .coaching-section-icon { background: #f4e8dc; color: #955726; }
+.coaching-section-exams { border-left-color: #7556a7; background: linear-gradient(110deg, #f5f1fa, #fff 70%); }
+.coaching-section-exams .coaching-section-icon { background: #ebe3f5; color: #67489a; }
+.coaching-section-notices { border-left-color: #bd5b58; background: linear-gradient(110deg, #fcf1f0, #fff 70%); }
+.coaching-section-notices .coaching-section-icon { background: #f6e2e0; color: #a94b48; }
+.coaching-setup-count { align-self: center; padding: 8px 11px; border-radius: 20px; background: #eaf4ee; color: #28734f; font-size: 12px; white-space: nowrap; }
+.coaching-setup-progress { height: 7px; overflow: hidden; margin: 0 0 12px; border-radius: 10px; background: #edf2ee; }
+.coaching-setup-progress span { display: block; height: 100%; border-radius: inherit; background: #25815b; transition: width .2s ease; }
+.coaching-setup-list { display: grid; gap: 8px; }
+.coaching-setup-step { display: flex; min-width: 0; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #fff; color: #34453b; cursor: pointer; text-align: left; }
+.coaching-setup-step:hover { border-color: #a9ccb5; background: #f7fbf8; }
+.coaching-setup-step-number { display: grid; width: 27px; height: 27px; flex: 0 0 27px; place-items: center; border: 1px solid #d7e2da; border-radius: 50%; color: #728077; font-size: 12px; font-weight: 700; }
+.coaching-setup-step-icon { flex: 0 0 auto; color: #28734f; }
+.coaching-setup-step-copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.coaching-setup-step-copy strong { font-size: 13px; }
+.coaching-setup-step-copy small { color: #829087; font-size: 11px; }
+.coaching-setup-step-action { display: inline-flex; align-items: center; gap: 4px; color: #28734f; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.coaching-setup-step-action svg { transform: rotate(180deg); }
+.coaching-setup-step.complete .coaching-setup-step-number { border-color: #cfe4d4; background: #eaf4ee; color: #28734f; }
+.coaching-quick-links { display: grid; gap: 9px; margin-top: 18px; padding-top: 15px; border-top: 1px solid #edf1ed; }
+.coaching-quick-links > span { color: #6e7c73; font-size: 12px; font-weight: 700; }
+html[data-theme='dark'] .coaching-sidebar .coaching-tabs button { color: #b3c0b7; }
+html[data-theme='dark'] .coaching-sidebar .coaching-tabs button.active { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-nav-group-label { color: #a0afa4; }
+html[data-theme='dark'] .coaching-section-heading { border-color: #35463b; background: linear-gradient(110deg, #1d2a22, #202c24 75%); }
+html[data-theme='dark'] .coaching-section-heading h2 { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-section-heading p { color: #a0afa4; }
+html[data-theme='dark'] .coaching-section-teachers { border-left-color: #8798d3; }
+html[data-theme='dark'] .coaching-section-batches { border-left-color: #d2a75d; }
+html[data-theme='dark'] .coaching-section-attendance { border-left-color: #55adaf; }
+html[data-theme='dark'] .coaching-section-fees { border-left-color: #c58b58; }
+html[data-theme='dark'] .coaching-section-exams { border-left-color: #a68bcf; }
+html[data-theme='dark'] .coaching-section-notices { border-left-color: #d3817e; }
+html[data-theme='dark'] .coaching-setup-count { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-setup-progress { background: #35463b; }
+html[data-theme='dark'] .coaching-setup-step { border-color: #35463b; background: #18221c; color: #e2ebe5; }
+html[data-theme='dark'] .coaching-setup-step:hover { border-color: #527761; background: #20372b; }
+html[data-theme='dark'] .coaching-setup-step-number { border-color: #43564a; color: #a0afa4; }
+html[data-theme='dark'] .coaching-setup-step-copy small, html[data-theme='dark'] .coaching-quick-links > span { color: #a0afa4; }
+html[data-theme='dark'] .coaching-setup-step-action { color: #a7d8b4; }
+html[data-theme='dark'] .coaching-setup-step.complete .coaching-setup-step-number { border-color: #365844; background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-quick-links { border-color: #35463b; }
+
+@media (max-width: 900px) {
+  .coaching-workspace { grid-template-columns: 190px minmax(0, 1fr); gap: 12px; }
+}
+
+@media (max-width: 700px) {
+  .coaching-workspace { grid-template-columns: minmax(0, 1fr); }
+  .coaching-sidebar { position: static; }
+  .coaching-sidebar .coaching-tabs { display: flex; overflow-x: auto; gap: 8px; padding: 7px; }
+  .coaching-nav-group { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; }
+  .coaching-nav-group-label { display: none; }
+  .coaching-sidebar .coaching-tabs button { flex: 0 0 auto; min-height: 42px; white-space: nowrap; }
+  .coaching-section-heading { margin-bottom: 12px; }
+}
+
+@media (max-width: 460px) {
+  .coaching-sidebar .coaching-tabs button { min-height: 42px; padding: 0 10px; }
+  .coaching-sidebar .coaching-tabs button svg { width: 16px; }
+  .coaching-section-heading { align-items: flex-start; padding: 12px; }
+  .coaching-section-heading h2 { font-size: 18px; }
+}
+
+.coaching-attendance-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 2px 0 12px; padding: 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #f9fbf9; }
+.coaching-attendance-summary > strong { margin-right: auto; color: #34453b; font-size: 13px; }
+.coaching-attendance-summary > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.coaching-attendance-count { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid #e2e9e4; border-radius: 20px; background: #fff; color: #536359; font-size: 11px; }
+.coaching-attendance-count b { color: #26382d; }
+.coaching-attendance-count-present { border-color: #cfe4d4; color: #28734f; }
+.coaching-attendance-count-absent { border-color: #efd5d1; color: #a53f35; }
+.coaching-attendance-count-late { border-color: #f0e5c8; color: #806c37; }
+.coaching-attendance-count-excused { border-color: #d9deef; color: #5367ad; }
+.coaching-attendance-search { display: flex; min-width: min(240px, 100%); align-items: center; gap: 7px; padding: 0 9px; border: 1px solid #dfe7e1; border-radius: 6px; background: #fff; color: #829087; }
+.coaching-attendance-search:focus-within { border-color: #73a98a; outline: 2px solid #73a98a33; }
+.coaching-attendance-search input { width: 100%; min-width: 0; min-height: 38px; border: 0; outline: 0; background: transparent; color: #34453b; font: inherit; font-size: 12px; }
+.coaching-attendance-pending { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 10px; padding: 9px 11px; border: 1px solid #efdfb8; border-radius: 7px; background: #fff9eb; color: #725d2e; font-size: 12px; font-weight: 700; }
+.coaching-attendance-pending button { padding: 4px 7px; border: 0; border-radius: 5px; background: transparent; color: #725d2e; cursor: pointer; font: inherit; font-size: 11px; text-decoration: underline; }
+.coaching-attendance-list { grid-template-columns: minmax(0, 1fr); gap: 0; margin-bottom: 12px; }
+.coaching-attendance-row { display: grid; grid-template-columns: minmax(140px, .7fr) minmax(260px, 1.2fr) minmax(120px, auto); align-items: center; gap: 12px; padding: 11px 8px; border: 1px solid #e8ede9; border-bottom: 0; background: #fff; }
+.coaching-attendance-row:first-child { border-radius: 8px 8px 0 0; }
+.coaching-attendance-row:last-child { border-bottom: 1px solid #e8ede9; border-radius: 0 0 8px 8px; }
+.coaching-attendance-row:only-child { border-radius: 8px; }
+.coaching-attendance-row.is-changed { background: #fffdf6; }
+.coaching-attendance-student { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.coaching-attendance-student > span:last-child { display: grid; min-width: 0; gap: 3px; }
+.coaching-attendance-student strong { color: #34453b; font-size: 13px; overflow-wrap: anywhere; }
+.coaching-attendance-student small { color: #829087; font-size: 11px; }
+.coaching-attendance-avatar { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border-radius: 50%; background: #eef3ef; color: #728077; }
+.coaching-attendance-avatar.status-present { background: #e1f2e6; color: #28734f; }
+.coaching-attendance-avatar.status-absent { background: #fae9e6; color: #a53f35; }
+.coaching-attendance-avatar.status-late { background: #fbf2dc; color: #806c37; }
+.coaching-attendance-avatar.status-excused { background: #e9ecfa; color: #5367ad; }
+.coaching-attendance-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.coaching-attendance-choice { min-height: 38px; padding: 5px 8px; border: 1px solid #dfe7e1; border-radius: 6px; background: #fff; color: #536359; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .15s ease; }
+.coaching-attendance-choice:hover { border-color: #9caf9f; transform: translateY(-1px); }
+.coaching-attendance-choice-present.selected { border-color: #28734f; background: #28734f; color: #fff; }
+.coaching-attendance-choice-absent.selected { border-color: #a53f35; background: #a53f35; color: #fff; }
+.coaching-attendance-choice-late.selected { border-color: #aa8129; background: #aa8129; color: #fff; }
+.coaching-attendance-choice-excused.selected { border-color: #5367ad; background: #5367ad; color: #fff; }
+.coaching-attendance-save-state { justify-self: end; padding: 5px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.coaching-attendance-save-state.saved { background: #eaf4ee; color: #28734f; }
+.coaching-attendance-save-state.pending { background: #fff2d4; color: #80621e; }
+.coaching-attendance-save-state.unmarked { background: #f1f3f1; color: #728077; }
+.coaching-attendance-submit { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.coaching-attendance-submit > span { color: #829087; font-size: 11px; }
+html[data-theme='dark'] .coaching-attendance-summary { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-attendance-summary > strong,
+html[data-theme='dark'] .coaching-attendance-count b,
+html[data-theme='dark'] .coaching-attendance-student strong { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-attendance-count { border-color: #43564a; background: #202c24; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-attendance-search { border-color: #35463b; background: #202c24; color: #a0afa4; }
+html[data-theme='dark'] .coaching-attendance-search input { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-attendance-pending { border-color: #655533; background: #302b1d; color: #dec77e; }
+html[data-theme='dark'] .coaching-attendance-pending button { color: #dec77e; }
+html[data-theme='dark'] .coaching-attendance-row { border-color: #35463b; background: #202c24; }
+html[data-theme='dark'] .coaching-attendance-row.is-changed { background: #302b1d; }
+html[data-theme='dark'] .coaching-attendance-student small { color: #a0afa4; }
+html[data-theme='dark'] .coaching-attendance-avatar { background: #35463b; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-attendance-choice { border-color: #43564a; background: #18221c; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-attendance-save-state.saved { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-attendance-save-state.pending { background: #302b1d; color: #dec77e; }
+html[data-theme='dark'] .coaching-attendance-save-state.unmarked { background: #35463b; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-attendance-submit > span { color: #a0afa4; }
+
+@media (max-width: 900px) {
+  .coaching-attendance-row { grid-template-columns: minmax(120px, .7fr) minmax(220px, 1.2fr); }
+  .coaching-attendance-save-state { grid-column: 2; justify-self: start; }
+}
+
+@media (max-width: 700px) {
+  .coaching-attendance-summary > strong { width: 100%; }
+  .coaching-attendance-search { width: 100%; }
+  .coaching-attendance-row { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 12px; }
+  .coaching-attendance-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coaching-attendance-save-state { grid-column: auto; justify-self: start; }
+}
+
+.coaching-admission-more { padding: 11px 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #f9fbf9; }
+.coaching-admission-more > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: #34453b; cursor: pointer; font-size: 13px; font-weight: 700; }
+.coaching-admission-more > summary::marker { color: #28734f; }
+.coaching-admission-more > summary span { color: #829087; font-size: 11px; font-weight: 400; }
+.coaching-admission-more[open] { display: grid; gap: 15px; }
+.coaching-teacher-record .coaching-record-main { flex: 1; }
+.coaching-teacher-subjects { display: flex; flex-wrap: wrap; gap: 5px; margin: 3px 0; }
+.coaching-teacher-subjects > span { padding: 4px 7px; border-radius: 15px; background: #edf2fc; color: #5367ad; font-size: 10px; font-weight: 700; }
+.coaching-batch-record { align-items: center; flex-wrap: wrap; }
+.coaching-batch-record .coaching-record-main { flex: 1; }
+.coaching-batch-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.coaching-batch-actions .coaching-button { min-height: 34px; padding: 0 9px; font-size: 11px; }
+.coaching-fee-filters,.coaching-notice-filters { display: grid; gap: 10px; margin: 0 0 12px; }
+.coaching-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.coaching-filter-chips button { display: inline-flex; min-height: 34px; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid #e1e9e3; border-radius: 20px; background: #fff; color: #5b6b60; cursor: pointer; font: inherit; font-size: 11px; }
+.coaching-filter-chips button b { display: inline-grid; min-width: 20px; height: 20px; place-items: center; padding: 0 4px; border-radius: 50%; background: #f1f4f2; color: #536359; font-size: 10px; }
+.coaching-filter-chips button.active { border-color: #28734f; background: #eaf4ee; color: #176b55; }
+.coaching-filter-chips button.active b { background: #28734f; color: #fff; }
+.coaching-filter-chips .coaching-filter-admission { border-color: #d9deef; }
+.coaching-filter-chips .coaching-filter-exam { border-color: #e4d9ee; }
+.coaching-filter-chips .coaching-filter-other { border-color: #e4e9e4; }
+.coaching-fee-record { align-items: center; }
+.coaching-fee-record .coaching-record-main { flex: 1; }
+.coaching-fee-tag { justify-self: start; padding: 4px 8px; border-radius: 15px; background: #eaf4ee; color: #28734f; font-size: 10px; font-weight: 700; }
+.coaching-fee-tag-admission { background: #edf0fb; color: #5367ad; }
+.coaching-fee-tag-exam { background: #f2eafa; color: #7556a7; }
+.coaching-fee-tag-other { background: #f0f3f0; color: #637168; }
+.coaching-exam-filters { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, .55fr) auto; align-items: center; gap: 9px; margin-bottom: 8px; }
+.coaching-exam-filters label:not(.coaching-list-search) { display: grid; gap: 4px; color: #5c6c61; font-size: 11px; font-weight: 700; }
+.coaching-exam-filters select { min-height: 40px; padding: 6px 9px; border: 1px solid #dfe7e1; border-radius: 6px; background: #fff; color: #34453b; font: inherit; font-size: 12px; }
+.coaching-exam-filters > span,.coaching-result-toolbar > span { color: #728077; font-size: 11px; white-space: nowrap; }
+.coaching-exam-option { align-items: center; }
+.coaching-exam-row { display: flex; align-items: center; gap: 5px; border-top: 1px solid #edf1ed; }
+.coaching-exam-row .coaching-exam-option { flex: 1; border-top: 0; }
+.coaching-exam-status-filter { display: flex; align-items: center; gap: 8px; margin: -4px 0 10px; color: #5c6c61; font-size: 10px; font-weight: 700; }
+.coaching-exam-status-filter select { min-height: 34px; padding: 5px 8px; border: 1px solid #dfe7e1; border-radius: 6px; background: #fff; color: #34453b; font: inherit; font-size: 10px; }
+.coaching-exam-edit-form { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 14px; padding: 12px; border: 1px solid #e4ebe5; border-radius: 8px; background: #f9fbf9; }
+.coaching-exam-edit-form .coaching-inline-actions { grid-column: 1 / -1; }
+.coaching-exam-option-arrow { margin-left: auto; padding: 5px 8px; border-radius: 15px; background: #f1f4f2; color: #66756b; font-size: 10px; white-space: nowrap; }
+.coaching-exam-option.active .coaching-exam-option-arrow { background: #28734f; color: #fff; }
+.coaching-result-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 9px; margin-bottom: 10px; }
+.coaching-result-toolbar .coaching-list-search { flex: 1; }
+.coaching-exam-result-row { border-radius: 6px; }
+.coaching-exam-result-row.is-changed { background: #fff9eb; }
+.coaching-result-summary > span:last-child { min-width: 0; flex: 1; }
+.coaching-result-progress { height: 8px; overflow: hidden; border-radius: 8px; background: #edf2ee; }
+.coaching-result-progress span { display: block; height: 100%; border-radius: inherit; background: #28734f; }
+.coaching-notice-filters { grid-template-columns: minmax(200px, 1fr) auto; align-items: center; }
+.coaching-notice-card { align-items: center; padding: 14px 10px; border-radius: 8px; }
+.coaching-notice-card.is-unread { border: 1px solid #dce9df; border-left: 4px solid #28734f; background: #f7fbf8; }
+.coaching-notice-card.is-unread .coaching-record-avatar { background: #e0f0e5; color: #28734f; }
+.coaching-notice-unread { display: inline-block; margin-right: 7px; padding: 3px 7px; border-radius: 12px; background: #28734f; color: #fff; font-size: 9px; vertical-align: 1px; }
+html[data-theme='dark'] .coaching-admission-more { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-admission-more > summary { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-admission-more > summary span { color: #a0afa4; }
+html[data-theme='dark'] .coaching-teacher-subjects > span { background: #26334e; color: #bdc9ff; }
+html[data-theme='dark'] .coaching-filter-chips button { border-color: #43564a; background: #18221c; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-filter-chips button b { background: #35463b; color: #e2ebe5; }
+html[data-theme='dark'] .coaching-filter-chips button.active { border-color: #527761; background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-filter-chips button.active b { background: #28734f; color: #fff; }
+html[data-theme='dark'] .coaching-fee-tag { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-fee-tag-admission { background: #26334e; color: #bdc9ff; }
+html[data-theme='dark'] .coaching-fee-tag-exam { background: #342844; color: #d1b7f0; }
+html[data-theme='dark'] .coaching-fee-tag-other { background: #35463b; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-exam-filters label:not(.coaching-list-search) { color: #b3c0b7; }
+html[data-theme='dark'] .coaching-exam-filters select { border-color: #35463b; background: #18221c; color: #e2ebe5; }
+html[data-theme='dark'] .coaching-exam-status-filter { color: #b3c0b7; }
+html[data-theme='dark'] .coaching-exam-status-filter select { border-color: #35463b; background: #18221c; color: #e2ebe5; }
+html[data-theme='dark'] .coaching-exam-edit-form { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-exam-filters > span,html[data-theme='dark'] .coaching-result-toolbar > span { color: #a0afa4; }
+html[data-theme='dark'] .coaching-exam-option-arrow { background: #35463b; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-exam-result-row.is-changed { background: #302b1d; }
+html[data-theme='dark'] .coaching-result-progress { background: #35463b; }
+html[data-theme='dark'] .coaching-notice-card.is-unread { border-color: #365844; border-left-color: #7bc397; background: #1b2a20; }
+html[data-theme='dark'] .coaching-notice-card.is-unread .coaching-record-avatar { background: #203b2e; color: #8bd0a7; }
+html[data-theme='dark'] .coaching-notice-unread { background: #28734f; }
+
+@media (max-width: 700px) {
+  .coaching-exam-filters { grid-template-columns: minmax(0, 1fr); }
+  .coaching-exam-edit-form { grid-template-columns: minmax(0, 1fr); }
+  .coaching-notice-filters { grid-template-columns: minmax(0, 1fr); }
+  .coaching-batch-actions { width: 100%; }
+  .coaching-batch-actions .coaching-button { flex: 1; }
+  .coaching-exam-option-arrow { display: none; }
+  .coaching-exam-result-row { grid-template-columns: minmax(0, 1fr) 80px; }
+  .coaching-exam-result-row input:last-child { grid-column: 1 / -1; }
+}
+
+.coaching-operations { display: grid; gap: 16px; }
+.coaching-operations-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #647369; font-size: 12px; }
+.coaching-operations-toolbar .coaching-button { flex-shrink: 0; }
+.coaching-operations-tabs { display: flex; flex-wrap: wrap; gap: 7px; padding: 7px; border: 1px solid #e4ebe5; border-radius: 10px; background: #fff; }
+.coaching-operations-tabs button { display: inline-flex; min-height: 42px; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #65746a; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; }
+.coaching-operations-tabs button:hover { background: #f5f8f5; }
+.coaching-operations-tabs button.active { border-color: #cfe4d5; background: #eaf4ee; color: #176b55; }
+.coaching-operations-tabs button b { display: inline-grid; min-width: 22px; height: 22px; place-items: center; padding: 0 5px; border-radius: 12px; background: #fff; color: #176b55; font-size: 10px; }
+.coaching-operations-section { align-items: start; }
+.coaching-operation-details { border-top: 1px solid #e8eee9; }
+.coaching-operation-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 0; color: #176b55; cursor: pointer; font-size: 12px; font-weight: 700; list-style: none; }
+.coaching-operation-details > summary::-webkit-details-marker { display: none; }
+.coaching-operation-details > summary span:last-child { color: #738078; font-size: 10px; }
+.coaching-operation-details .coaching-form { padding-bottom: 8px; }
+.coaching-operations-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-bottom: 12px; }
+.coaching-operations-filters label,.coaching-panel-heading > label { display: grid; gap: 5px; color: #5c6c61; font-size: 11px; font-weight: 700; }
+.coaching-operations-filters input,.coaching-operations-filters select,.coaching-panel-heading > label input { min-height: 38px; padding: 7px 9px; border: 1px solid #dfe7e1; border-radius: 6px; background: #fff; color: #34453b; font: inherit; font-size: 12px; }
+.coaching-operations-filters > span { margin-left: auto; padding-bottom: 9px; color: #66756b; font-size: 11px; }
+.coaching-operations-table-wrap { width: 100%; overflow-x: auto; }
+.coaching-operations-table { width: 100%; border-collapse: collapse; color: #34453b; font-size: 12px; }
+.coaching-operations-table th,.coaching-operations-table td { padding: 10px 8px; border-bottom: 1px solid #e8eee9; text-align: left; white-space: nowrap; }
+.coaching-operations-table th { background: #f5f8f5; color: #65746a; font-size: 10px; }
+.coaching-operations-table td small { display: block; margin-top: 3px; color: #7a877e; font-size: 10px; }
+.coaching-operations-warning { color: #a14f21; }
+.coaching-inline-action { margin-left: 6px; padding: 0; border: 0; background: none; color: #176b55; cursor: pointer; font: inherit; font-weight: 700; }
+.coaching-calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 14px 0; }
+.coaching-calendar-navigation,.coaching-calendar-modes { display: flex; align-items: center; gap: 7px; }
+.coaching-calendar-navigation > strong { margin-left: 7px; color: #34453b; font-size: 14px; }
+.coaching-calendar-modes { padding: 3px; border: 1px solid #dfe7e1; border-radius: 8px; background: #f5f8f5; }
+.coaching-calendar-modes button { min-height: 32px; padding: 5px 11px; border: 0; border-radius: 6px; background: transparent; color: #65746a; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+.coaching-calendar-modes button.active { background: #fff; color: #176b55; box-shadow: 0 1px 4px #24342b1a; }
+.coaching-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; border: 1px solid #dfe7e1; border-radius: 9px; }
+.coaching-calendar-weekday { padding: 9px 5px; background: #f5f8f5; color: #65746a; text-align: center; font-size: 10px; }
+.coaching-calendar-day { min-height: 98px; padding: 6px; border-top: 1px solid #e8eee9; border-right: 1px solid #e8eee9; background: #fff; }
+.coaching-calendar-day:nth-child(7n) { border-right: 0; }
+.coaching-calendar-day.is-outside { background: #f8faf8; }
+.coaching-calendar-day.is-today { box-shadow: inset 0 0 0 2px #5ba77b; }
+.coaching-calendar-date { display: inline-grid; place-items: center; width: 27px; height: 27px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #34453b; font: inherit; font-size: 11px; font-weight: 700; }
+button.coaching-calendar-date { cursor: pointer; }
+button.coaching-calendar-date:hover { background: #eaf4ec; color: #176b55; }
+.coaching-calendar-day.is-outside .coaching-calendar-date { color: #9aa69d; }
+.coaching-calendar-day-sessions { display: grid; gap: 3px; margin-top: 4px; }
+.coaching-calendar-session { overflow: hidden; padding: 3px 5px; border-radius: 4px; background: #eaf4ec; color: #176b55; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.coaching-calendar-session small { font-size: 9px; font-weight: 700; }
+.coaching-calendar-session.is-cancelled { background: #f4ece8; color: #8b6555; text-decoration: line-through; }
+.coaching-calendar-more { color: #65746a; font-size: 9px; }
+.coaching-calendar-grid.is-week .coaching-calendar-day { min-height: 180px; }
+.coaching-session-card { align-items: center; }
+.coaching-session-card .coaching-record-main { flex: 1; }
+.coaching-session-card .coaching-record-main small { display: flex; align-items: center; gap: 5px; }
+.coaching-session-card.is-cancelled { opacity: .68; background: #faf7f5; }
+.coaching-session-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.coaching-session-edit { display: grid; grid-template-columns: repeat(3, minmax(100px, 1fr)); align-items: end; gap: 8px; width: 100%; padding: 12px; border: 1px solid #dfe7e1; border-radius: 8px; background: #f8faf8; }
+.coaching-session-edit label { display: grid; gap: 5px; color: #5c6c61; font-size: 11px; font-weight: 700; }
+.coaching-session-edit input { min-height: 38px; padding: 7px 9px; border: 1px solid #dfe7e1; border-radius: 6px; background: #fff; color: #34453b; font: inherit; font-size: 12px; }
+.coaching-session-edit button { justify-self: start; }
+html[data-theme='dark'] .coaching-operations-toolbar,html[data-theme='dark'] .coaching-operations-filters label,html[data-theme='dark'] .coaching-panel-heading > label { color: #b3c0b7; }
+html[data-theme='dark'] .coaching-operations-tabs { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-operations-tabs button { color: #b3c0b7; }
+html[data-theme='dark'] .coaching-operations-tabs button:hover { background: #202b23; }
+html[data-theme='dark'] .coaching-operations-tabs button.active { border-color: #365844; background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-operations-tabs button b { background: #18221c; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-operation-details { border-color: #35463b; }
+html[data-theme='dark'] .coaching-operation-details > summary { color: #a7d8b4; }
+html[data-theme='dark'] .coaching-operation-details > summary span:last-child { color: #a0afa4; }
+html[data-theme='dark'] .coaching-operations-filters input,html[data-theme='dark'] .coaching-operations-filters select,html[data-theme='dark'] .coaching-panel-heading > label input { border-color: #35463b; background: #18221c; color: #e2ebe5; }
+html[data-theme='dark'] .coaching-operations-filters > span { color: #a0afa4; }
+html[data-theme='dark'] .coaching-operations-table { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-operations-table th,html[data-theme='dark'] .coaching-operations-table td { border-color: #35463b; }
+html[data-theme='dark'] .coaching-operations-table th { background: #202b23; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-operations-table td small { color: #a0afa4; }
+html[data-theme='dark'] .coaching-operations-warning { color: #ffbf8c; }
+html[data-theme='dark'] .coaching-inline-action { color: #a7d8b4; }
+html[data-theme='dark'] .coaching-calendar-grid { border-color: #35463b; }
+html[data-theme='dark'] .coaching-calendar-weekday { background: #202b23; color: #b3c0b7; }
+html[data-theme='dark'] .coaching-calendar-day { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-calendar-day.is-outside { background: #141c17; }
+html[data-theme='dark'] .coaching-calendar-navigation > strong,html[data-theme='dark'] .coaching-calendar-date { color: #e2ebe5; }
+html[data-theme='dark'] .coaching-calendar-day.is-outside .coaching-calendar-date { color: #7c8b80; }
+html[data-theme='dark'] .coaching-calendar-modes { border-color: #35463b; background: #141c17; }
+html[data-theme='dark'] .coaching-calendar-modes button { color: #b3c0b7; }
+html[data-theme='dark'] .coaching-calendar-modes button.active { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] button.coaching-calendar-date:hover { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-calendar-session { background: #20372b; color: #a7d8b4; }
+html[data-theme='dark'] .coaching-calendar-session.is-cancelled { background: #302420; color: #d9a58c; }
+html[data-theme='dark'] .coaching-calendar-more { color: #a0afa4; }
+html[data-theme='dark'] .coaching-session-card.is-cancelled { background: #241f1d; }
+html[data-theme='dark'] .coaching-session-edit { border-color: #35463b; background: #18221c; }
+html[data-theme='dark'] .coaching-session-edit label { color: #b3c0b7; }
+html[data-theme='dark'] .coaching-session-edit input { border-color: #35463b; background: #202b23; color: #e2ebe5; }
+@media (max-width: 700px) {
+  .coaching-calendar-toolbar { align-items: flex-start; flex-direction: column; }
+  .coaching-calendar-navigation { flex-wrap: wrap; }
+  .coaching-calendar-day { min-height: 72px; padding: 3px; }
+  .coaching-calendar-date { width: 23px; height: 23px; }
+  .coaching-calendar-session { padding: 2px 3px; font-size: 8px; }
+  .coaching-calendar-session small { display: none; }
+  .coaching-calendar-grid.is-week .coaching-calendar-day { min-height: 120px; }
+  .coaching-operations-toolbar { align-items: flex-start; flex-direction: column; }
+  .coaching-operations-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coaching-operations-tabs button { min-width: 0; justify-content: flex-start; padding: 0 9px; font-size: 11px; }
+  .coaching-operations-filters { align-items: stretch; }
+  .coaching-operations-filters label { min-width: calc(50% - 6px); flex: 1; }
+  .coaching-operations-filters > span { width: 100%; margin: 0; padding: 0; }
+  .coaching-session-actions { width: 100%; }
+  .coaching-session-actions .coaching-button { flex: 1; }
+  .coaching-session-edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

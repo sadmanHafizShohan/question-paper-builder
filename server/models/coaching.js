@@ -56,6 +56,10 @@ const coachingStudentSchema = new mongoose.Schema({
   email: { type: String, default: '', trim: true, lowercase: true, maxlength: 254 },
   guardianName: { type: String, default: '', trim: true, maxlength: 120 },
   guardianPhone: { type: String, default: '', trim: true, maxlength: 30 },
+  guardianWhatsAppOptIn: { type: Boolean, default: false },
+  guardianWhatsAppOptInAt: { type: Date },
+  guardianWhatsAppOptInBy: { type: String, default: '' },
+  guardianWhatsAppOptOutAt: { type: Date },
   guardianDistrict: { type: String, default: '', trim: true, maxlength: 100 },
   guardianPostOffice: { type: String, default: '', trim: true, maxlength: 100 },
   guardianVillage: { type: String, default: '', trim: true, maxlength: 100 },
@@ -104,6 +108,15 @@ const coachingEnrollmentSchema = new mongoose.Schema({
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
   status: { type: String, enum: ['active', 'withdrawn'], default: 'active', index: true },
   enrolledAt: { type: Date, default: Date.now },
+  history: {
+    type: [{
+      action: { type: String, enum: ['enrolled', 'withdrawn', 'reactivated'], required: true },
+      date: { type: Date, default: Date.now },
+      note: { type: String, default: '', trim: true, maxlength: 300 },
+      changedBy: { type: String, required: true },
+    }],
+    default: [],
+  },
 }, { timestamps: true })
 coachingEnrollmentSchema.index({ centerId: 1, batchId: 1, studentId: 1 }, { unique: true })
 
@@ -118,6 +131,31 @@ const coachingAttendanceSchema = new mongoose.Schema({
 coachingAttendanceSchema.index({ centerId: 1, batchId: 1, date: 1, studentId: 1 }, { unique: true })
 coachingAttendanceSchema.index({ centerId: 1, date: 1 })
 
+const coachingClassSessionSchema = new mongoose.Schema({
+  centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
+  batchId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingBatch', required: true },
+  title: { type: String, default: '', trim: true, maxlength: 120 },
+  date: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/ },
+  startTime: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+  endTime: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+  status: { type: String, enum: ['scheduled', 'cancelled'], default: 'scheduled', index: true },
+  createdBy: { type: String, required: true },
+  history: {
+    type: [{
+      action: { type: String, enum: ['scheduled', 'rescheduled', 'cancelled'], required: true },
+      fromDate: { type: String, default: '' },
+      fromStartTime: { type: String, default: '' },
+      fromEndTime: { type: String, default: '' },
+      note: { type: String, default: '', trim: true, maxlength: 300 },
+      changedBy: { type: String, required: true },
+      changedAt: { type: Date, default: Date.now },
+    }],
+    default: [],
+  },
+}, { timestamps: true })
+coachingClassSessionSchema.index({ centerId: 1, date: 1, status: 1 })
+coachingClassSessionSchema.index({ centerId: 1, batchId: 1, date: 1 })
+
 const coachingFeeRecordSchema = new mongoose.Schema({
   centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
   studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
@@ -129,9 +167,57 @@ const coachingFeeRecordSchema = new mongoose.Schema({
   reference: { type: String, default: '', trim: true, maxlength: 80 },
   note: { type: String, default: '', trim: true, maxlength: 300 },
   recordedBy: { type: String, required: true },
+  status: { type: String, enum: ['active', 'voided'], default: 'active', index: true },
+  voidedAt: { type: Date },
+  voidedBy: { type: String, default: '' },
+  voidReason: { type: String, default: '', trim: true, maxlength: 300 },
 }, { timestamps: true })
 coachingFeeRecordSchema.index({ centerId: 1, feeMonth: 1, paymentDate: -1 })
 coachingFeeRecordSchema.index({ centerId: 1, studentId: 1, feeMonth: 1 })
+
+const coachingFeePlanSchema = new mongoose.Schema({
+  centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
+  monthlyAmount: { type: Number, required: true, min: 1, max: 100_000_000 },
+  startsMonth: { type: String, required: true, match: /^\d{4}-(0[1-9]|1[0-2])$/ },
+  dueDay: { type: Number, default: 10, min: 1, max: 28 },
+  updatedBy: { type: String, required: true },
+}, { timestamps: true })
+coachingFeePlanSchema.index({ centerId: 1, studentId: 1, startsMonth: 1 }, { unique: true })
+
+const coachingGuardianContactSchema = new mongoose.Schema({
+  centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
+  method: { type: String, enum: ['phone', 'in_person', 'other'], required: true },
+  reason: { type: String, enum: ['fee_due', 'absence', 'academic', 'general'], required: true },
+  note: { type: String, required: true, trim: true, maxlength: 1000 },
+  contactedAt: { type: Date, default: Date.now },
+  contactedBy: { type: String, required: true },
+}, { timestamps: true })
+coachingGuardianContactSchema.index({ centerId: 1, studentId: 1, contactedAt: -1 })
+
+const coachingWhatsAppMessageSchema = new mongoose.Schema({
+  centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
+  studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingStudent', required: true },
+  recipientPhone: { type: String, required: true, maxlength: 30 },
+  templateName: { type: String, required: true, maxlength: 120 },
+  purpose: { type: String, enum: ['fee_due', 'absence', 'schedule'], required: true },
+  status: { type: String, enum: ['queued', 'sent', 'failed'], required: true, index: true },
+  providerMessageId: { type: String, default: '', maxlength: 120 },
+  error: { type: String, default: '', maxlength: 500 },
+  sentBy: { type: String, required: true },
+}, { timestamps: true })
+coachingWhatsAppMessageSchema.index({ centerId: 1, createdAt: -1 })
+
+const coachingAuditEventSchema = new mongoose.Schema({
+  centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
+  actorId: { type: String, required: true },
+  action: { type: String, required: true, maxlength: 80 },
+  entityType: { type: String, required: true, maxlength: 80 },
+  entityId: { type: String, required: true, maxlength: 80 },
+  details: { type: mongoose.Schema.Types.Mixed, default: {} },
+}, { timestamps: true })
+coachingAuditEventSchema.index({ centerId: 1, createdAt: -1 })
 
 const coachingExamSchema = new mongoose.Schema({
   centerId: { type: mongoose.Schema.Types.ObjectId, ref: 'CoachingCenter', required: true, index: true },
@@ -191,8 +277,18 @@ export const CoachingEnrollment = mongoose.models.CoachingEnrollment
   ?? mongoose.model('CoachingEnrollment', coachingEnrollmentSchema)
 export const CoachingAttendance = mongoose.models.CoachingAttendance
   ?? mongoose.model('CoachingAttendance', coachingAttendanceSchema)
+export const CoachingClassSession = mongoose.models.CoachingClassSession
+  ?? mongoose.model('CoachingClassSession', coachingClassSessionSchema)
 export const CoachingFeeRecord = mongoose.models.CoachingFeeRecord
   ?? mongoose.model('CoachingFeeRecord', coachingFeeRecordSchema)
+export const CoachingFeePlan = mongoose.models.CoachingFeePlan
+  ?? mongoose.model('CoachingFeePlan', coachingFeePlanSchema)
+export const CoachingGuardianContact = mongoose.models.CoachingGuardianContact
+  ?? mongoose.model('CoachingGuardianContact', coachingGuardianContactSchema)
+export const CoachingWhatsAppMessage = mongoose.models.CoachingWhatsAppMessage
+  ?? mongoose.model('CoachingWhatsAppMessage', coachingWhatsAppMessageSchema)
+export const CoachingAuditEvent = mongoose.models.CoachingAuditEvent
+  ?? mongoose.model('CoachingAuditEvent', coachingAuditEventSchema)
 export const CoachingExam = mongoose.models.CoachingExam ?? mongoose.model('CoachingExam', coachingExamSchema)
 export const CoachingExamResult = mongoose.models.CoachingExamResult
   ?? mongoose.model('CoachingExamResult', coachingExamResultSchema)

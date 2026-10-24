@@ -44,11 +44,11 @@
 
 | Coaching role | বর্তমান অনুমতি |
 | --- | --- |
-| `owner` | Center overview, team membership, profile, batch, enrollment, attendance, fee receipt, exam/result ও notice পরিচালনা |
-| `manager` | Attendance, fee, exam/result ও notice-সহ owner-এর মতো center operations; owner/manager role assign বা পরিবর্তন করতে পারেন না |
-| `teacher` | নিজের linked teacher profile ও assigned batch দেখতে; নিজের batch-এর attendance, exam, result ও batch notice পরিচালনা |
+| `owner` | Center overview, team membership, profile, batch, enrollment, attendance/report, fee plan/receipt, exam/result ও notice পরিচালনা |
+| `manager` | Attendance/report, fee plan/receipt, enrollment lifecycle, guardian follow-up, exam/result ও notice পরিচালনা; owner/manager role assign বা পরিবর্তন করতে পারেন না |
+| `teacher` | নিজের linked teacher profile ও assigned batch দেখতে; নিজের batch-এর attendance/report, exam, result ও batch notice পরিচালনা |
 | `student` | নিজের linked student profile, enrolled batch, exam ও নিজের ফলাফল দেখতে; সেন্টার/নিজ batch-এর notice পড়তে |
-| `accountant` | Center-এর profile ও batch read করতে, fee receipt রেকর্ড/দেখতে এবং notice পড়তে পারেন |
+| `accountant` | Center-এর profile, batch, ক্লাস schedule ও fee due/receipt দেখতে; fee receipt রেকর্ড এবং notice পড়তে পারেন |
 | Platform `admin` | Center request approve/reject; শুধু global admin হওয়ায় center-এর student data স্বয়ংক্রিয়ভাবে দেখতে পান না |
 
 Coaching API প্রতিটি center operation-এ active membership যাচাই করে এবং MongoDB query-তে `centerId` filter প্রয়োগ করে। Coaching role platform Firebase `admin`/`teacher`/`student` claim-এর বিকল্প নয়; দুটো permission আলাদা। Student account-ও `/api/coaching` API ব্যবহার করতে পারে, কিন্তু কেবল তার coaching membership অনুমোদিত center data-তে প্রবেশ দেয়।
@@ -57,15 +57,32 @@ Coaching API প্রতিটি center operation-এ active membership যা
 
 - Center approval queue, center selector, team membership ও role পরিচালনা; Owner/Manager suspended member-এর access আবার চালু করতে পারেন।
 - অনলাইন ভর্তি ফরম: PDF-এর বিন্যাস অনুসারে শিক্ষার্থীর বাংলা/ইংরেজি নাম, পিতা-মাতা, স্থায়ী/বর্তমান ঠিকানা, অভিভাবকের ঠিকানা, জাতীয়তা, ধর্ম, জন্মতারিখ, আগের/ভর্তিচ্ছু শ্রেণি, ফোন, ইমেইল, অভিভাবকের ফোন এবং ImageBB-সহ image host-এর সরাসরি HTTPS ছবি-URL সংরক্ষণ। Student ID center-এর মধ্যে unique; Owner/Manager ফরম সম্পাদনা বা শিক্ষার্থী নিষ্ক্রিয় করতে পারেন, পুরোনো record মুছে যায় না। সংরক্ষিত ফরম তালিকা থেকে আবার print করা যায়।
+- Student profile summary: role-অনুমোদিত ব্যবহারকারী একই জায়গায় ভর্তি/ব্যাচ, সাম্প্রতিক ৯০ দিনের attendance, exam result এবং finance role-এ fee due দেখতে পারেন। Teacher শুধু নিজের assigned batch-এর শিক্ষার্থীর তথ্য পান এবং guardian-এর ব্যক্তিগত যোগাযোগ/consent তথ্য পান না।
 - আলাদা teacher profile: যোগাযোগ, বিষয় এবং ঐচ্ছিক Firebase account link।
-- Batch: নাম, শ্রেণি, বিষয়, teacher assignment ও schedule।
-- Active student-কে একই center-এর batch-এ enroll করা।
-- Attendance: batch ও date অনুযায়ী উপস্থিতি সংরক্ষণ, আগের দিনের সংরক্ষিত অবস্থা দেখা এবং নির্বাচিত দিনের saved attendance Excel-এ ডাউনলোড; Teacher কেবল নিজের assigned batch পরিচালনা করেন।
-- Fee ledger: মাস, পরিশোধের তারিখ, শিক্ষার্থী, পরিমাণ, ফি-এর ধরন, payment method ও receipt/reference-সহ manual fee receipt; Owner/Manager/Accountant রেকর্ড যোগ ও পর্যালোচনা করতে পারেন এবং invoice print করতে পারেন।
-- Coaching পরীক্ষা ও ফলাফল: batch-এর জন্য পরীক্ষার নাম, তারিখ ও পূর্ণমান তৈরি; active enrolled শিক্ষার্থীদের নম্বর/মন্তব্য রেকর্ড; পরীক্ষা ও ফলাফল আলাদা Excel workbook-এ ডাউনলোড; শিক্ষার্থী শুধু নিজের batch-এর পরীক্ষা ও নিজের ফল দেখতে পায়।
+- Batch: নাম, শ্রেণি, বিষয়, teacher assignment ও schedule; month/week grid-সহ class calendar-এ তারিখ/সময় নির্ধারণ, reschedule, কারণসহ cancel/restore, change history এবং একই batch/teacher-এর সময় সংঘাত প্রতিরোধ।
+- Dashboard: আজকের ক্লাস ও হাজিরা বাকি, আগামী ৩০ দিনের ক্লাস/পরীক্ষা এবং finance role-এ মেয়াদোত্তীর্ণ tuition summary; role অনুযায়ী শুধু অনুমোদিত batch ও তথ্য দেখানো হয়।
+- Active student-কে একই center-এর batch-এ enroll করা; ভর্তি বন্ধ/পুনরায় চালু, কারণসহ lifecycle history এবং আগের record অক্ষত রাখা।
+- Attendance: batch ও date অনুযায়ী উপস্থিতি সংরক্ষণ, আগের দিনের সংরক্ষিত অবস্থা দেখা, নির্বাচিত দিনের saved attendance Excel-এ ডাউনলোড এবং scheduled class অনুযায়ী সর্বোচ্চ ৯৩ দিনের student/batch report; অনুপস্থিত হাজিরা unmarked হিসেবে গণ্য হয়, absent নয়। Teacher কেবল নিজের assigned batch-এর রিপোর্ট দেখেন।
+- Fee ledger: মাস, পরিশোধের তারিখ, শিক্ষার্থী, পরিমাণ, ফি-এর ধরন, payment method ও receipt/reference-সহ manual fee receipt; Owner/Manager/Accountant রেকর্ড যোগ ও পর্যালোচনা করতে পারেন এবং invoice print করতে পারেন। Owner/Manager-এর মাসিক fee plan থেকে আংশিক ও অগ্রিম payment-সহ cumulative balance, মেয়াদোত্তীর্ণ ও পরবর্তী due হিসাব হয়; plan-এর প্রতিটি effective month আলাদা থাকে, পুরোনো fee rate বদলালে আগের মাসের হিসাব বদলায় না।
+- Fee correction: Owner/Manager কারণসহ receipt void করতে পারেন; receipt মুছে না দিয়ে void status ও audit event রাখা হয় এবং void payment due হিসাব থেকে বাদ যায়। Refund/online payment gateway এখনো নেই; বাস্তব refund বাইরে সম্পন্ন করে ledger-এ প্রয়োজনমতো নথি রাখতে হবে।
+- Guardian follow-up: Owner/Manager ফোন, সরাসরি বা অন্য যোগাযোগের কারণ/নোট সংরক্ষণ ও ইতিহাস দেখা; due ও attendance report থেকে কল/follow-up শুরু করা যায়। Phone link দিয়ে অভিভাবককে কল করা যায়।
+- WhatsApp: Meta Cloud API-র approved template দিয়ে Owner/Manager fee/absence reminder হাতে পাঠাতে পারেন। Student admission/edit-এ অভিভাবকের স্পষ্ট opt-in রেকর্ড করতে হয়; অনুমতি ছাড়া send block হয়, নম্বর বদলালে opt-in বাতিল হয়, consent/send attempt audit ও message history-তে থাকে। এটি এখন manual sending—কোনো scheduler, automatic retry বা delivery-status webhook নেই। API key/token শুধু server environment-এ রাখুন, frontend বা source control-এ নয়।
+- Coaching পরীক্ষা ও ফলাফল: batch-এর জন্য পরীক্ষার নাম, তারিখ ও পূর্ণমান তৈরি/সম্পাদনা; Owner/Manager পরীক্ষা archive বা restore করতে পারেন—ফলাফল অক্ষত থাকে এবং archive করা পরীক্ষা শিক্ষার্থীর তালিকায় থাকে না। Active enrolled শিক্ষার্থীদের নম্বর/মন্তব্য রেকর্ড; পরীক্ষা ও ফলাফল Excel-এ ডাউনলোড; print report card-এ শতকরা, rank ও মন্তব্য দেখানো হয় (কেন্দ্রের grading policy নির্ধারিত না থাকায় letter grade স্বয়ংক্রিয়ভাবে দেওয়া হয় না); ফলাফলের পরিবর্তন audit history-তে থাকে। শিক্ষার্থী শুধু নিজের batch-এর চলমান পরীক্ষা ও নিজের ফল দেখতে পায়।
 - Notice board: সেন্টারের সবাই বা নির্দিষ্ট batch-এর জন্য notice প্রকাশ; Teacher শুধু assigned batch-এ পাঠাতে পারেন, Owner/Manager notice archive করতে পারেন; notice তালিকা Excel-এ ডাউনলোড হয়; মেয়াদোত্তীর্ণ notice স্বয়ংক্রিয়ভাবে তালিকা থেকে বাদ যায়।
 
-Fee ledger-এ শুধু হাতে নথিভুক্ত payment receipt রাখা হয়; fee due schedule, automatic balance calculation, refund/edit এবং online payment gateway এখনো নেই। Coaching exam-এ online question delivery নেই; শুধু পরীক্ষার record ও manual result entry আছে। Guardian messaging ও notice notification এখনো নেই। Coaching feature ব্যবহার করতে API server (`npm run server`) ও MongoDB চালু থাকতে হবে।
+Fee ledger-এ শুধু হাতে নথিভুক্ত payment receipt রাখা হয়; online payment gateway/refund automation নেই। Coaching exam-এ online question delivery নেই; শুধু পরীক্ষার record, manual result entry, rank ও printable report card আছে। WhatsApp integration চালু করতে Meta WhatsApp Business Platform account, phone number ID, long-lived access token এবং Meta-তে approved message template লাগবে। `.env`-এ server-side configuration দিন:
+
+```dotenv
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_GRAPH_API_VERSION=v22.0
+WHATSAPP_TEMPLATE_FEE_DUE=
+WHATSAPP_TEMPLATE_ABSENCE=
+WHATSAPP_TEMPLATE_SCHEDULE=
+WHATSAPP_TEMPLATE_LANGUAGE=bn
+```
+
+`WHATSAPP_TEMPLATE_FEE_DUE` ও `WHATSAPP_TEMPLATE_ABSENCE`-এ Meta-তে approved template-এর সঠিক নাম দিন। Template body-তে যথাক্রমে শিক্ষার্থীর নাম/ফি মাস/বকেয়ার পরিমাণ এবং শিক্ষার্থীর নাম/তারিখ/ব্যাচের জন্য তিনটি text placeholder রাখুন। Template language code-টি `WHATSAPP_TEMPLATE_LANGUAGE`-এ দিন। Token কখনো `VITE_` prefix-সহ রাখবেন না; `.env` commit করবেন না। Provider API request গ্রহণ করলে history-তে `sent` দেখায়—এটি WhatsApp-এ delivery নিশ্চিত করে না। Letter-grade scale কেন্দ্রভিত্তিক configurable না হওয়ায় report card percentage ও rank দেখায়, letter grade নয়। Coaching feature ব্যবহার করতে API server (`npm run server`) ও MongoDB চালু থাকতে হবে।
 
 ## চালু করা
 

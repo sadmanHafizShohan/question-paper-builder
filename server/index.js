@@ -1463,8 +1463,7 @@ app.delete('/api/questions/:id', requireAdmin, async (request, response, next) =
 app.get('/api/settings/:subject/:grade', async (request, response, next) => {
   try {
     const settings = await PaperSettings.findOne({ subject: request.params.subject, grade: Number(request.params.grade) }).lean()
-    if (!settings) return response.status(404).json({ error: 'Paper settings not found' })
-    response.json(settings)
+    response.json(settings ?? {})
   } catch (error) {
     next(error)
   }
