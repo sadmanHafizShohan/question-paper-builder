@@ -103,7 +103,7 @@ WHATSAPP_TEMPLATE_LANGUAGE=bn
 3. Vercel **Settings → Environment Variables**-এ frontend variables যোগ করুন:
 
    ```dotenv
-   VITE_API_URL=https://আপনার-domain.vercel.app/api
+   VITE_API_URL=/api
    VITE_FIREBASE_API_KEY=আপনার-web-api-key
    VITE_FIREBASE_AUTH_DOMAIN=আপনার-project.firebaseapp.com
    VITE_FIREBASE_PROJECT_ID=আপনার-project-id
@@ -127,6 +127,8 @@ WHATSAPP_TEMPLATE_LANGUAGE=bn
 7. Custom domain ব্যবহার করলে `CLIENT_ORIGIN`-এ সেই exact HTTPS domain দিন এবং নতুন deployment দিন।
 
 Vercel-এর Preview deployment-এর জন্য আলাদা frontend domain হলে `CLIENT_ORIGIN`-এ comma দিয়ে একাধিক trusted domain দেওয়া যায়। `.env`, `service-account.json`, MongoDB URI এবং Firebase Admin key GitHub-এ commit করবেন না।
+
+`VITE_API_URL`-এ production-এ `http://localhost:4000/api` রাখবেন না। একই Vercel project-এর frontend ও backend হলে `/api` ব্যবহার করুন। ভুল করে localhost value থাকলেও production build এখন সেটি উপেক্ষা করে relative `/api` ব্যবহার করবে; environment variable বদলানোর পর অবশ্যই নতুন deployment/redeploy করতে হবে।
 
 ## Firebase লগইন, admin, student ও teacher role
 
