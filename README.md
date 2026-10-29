@@ -94,6 +94,40 @@ WHATSAPP_TEMPLATE_LANGUAGE=bn
 4. MongoDB demo প্রশ্ন যোগ করতে `npm run seed:demo` চালান। এটি পুনরায় চালালেও একই demo duplicate হবে না।
 5. একটি terminal-এ `npm run server` চালান। আরেকটি terminal-এ `npm run dev` চালান। Vite যদি 5173 ব্যবহার করতে না পারে, terminal-এ দেখানো 5174 URL-টি খুলুন।
 
+## Vercel-এ frontend ও backend deploy
+
+এই project-এ Vite frontend এবং Express API একই Vercel project-এ deploy করা যায়। `api/index.js` backend-কে Vercel Serverless Function হিসেবে expose করে এবং `vercel.json` `/api/*` request-গুলো সেখানে পাঠায়।
+
+1. GitHub-এ project push করুন এবং Vercel-এ repository import করুন।
+2. Vercel project settings-এ **Framework Preset: Vite**, **Build Command: `npm run build`**, এবং **Output Directory: `dist`** রাখুন।
+3. Vercel **Settings → Environment Variables**-এ frontend variables যোগ করুন:
+
+   ```dotenv
+   VITE_API_URL=https://আপনার-domain.vercel.app/api
+   VITE_FIREBASE_API_KEY=আপনার-web-api-key
+   VITE_FIREBASE_AUTH_DOMAIN=আপনার-project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=আপনার-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=আপনার-project.firebasestorage.app
+   VITE_FIREBASE_MESSAGING_SENDER_ID=আপনার-sender-id
+   VITE_FIREBASE_APP_ID=আপনার-app-id
+   ```
+
+4. একই Vercel project-এর environment variables-এ backend variables যোগ করুন:
+
+   ```dotenv
+   NODE_ENV=production
+   MONGODB_URI=আপনার-MongoDB-connection-string
+   CLIENT_ORIGIN=https://আপনার-domain.vercel.app
+   FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+   ```
+
+   `FIREBASE_SERVICE_ACCOUNT_JSON`-এ Firebase Admin service-account JSON-এর সম্পূর্ণ content এক লাইনে দিন। Vercel-এ `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json` ব্যবহার করবেন না; local key file Serverless Function-এ থাকে না।
+5. Deploy হওয়ার পর `https://আপনার-domain.vercel.app/api/health` খুলে API এবং database status পরীক্ষা করুন।
+6. Firebase Console → **Authentication → Settings → Authorized domains**-এ Vercel domain যোগ করুন।
+7. Custom domain ব্যবহার করলে `CLIENT_ORIGIN`-এ সেই exact HTTPS domain দিন এবং নতুন deployment দিন।
+
+Vercel-এর Preview deployment-এর জন্য আলাদা frontend domain হলে `CLIENT_ORIGIN`-এ comma দিয়ে একাধিক trusted domain দেওয়া যায়। `.env`, `service-account.json`, MongoDB URI এবং Firebase Admin key GitHub-এ commit করবেন না।
+
 ## Firebase লগইন, admin, student ও teacher role
 
 1. Firebase Console-এ project ও Web App তৈরি করে **Authentication → Sign-in method → Google** চালু করুন। **Authentication → Settings → Authorized domains**-এ local ও production website domain যোগ করুন। এই app-এ শুধু Google sign-in থাকবে; পুরোনো Email/Password account থাকলে provider বন্ধ করার আগে সেগুলো Google-এর সঙ্গে link/migrate করুন।

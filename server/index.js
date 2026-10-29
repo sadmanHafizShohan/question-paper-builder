@@ -1489,15 +1489,26 @@ app.use((error, _request, response, _next) => {
   response.status(status).json({ error: status === 400 ? error.message : 'Internal server error' })
 })
 
-async function start() {
+let databaseConnection
+
+export async function connectDatabase() {
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI is missing. Copy .env.example to .env and add your MongoDB connection string.')
   }
-  await mongoose.connect(process.env.MONGODB_URI)
+  databaseConnection ??= mongoose.connect(process.env.MONGODB_URI)
+  await databaseConnection
+}
+
+export { app }
+
+async function start() {
+  await connectDatabase()
   app.listen(port, () => console.log(`MongoDB API listening at http://localhost:${port}`))
 }
 
-start().catch((error) => {
-  console.error(error.message)
-  process.exitCode = 1
-})
+if (process.env.VERCEL !== '1') {
+  start().catch((error) => {
+    console.error(error.message)
+    process.exitCode = 1
+  })
+}
